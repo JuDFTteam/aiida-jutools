@@ -33,14 +33,16 @@ def cif2astr(cifpath):
 
     structure = analyze_symmetry(dd)
 
-    print(prompt + structure['aiida_structure_conventional'].extras['check_cif']['message']+'\n')
-    print(prompt + 'label:           ' + CC1 + structure['aiida_structure_conventional'].label + CEND)
-    print(prompt + 'description:     ' + structure['aiida_structure_conventional'].description)
-    print(prompt + 'prototype:       ' + CC2 + structure['aiida_structure_conventional'].extras['prototype']['nprot'] + CEND +
-          ' : ' + CC2 + structure['aiida_structure_conventional'].extras['prototype']['nrw'] + CEND)
-    print(prompt + 'specification:   ' + structure['aiida_structure_conventional'].extras['system']['specification'])
+    if structure.get('aiida_structure_conventional'):
 
-    print('\n'+'extras:'+'\n')
-    pprint(structure['aiida_structure_conventional'].extras, width=256)
+        print(prompt + structure['aiida_structure_conventional'].extras['check_cif']['message']+'\n')
+        print(prompt + 'label:           ' + CC1 + structure['aiida_structure_conventional'].label + CEND)
+        print(prompt + 'description:     ' + structure['aiida_structure_conventional'].description)
+        print(prompt + 'prototype:       ' + CC2 + structure['aiida_structure_conventional'].extras['prototype']['nprot'] + CEND +
+              ' : ' + CC2 + structure['aiida_structure_conventional'].extras['prototype']['nrw'] + CEND)
+        print(prompt + 'specification:   ' + structure['aiida_structure_conventional'].extras['system']['specification'])
+
+        print('\n'+'extras:'+'\n')
+        pprint(structure['aiida_structure_conventional'].extras, width=256)
 
 cif2astr('/path/to/cif/file.cif')
