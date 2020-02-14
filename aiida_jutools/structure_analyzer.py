@@ -188,6 +188,9 @@ def cif_check(cif_read,cif_data,spgl):
 
     info = {}
 
+    sg_spgo = None
+    hallnum_spgo = None
+
     hallnum_spgd = spgl['hall_number']
     hallnum_spgo  = 0
     sg_spgd = spglib.get_spacegroup_type(hallnum_spgd)
@@ -227,36 +230,36 @@ def cif_check(cif_read,cif_data,spgl):
             if key0 == 'sg' and key1 == 'number':
                 info[key0][key1]['read'] = str(cif_read.get(cif_read.keys()[0]).get('_symmetry_Int_Tables_number'))
                 info[key0][key1]['data'] = str(cif_data.get_spacegroup_numbers()[0])
-                info[key0][key1]['spgo'] = str(sg_spgo[key1])
-                info[key0][key1]['spgd'] = str(sg_spgd[key1])
+                info[key0][key1]['spgo'] = str(sg_spgo.get(key1))
+                info[key0][key1]['spgd'] = str(sg_spgd.get(key1))
                 check_setdif(info,key0,key1,True,setdiflist)
             if key0 == 'sg' and key1 == 'hall_number':
                 info[key0][key1]['spgo'] = str(hallnum_spgo)
                 info[key0][key1]['spgd'] = str(hallnum_spgd)
                 check_setdif(info,key0,key1,False,setdiflist)
             if key0 == 'sg' and key1 == 'choice':
-                info[key0][key1]['spgo'] = str(sg_spgo[key1])
-                info[key0][key1]['spgd'] = str(sg_spgd[key1])
+                info[key0][key1]['spgo'] = str(sg_spgo.get(key1))
+                info[key0][key1]['spgd'] = str(sg_spgd.get(key1))
                 check_setdif(info,key0,key1,False,setdiflist)
             if key0 == 'sg' and key1 == 'international_full':
                 info[key0][key1]['read'] = cif_read.get(cif_read.keys()[0]).get('_symmetry_space_group_name_h-m')
-                info[key0][key1]['spgo'] = str(sg_spgo[key1])
-                info[key0][key1]['spgd'] = str(sg_spgd[key1])
+                info[key0][key1]['spgo'] = str(sg_spgo.get(key1))
+                info[key0][key1]['spgd'] = str(sg_spgd.get(key1))
             if key0 == 'sg' and key1 == 'international_short':
-                info[key0][key1]['spgo'] = str(sg_spgo[key1])
-                info[key0][key1]['spgd'] = str(sg_spgd[key1])
+                info[key0][key1]['spgo'] = str(sg_spgo.get(key1))
+                info[key0][key1]['spgd'] = str(sg_spgd.get(key1))
             if key0 == 'sg' and key1 == 'hall_symbol':
-                info[key0][key1]['spgo'] = str(sg_spgo[key1])
-                info[key0][key1]['spgd'] = str(sg_spgd[key1])
+                info[key0][key1]['spgo'] = str(sg_spgo.get(key1))
+                info[key0][key1]['spgd'] = str(sg_spgd.get(key1))
             if key0 == 'sg' and key1 == 'schoenflies':
-                info[key0][key1]['spgo'] = str(sg_spgo[key1])
-                info[key0][key1]['spgd'] = str(sg_spgd[key1])
+                info[key0][key1]['spgo'] = str(sg_spgo.get(key1))
+                info[key0][key1]['spgd'] = str(sg_spgd.get(key1))
             if key0 == 'sg' and key1 == 'pointgroup_schoenflies':
-                info[key0][key1]['spgo'] = str(sg_spgo[key1])
-                info[key0][key1]['spgd'] = str(sg_spgd[key1])
+                info[key0][key1]['spgo'] = str(sg_spgo.get(key1))
+                info[key0][key1]['spgd'] = str(sg_spgd.get(key1))
             if key0 == 'sg' and key1 == 'pointgroup_international':
-                info[key0][key1]['spgo'] = str(sg_spgo[key1])
-                info[key0][key1]['spgd'] = str(sg_spgd[key1])
+                info[key0][key1]['spgo'] = str(sg_spgo.get(key1))
+                info[key0][key1]['spgd'] = str(sg_spgd.get(key1))
             if key0 == 'str' and key1 == 'chemical_formula_sum':
                 info[key0][key1]['read'] = cif_read.get(cif_read.keys()[0]).get('_chemical_formula_sum')
                 info[key0][key1]['data'] = cif_data.attributes['formulae'][0]
@@ -416,7 +419,7 @@ def determine_wyckrep(pymg_dict,spgl,symmetry_dict):
     ngrp = len(set([x['idx_grp'] for x in eqdict.values()]))
     wyck = [None]*ngrp
     for idx in range(0,ngrp):
-        wyck[idx] = ['', [[0,0],[0,0,0]], [], '']
+        wyck[idx] = ['', [[0,0],[0,0,0]], [], '', []]
         
     # using spgl positions because they depend on a particular setting/choice
     rspg = [x[1] for x in sorted(zip(spgl['std_mapping_to_primitive'].tolist(),spgl['std_positions'].tolist()))[:]]
@@ -467,6 +470,7 @@ def determine_wyckrep(pymg_dict,spgl,symmetry_dict):
                         if  arabc0 < arwyck0:
                             repwyck = rabc
         wyck[sidx][2][widx][2] = [round(repwyck[x],roundtol) for x in range(0,3)]
+        wyck[sidx][4].append(idx)
     # end loop: all expanded positions
 
     # copy wyck to wycksort
@@ -522,6 +526,10 @@ def determine_wyckrep(pymg_dict,spgl,symmetry_dict):
     xproto["nsc"] = spgl['choice']
     pearson = symmetry_dict["crystal_family"]+symmetry_dict["lattice_centering"]+str(nsites_occ)
     xproto["nprot"] = '_'.join(simple_stoich) + '__' + pearson + '__' + str(spgl['number']) # prototype name
+    siteorder = [y for x in wycksort for y in x[4]]
+    sitesort = [siteorder.index(x) for x in sorted(siteorder)]
+    for idx in range(len(wycksort)):
+        del wycksort[idx][4]
 
     # number of formula units in unit cell (Z)
     zlist_nom = []
@@ -676,7 +684,7 @@ def determine_wyckrep(pymg_dict,spgl,symmetry_dict):
     labels["structure_c"] = pearson+' '+supersimple_stoich
     labels["chemistry"] = xproto["stoich"]["formula_eniupac"]
 
-    return (xproto,labels)
+    return (xproto,labels,sitesort)
 
 """
 nearest integer Wyckoff position multiplicity for vacant structure sites with concentration 0 < conc < 1
@@ -951,13 +959,22 @@ def construct_pymg_kkr(pymg,spgo,prototype):
     else:
         vacitem = []
 
-    pymgprop = None
+    pymgkind = {}
     if pymg_kkr.site_properties.get('kind_name'):
-        pymgprop = {'kind_name' : 'X'}
+        pymgkind = {'kind_name' : 'X'}
+    if pymg_kkr.site_properties.get('sorting_index'):
+        last_sorting_index = max(pymg_kkr.site_properties['sorting_index'])
 
+    idx = 0
     for x in vacitem:
         for pos in x:
-            pymg_kkr.append({'X': 1.0}, pos, validate_proximity = True, properties=pymgprop)
+            idx += 1
+            pymg_kkr.append(
+                {'X': 1.0},
+                pos,
+                validate_proximity = True,
+                properties = {**pymgkind, **{'sorting_index' : last_sorting_index + idx}}
+            )
 
     ok = len(okar) == 0 or any(okar)
 
@@ -1040,8 +1057,10 @@ def analyze_symmetry(dd):
     global verbose
     global prototypes
 
+    output = {}
+
     # variables, constants
-    dim = [3,3]
+    dim = [3,3] # 3-dim system with 3-dim periodic lattice
     system = {}
 
     # data format
@@ -1087,6 +1106,10 @@ def analyze_symmetry(dd):
         check_cif = {}
 
         cif_read = ReadCif(path) # dictionary generated directly from cif file
+        if float(max(cif_read.get(cif_read.keys()[0]).get('_atom_site_occupancy')).split('(')[0]) > 1:
+            print(prompt + CWR + '!!! Site occupation larger than 1 was found !!!' + CEND)
+            return output
+
         cif_data = CifData(file=path) # aiida CifData
         
         sis = get_sis(path) # unique identifier
@@ -1098,20 +1121,17 @@ def analyze_symmetry(dd):
             "file_content" : cif_data.get_content()
         }
 
-        astr_conv = cif_data.get_structure() # conventional unit cell aiida StructureData
-        astr_prim = cif_data.get_structure(primitive_cell=True) # primitive unit cell aiida StructureData
-
-        pymg_conv = astr_conv.get_pymatgen() # conventional unit cell pymatgen structure
+        astr_init = cif_data.get_structure() # conventional unit cell aiida StructureData
+        pymg_init = astr_init.get_pymatgen() # conventional unit cell pymatgen structure
 
         # following line could be replaced by "from aiida.tools.data.structure import structure_to_spglib_tuple", if it works correctly for disordered structures
-        (lattice,positions,numbers) = construct_spglib_input_from_pymatgen(pymg_conv) # (lattice,positions,numbers) input for spglib
-        spgd = spglib.get_symmetry_dataset((lattice,positions,numbers)) # spglib symmetry dataset corresponding to pymg_conv and astr_conv
+        (lattice,positions,numbers) = construct_spglib_input_from_pymatgen(pymg_init) # (lattice,positions,numbers) input for spglib
+        spgd = spglib.get_symmetry_dataset((lattice,positions,numbers)) # spglib symmetry dataset corresponding to pymg_init and astr_init
         check_cif = cif_check(cif_read,cif_data,spgd) # check_cif dictionary contains some cross-checks about symmetry and structure
-        
 
         if check_cif['check'] == 1: # if check is successful
-            # original choice/setting is used to get spgo_conv spgilb symmetry dataset
-            spgo_conv = spglib.get_symmetry_dataset((lattice,positions,numbers),hall_number=int(check_cif['sg']['hall_number']['spgo']))
+            # original choice/setting is used to get spgo_init spgilb symmetry dataset
+            spgo_init = spglib.get_symmetry_dataset((lattice,positions,numbers),hall_number=int(check_cif['sg']['hall_number']['spgo']))
             # system properties, will be later moved to external function as soon as it becomes more complex
             system['kind'] = 'homogeneous'
             system['components'] = [{}]
@@ -1122,13 +1142,13 @@ def analyze_symmetry(dd):
             system['components'][0]['objects'] = [{}]
             system['components'][0]['objects_interface'] = None
             system['components'][0]['objects'][0]['character'] = ['crystalline']
-            if astr_conv.is_alloy:
+            if astr_init.is_alloy:
                 system['components'][0]['objects'][0]['character'].append('alloyed')
-            if astr_conv.has_vacancies:
+            if astr_init.has_vacancies:
                 system['components'][0]['objects'][0]['character'].append('vacant')
             system['components'][0]['objects'][0]['object'] = 'bulk'
             system['components'][0]['objects'][0]['boundary_conditions'] = {
-                'periodic' : astr_conv.pbc,
+                'periodic' : astr_init.pbc,
                 'vacuum_at_infinity' : [0,0,0,0,0,0],
                 'vacuum_interface' : [0,0,0,0,0,0]
             }
@@ -1151,19 +1171,21 @@ def analyze_symmetry(dd):
     # end condition: cif file
             
     # at this point the following has to be available:
-    # - pymg_conv
-    # - spgo_conv
+    # - pymg_init
+    # - spgo_init
     # - sis
-
-    output = {}
 
     if ok:
         # this has to be generalized as more formats (aiida structure, POSCAR) will be included
         # dictionary with symmetry information is created
         if dim == [3,3]:
-            symmetry = construct_symmetry_dict(dim,spgo_conv['number'],spgo_conv['international'],spgo_conv['pointgroup'])
+            symmetry = construct_symmetry_dict(dim,spgo_init['number'],spgo_init['international'],spgo_init['pointgroup'])
 
-        (prototype,labels) = determine_wyckrep(pymg_conv.as_dict(),spgo_conv,symmetry)
+        (prototype,labels,sitesort) = determine_wyckrep(pymg_init.as_dict(),spgo_init,symmetry)
+
+        pymg_init.add_site_property('sorting_index',sitesort)
+        pymg_conv = pymg_init.get_sorted_structure(key=lambda x:x.properties['sorting_index'])
+        
         labels['id'] = sis
         system['components'][0]['objects'][0]['action'] = None
         system['components'][0]['objects'][0]['target_labels'] = labels
@@ -1178,6 +1200,8 @@ def analyze_symmetry(dd):
 
         # AIIDA structure conventional
         if 'a_conv' in outmode:
+
+            astr_conv = StructureData(pymatgen=pymg_conv)
 
             if fmt == 'cif':
                 astr_conv.set_extra("data_structure_original", data_structure_original)
@@ -1195,6 +1219,8 @@ def analyze_symmetry(dd):
         # AIIDA structure primitive
         if 'a_prim' in outmode:
 
+            astr_prim = StructureData(pymatgen=pymg_conv.get_primitive_structure(tolerance=0.01).get_sorted_structure(key=lambda x:x.properties['sorting_index']))
+
             if fmt == 'cif':
                 astr_prim.set_extra("data_structure_original", data_structure_original)
                 astr_prim.set_extra("check_cif", check_cif)
@@ -1211,11 +1237,11 @@ def analyze_symmetry(dd):
         # AIIDA structure primitive for KKR
         if 'a_primkkr' in outmode:
 
-            (pymg_kkr,pymg_kkr_ok) = construct_pymg_kkr(pymg_conv,spgo_conv,prototype)
+            (pymg_kkr,pymg_kkr_ok) = construct_pymg_kkr(pymg_conv,spgo_init,prototype)
 
             if pymg_kkr_ok:
 
-                astr_prim_kkr = StructureData(pymatgen=pymg_kkr.get_primitive_structure(tolerance=0.01))
+                astr_prim_kkr = StructureData(pymatgen=pymg_kkr.get_primitive_structure(tolerance=0.01).get_sorted_structure(key=lambda x:x.properties['sorting_index']))
 
                 for (ikind,kind) in enumerate(astr_prim_kkr.attributes['kinds']):
                     sumw = round(sum(kind['weights']),roundtom)
