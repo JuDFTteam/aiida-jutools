@@ -19,7 +19,7 @@ script:
   # refresh entry points
   - reentry scan
   # run tests
-  - cd tests; pytest --cov -sv .
+  - cd tests; pytest --cov-report=term-missing --cov=aiida_jutools -sv .
 after_success:
   - pip install codecov
   - codecov
