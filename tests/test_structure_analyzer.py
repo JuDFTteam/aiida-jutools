@@ -11,8 +11,8 @@ import sys
 from aiida import load_profile
 load_profile()
 
-from structure_analyzer import analyze_symmetry
-from terminal_colors import *
+from aiida_jutools.structure_analyzer import analyze_symmetry
+from aiida_jutools.terminal_colors import *
 from pprint import pprint
 
 __copyright__ = (u"Copyright (c), 2019-2020, Forschungszentrum Jülich GmbH, "
@@ -45,4 +45,6 @@ def cif2astr(cifpath):
         print('\n'+'extras:'+'\n')
         pprint(structure['aiida_structure_conventional'].extras, width=256)
 
-cif2astr('/path/to/cif/file.cif')
+
+def test_cif2astr(aiida_env):
+    cif2astr('files/Cu_mp-30_computed.cif')

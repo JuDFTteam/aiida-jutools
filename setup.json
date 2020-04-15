@@ -28,6 +28,9 @@
         "PyCifRW"
     ],
     "extras_require": {
+        "testing": [
+            "pytest"
+        ],
         "docs": [
             "sphinx",
             "sphinx-rtd-theme"
