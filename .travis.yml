@@ -13,11 +13,13 @@ matrix:
     - python: 3.8
 install: # python installations
   - pip install -U pip wheel setuptools
-  - pip install -U pytest
-  - pip install -e .
-  - pip install codecov
-  - reentry scan
+  # install package and requirements for tests
+  - pip install -e .[testing]
 script:
+  # refresh entry points
+  - reentry scan
+  # run tests
   - pytest -sv .
 after_success:
+  - pip install codecov
   - codecov
