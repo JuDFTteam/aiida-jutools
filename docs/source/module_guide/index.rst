@@ -1,8 +1,11 @@
-Modules provided with aiida-kkr (API reference)
-===============================================
+Modules provided with aiida-jutools (API reference)
+===================================================
 
 .. toctree::
     :maxdepth: 3
 
-    tools
+.. automodule:: aiida_jutools.structure_analyzer
+   :members:
+   :private-members:
+   :special-members:
 

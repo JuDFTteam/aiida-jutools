@@ -26,7 +26,7 @@ from CifFile import ReadCif
 import spglib
 
 # local imports
-from terminal_colors import *
+from .terminal_colors import *
 # CSQ color for sequence
 # CDB color for structure database
 # CRC color for recipe
@@ -37,7 +37,7 @@ from terminal_colors import *
 # CER color for error messages
 # COK color for OK messages
 # CIN color for info messages
-from ptable import ptable
+from .ptable import ptable
 
 __copyright__ = (u"Copyright (c), 2019-2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")

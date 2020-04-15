@@ -1,6 +1,6 @@
-#########################################
+#######################################################################
 `AiiDA`_ helper tools used byt the aiida-plugins for the `juDFT`_ codes
-#########################################
+#######################################################################
 
 .. image:: images/AiiDA_transparent_logo.png
     :width: 40%
@@ -33,7 +33,7 @@ User's guide
    user_guide/index
 
 Modules provided with aiida-jutools (API reference)
-+++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. toctree::
    :maxdepth: 4

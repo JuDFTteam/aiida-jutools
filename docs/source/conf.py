@@ -22,14 +22,13 @@ sys.path.append( os.path.join( os.path.split(__file__)[0],
 os.environ['DJANGO_SETTINGS_MODULE'] = 'rtd_settings'
 
 import aiida
-from aiida.backends import settings
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #sys.path.append(os.path.abspath('../'))
 #sys.path.append(os.path.abspath('../../'))
-import aiida_kkr
+import aiida_jutools
 
 # -- General configuration ------------------------------------------------
 
@@ -72,7 +71,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'aiida-kkr'
+project = u'aiida-jutools'
 copyright_first_year = 2017
 copyright_owners = u"FZ Jülich GmbH, Germany"
 
@@ -85,7 +84,7 @@ copyright = u'{}, {}. All rights reserved'.format(copyright_year_string, copyrig
 # built documents.
 #
 # The full version, including alpha/beta/rc tags.
-release = aiida_kkr.__version__
+release = aiida_jutools.__version__
 # The short X.Y version.
 version = '.'.join(release.split('.')[:2])
 
@@ -213,7 +212,7 @@ html_show_sourcelink = False
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
 # base URL from which the finished HTML is served.
-html_use_opensearch = 'http://aiida-kkr.readthedocs.io'
+html_use_opensearch = 'http://aiida-jutools.readthedocs.io'
 
 # This is the file name suffix for HTML files (e.g. ".xhtml").
 #html_file_suffix = None
@@ -233,7 +232,7 @@ html_search_language = 'en'
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'aiida-kkrdoc'
+htmlhelp_basename = 'aiida-jutools-doc'
 
 # -- Options for LaTeX output --------------------------------------------------
 
@@ -254,7 +253,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'aiida-kkr.tex', u'AiiDA-KKR documentation',
+  ('index', 'aiida-jutools.tex', u'AiiDA-Jutools documentation',
    author.replace(',',r'\and'), 'manual'),
 ]
 
@@ -278,9 +277,6 @@ latex_documents = [
 # If false, no module index is generated.
 #latex_domain_indices = True
 
-# We set that we are in documentation mode - even for local compilation
-settings.IN_DOC_MODE = True
-
 # on_rtd is whether we are on readthedocs.org, this line of code grabbed
 # from docs.readthedocs.org
 # NOTE: it is needed to have these lines before load_profile()
@@ -300,53 +296,10 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
     load_profile()
 else:
     # Back-end settings for readthedocs online documentation.
-    # from aiida.backends import settings
-    settings.IN_RT_DOC_MODE = True
-    settings.BACKEND = "django"
-    settings.AIIDADB_PROFILE = "default"
-
-'''
-def run_apidoc(_):
-    """Runs sphinx-apidoc when building the documentation.
-
-    Needs to be done in conf.py in order to include the APIdoc in the
-    build on readthedocs.
-
-    See also https://github.com/rtfd/readthedocs.org/issues/1139
-    """
-    source_dir = os.path.abspath(os.path.dirname(__file__))
-    apidoc_dir = os.path.join(source_dir, 'apidoc')
-    package_dir = os.path.join(source_dir, os.pardir, os.pardir)
-
-    # In #1139, they suggest the route below, but for me this ended up
-    # calling sphinx-build, not sphinx-apidoc
-    #from sphinx.apidoc import main
-    #main([None, '-e', '-o', apidoc_dir, package_dir, '--force'])
-
-    import subprocess
-    cmd_path = 'sphinx-apidoc'
-    if hasattr(sys, 'real_prefix'):  # Check to see if we are in a virtualenv
-        # If we are, assemble the path manually
-        cmd_path = os.path.abspath(os.path.join(sys.prefix, 'bin', 'sphinx-apidoc'))
-
-    options = [
-        '-o', apidoc_dir, package_dir,
-        '--private',
-        '--force',
-        '--no-headings',
-        '--module-first',
-        '--no-toc',
-        '--maxdepth', '4',
-    ]
-
-    # See https://stackoverflow.com/a/30144019
-    env = os.environ.copy()
-    env["SPHINX_APIDOC_OPTIONS"] = 'members,special-members,private-members,undoc-members,show-inheritance'
-    subprocess.check_call([cmd_path] + options, env=env)
-'''
-
-#def setup(app):
-#    app.connect('builder-inited', run_apidoc)
+    from aiida.manage import configuration
+    configuration.IN_RT_DOC_MODE = True
+    configuration.BACKEND = "django"
+    configuration.AIIDADB_PROFILE = "default"
 
 
 # -- Options for manual page output --------------------------------------------
@@ -354,7 +307,7 @@ def run_apidoc(_):
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'aiida-kkr', u'AiiDA-KKR documentation',
+    ('index', 'aiida-jutools', u'AiiDA-Jutools documentation',
      [author], 1)
 ]
 
@@ -368,7 +321,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'aiida-kkr', u'AiiDA-KKR documentation',
+  ('index', 'aiida-jutools', u'AiiDA-Ju documentation',
    author, 'aiida', 'KKR pluginf for Aiida framework',
    'Miscellaneous'),
 ]
@@ -433,12 +386,6 @@ epub_copyright = copyright
 # We should ignore any python built-in exception, for instance
 nitpick_ignore = []
 
-for line in open('nitpick-exceptions'):
-    if line.strip() == "" or line.startswith("#"):
-        continue
-    dtype, target = line.split(None, 1)
-    target = target.strip()
-    nitpick_ignore.append((dtype, target))
 nitpick_ignore = [
     ('py:exc', 'ArithmeticError'),
     ('py:exc', 'AssertionError'),
