@@ -29,11 +29,11 @@
     ],
     "extras_require": {
         "testing": [
-            "pytest",
+            "pytest-cov",
             "pgtest"
         ],
         "docs": [
-            "sphinx",
+            "Sphinx",
             "sphinx-rtd-theme"
         ]
     },
