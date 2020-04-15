@@ -29,7 +29,8 @@
     ],
     "extras_require": {
         "testing": [
-            "pytest"
+            "pytest",
+            "pgtest"
         ],
         "docs": [
             "sphinx",
