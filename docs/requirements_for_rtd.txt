@@ -1,2 +1,4 @@
 aiida-core~=1.0.0
 numpy~=1.17
+pymatgen
+PyCifRW

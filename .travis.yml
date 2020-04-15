@@ -16,7 +16,7 @@ install: # python installations
   - pip install -U pytest
   - pip install -e .
   - pip install codecov
-#script:
-#  - pytest -sv .
-#after_success:
-#  - codecov
+script:
+  - pytest -sv .
+after_success:
+  - codecov
