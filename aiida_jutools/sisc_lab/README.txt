@@ -11,6 +11,7 @@ you can then import these functions in you notebooks by:
 ```
 from aiida_jutools.sisclab.helpers import <xyfunction>
 ```
+(if case of import problems see below)
 
 As a project target I have put 2 'deliverable' python notbooks which you will have to implement.
 The overall goal is that we can execute them on any database we have.
@@ -21,4 +22,11 @@ You can export the results of the notebooks for your report and presentation. Ei
 
 Have Fun! Johannes, Jens & Daniel
 
-
+#####
+In case of import problems: you probably have to install the aiida-jutools repo.
+for this go to the to folder in the git repository and execute
+(cd aiida-jutools)
+```
+pip install -e .
+```
+This requires aiida so you can only install it somewhere where you have already aiida installed i.e on quantum mobile for example.
