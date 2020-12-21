@@ -1,5 +1,5 @@
 SiScLab-2020 project
-####################
+====================
 
 In this folder you can put/dump all your files, they will be automaticly part of this python package.
 So you do not have to worry about packaging.
