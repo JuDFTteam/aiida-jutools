@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IDE JetBrains PyCharm project folder
+/.idea/
