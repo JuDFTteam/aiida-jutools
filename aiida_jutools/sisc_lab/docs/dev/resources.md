@@ -13,14 +13,13 @@ This is an incomplete, sorted dump for resources/stuff posted in the SiScLab2020
 **Table of Contents**
 
 - [SiScLab2020 Project Resources](#sisclab2020-project-resources)
-    - [-](#-)
 - [Preface](#preface)
 - [Central resources](#central-resources)
 - [Datasets](#datasets)
 - [AiiDA resources](#aiida-resources)
 - [Python](#python)
-- [Git](#git)
 - [Data analysis & visualization](#data-analysis--visualization)
+- [Git](#git)
 
 <!-- markdown-toc end -->
 
@@ -106,6 +105,7 @@ Python development:
 
 # Git
 
+- [Johannes' git_howto for student project work](https://git.rwth-aachen.de/sisc/git_howto).
 - [Learn Git in 15 minutes](https://www.youtube.com/watch?v=USjZcfj8yxE).
 - [Git cheatsheet](https://i.redd.it/8341g68g1v7y.png).
 
