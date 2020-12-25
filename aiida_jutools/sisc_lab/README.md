@@ -19,5 +19,5 @@ TODO.
 
 - [Instructions](docs/dev/instructions.md)
 - [Meetings](docs/dev/meetings.md)
-- [Recources](docs/dev/resources.md)
+- [Resources](docs/dev/resources.md)
 
