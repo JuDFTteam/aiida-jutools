@@ -93,6 +93,7 @@ Python development:
     - IDEs:
       - spyder
       - vscode
+        - Note: vscode allows [remote development](https://code.visualstudio.com/docs/remote/ssh), where the remote maybe a virtual machine or an actual physically remote computer. This means your IDE runs on your local system, but can access environments, codes and notebooks lying on the VM / remote machine.
       - pycharm (student license)
   - Packaging:
     - [Python Packages tutorial](https://www.pythontutorial.net/python-basics/python-packages/)
