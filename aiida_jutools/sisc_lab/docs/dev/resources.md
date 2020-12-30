@@ -79,27 +79,57 @@ Note: these are for now copy-pasted into the project repository subfolder, so yo
 
 # Python
 
-- Core Python:
-  - Python distributions:
-    - anaconda
+## Core Python
 
-Python packages:
-  - [github.com/awesome-python](https://github.com/vinta/awesome-python).
+- [Python 3 Module of the Week](https://pymotw.com/3/) Very good series to learn the Python 3 STL.
 
-Python development:
-  - General:
-    - [Python package best practices](https://education.molssi.org/python-package-best-practices/index.html)
-  - Dev tools:
-    - IDEs:
-      - spyder
-      - vscode
-        - Note: vscode allows [remote development](https://code.visualstudio.com/docs/remote/ssh), where the remote maybe a virtual machine or an actual physically remote computer. This means your IDE runs on your local system, but can access environments, codes and notebooks lying on the VM / remote machine.
-      - pycharm (student license)
-  - Packaging:
-    - [Python Packages tutorial](https://www.pythontutorial.net/python-basics/python-packages/)
-    - [Python Package tutorial](https://www.programiz.com/python-programming/package)
 
-# Data analysis & visualization
+## Python Ecosystem
+### Lists
+
+- [github.com/awesome-python](https://github.com/vinta/awesome-python).
+
+### Serialization
+
+- json
+- csv
+- pickle
+  - [Pickling in Python - The Very Basics](https://ianlondon.github.io/blog/pickling-basics/)
+  - 
+
+## Python development
+
+### General
+
+- [Python package best practices](https://education.molssi.org/python-package-best-practices/index.html)
+
+### Deployment
+
+- [Python Packages tutorial](https://www.pythontutorial.net/python-basics/python-packages/)
+- [Python Package tutorial](https://www.programiz.com/python-programming/package)
+
+### Dev tools
+
+#### IDEs
+- spyder
+- vscode
+  - [vscode remote development](https://code.visualstudio.com/docs/remote/ssh), where the remote maybe a virtual machine or an actual physically remote computer. This means your IDE runs on your local system, but can access environments, codes and notebooks lying on the VM / remote machine.
+  - [vscode live share](https://visualstudio.microsoft.com/de/services/live-share/) collaborative development.
+- pycharm (student license)
+  - [pycharm remote development](https://www.jetbrains.com/help/pycharm/creating-project-remotely.html).
+  - [pycharm code with me](https://plugins.jetbrains.com/plugin/14896-code-with-me) collaborative development.
+
+# Data science
+
+## General
+
+### Lists
+
+- [Awesome Python Data Science](https://github.com/krzjoa/awesome-python-data-science#data-manipulation)
+- [Awesome Pipeline](https://github.com/pditommaso/awesome-pipeline) Has some data science pipeline/workflow tools.
+- [awesome-etl](https://github.com/pawl/awesome-etl) "A curated list of notable ETL (extract, transform, load) frameworks, libraries and software."
+
+## Data analysis & visualization
 
 - [data-to-viz.com](https://www.data-to-viz.com/): flowchart, leads you to the most appropriate graph for your data. It links to the code (python) to build it and lists common caveats you should avoid.
 - [coolinfographics.com](https://coolinfographics.com/dataviz-guides) list of dataviz-guides. more conceptual, less code.
