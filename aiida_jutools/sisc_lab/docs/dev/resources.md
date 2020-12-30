@@ -107,7 +107,7 @@ Note: these are for now copy-pasted into the project repository subfolder, so yo
 - csv
 - pickle
   - [Pickling in Python - The Very Basics](https://ianlondon.github.io/blog/pickling-basics/)
-  - 
+  - [PyMOTW-3 - pickle — Object Serialization](https://pymotw.com/3/pickle/)
 
 ## Python development
 
