@@ -3,7 +3,7 @@ SiScLab2020 Project
 
 Title: ???.
 
-Authors: [Zhipeng Tan](https://github.com/???), [Sijie Luo](https://github.com/???), [Anna ???](https://github.com/???), [Miao Wang](https://github.com/???).
+Authors: [Zhipeng Tan](https://github.com/???), [Sijie Luo](https://github.com/???), [Anna Garoufali](https://github.com/???), [Miao Wang](https://github.com/???).
 
 # Introduction
 
