@@ -143,8 +143,11 @@ Note: these are for now copy-pasted into the project repository subfolder, so yo
 
 ## Data analysis & visualization
 
+### Visualization Types
+
 - [data-to-viz.com](https://www.data-to-viz.com/): flowchart, leads you to the most appropriate graph for your data. It links to the code (python) to build it and lists common caveats you should avoid.
 - [coolinfographics.com](https://coolinfographics.com/dataviz-guides) list of dataviz-guides. more conceptual, less code.
+- [Financial Times Visual Vocabulary](https://ft-interactive.github.io/visual-vocabulary/)
 
 # Git
 
