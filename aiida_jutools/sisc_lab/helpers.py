@@ -16,6 +16,7 @@ def print_bold(text: str):
 import numpy as np
 import pandas as pd
 
+
 # aiida imports
 from aiida.orm import QueryBuilder as QB
 from aiida.orm import WorkFunctionNode, WorkChainNode
@@ -92,3 +93,61 @@ def generate_structure_property_pandas_source(workflow_name=None, structure_proj
     structurepd = pd.DataFrame(structurelst, columns=cleaned_col) # Transform into pd DataFrame
 
     return structurepd
+
+
+    
+# Interactive visualize by Bokeh
+from bokeh.io import output_file
+from bokeh.layouts import gridplot
+from bokeh.models import ColumnDataSource
+from bokeh.models.tools import HoverTool, BoxSelectTool
+from bokeh.plotting import figure, show
+
+
+def bokeh_struc_prop_vis(xdata, ydata, filename='bokeh_visualization.html'):
+    filename = filename
+    output_file(filename)
+    TOOLS="pan, wheel_zoom, box_select, reset"
+
+    # Scatter plot
+    p = figure(plot_width=600, plot_height=600,
+            toolbar_location="above", x_axis_location=None, y_axis_location=None,
+            title="Linked Histograms", tools=TOOLS)
+    r = p.scatter(xdata, ydata, color="blue", alpha=0.6)
+
+    # Horizontal histogram
+    hhist, hedges = np.histogram(xdata, bins=20)
+    hzeros = np.zeros(len(hedges)-1)
+    hmax = max(hhist)*1.1
+    hsource = ColumnDataSource(dict(left=hedges[:-1], right=hedges[1:], top=hhist, bottom=np.zeros(hhist.shape)))
+    # Settings
+    ph = figure(toolbar_location=None, plot_width=p.plot_width, plot_height=200, x_range=p.x_range,
+                y_range=(-1, hmax), min_border=10, min_border_left=50, y_axis_location="right")
+    ph.xgrid.grid_line_color = None
+    ph.yaxis.major_label_orientation = np.pi/4
+    # Render
+    ph.quad(bottom="bottom", left="left", right="right", top="top", color="blue", alpha=0.4, source=hsource)
+
+    # Vertical histogram
+    vhist, vedges = np.histogram(ydata, bins=20)
+    vzeros = np.zeros(len(vedges)-1)
+    vmax = max(vhist)*1.1
+    vsource = ColumnDataSource(dict(left=np.zeros(vhist.shape), right=vhist, top=vedges[1:], bottom=vedges[:-1]))
+    # Settings
+    pv = figure(toolbar_location=None, plot_width=200, plot_height=p.plot_height, x_range=(-1, vmax),
+                y_range=p.y_range, min_border=10, y_axis_location="right")
+    pv.ygrid.grid_line_color = None
+    pv.xaxis.major_label_orientation = np.pi/4
+    # Render
+    pv.quad(left="left", bottom="bottom", top="top", right="right", color="blue", alpha=0.4, source=vsource)
+
+
+    # TODO: Add hover tools (should add structure info in the output dict file of d1 first)
+
+
+
+
+    # Show plots
+    layout = gridplot([[p, pv], [ph, None]], merge_tools=False)
+    show(layout)
+
