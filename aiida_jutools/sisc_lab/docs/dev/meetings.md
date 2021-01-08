@@ -9,8 +9,6 @@ Incomplete minutes of project meetings. Order: newest on top, descending.
 
 # Meeting 2021-01-08, Friday
 
-## Minutes johannes
-
 jens:
 - please tell us how much time spent
 - split like two do D1, two do D2? Answer: yes.
