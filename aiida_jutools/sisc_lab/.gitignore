@@ -5,6 +5,9 @@
 /.idea/
 # ignore data/ folder (generated in- output files)
 data/
+# ignore json files generally
+# (if some config json files need to be committed, unignore them via specific full name)
+*.json
 ############################################################
 # Custom gitignore commands FINISH
 ############################################################
