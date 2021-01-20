@@ -53,8 +53,14 @@ class Serializer:
         elif(Node_type == 'StructureElement'):
             
             Data = DV.AnalyseStructureElements(self.data)
-            Data.to_json(filepath)
+            Data.to_json(filepath,orient='records')
+            return 0
         
+        elif(Node_type == 'ProcessNode'):
+            data = DV.GetCalNodeArray(self.data)
+            data.to_json(filepath,orient='records')
+            return 0
+    
     
 def deserialize_from_file(filepath,Node_type = None):
     if(Node_type == None):
@@ -72,4 +78,9 @@ def deserialize_from_file(filepath,Node_type = None):
             #print(int(key))
             Newdata[int(key)] = data2[key]
         return Newdata
+    elif(Node_type == 'StructureElement'):
+        return pd.read_json(filepath)
+    elif(Node_type == 'ProcessNode'):
+        return pd.read_json(filepath)
+    
     

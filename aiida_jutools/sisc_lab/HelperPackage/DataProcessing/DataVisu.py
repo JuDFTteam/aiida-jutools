@@ -193,3 +193,76 @@ class GroupDataHelper:
                 ##print(a[0].label,' ',a[0].user,' ',a[0].type_string,' ',a[0].description)
 
                 print('{:<50}|{:5}'.format(row['Group_Name'],row['Node']))
+                
+                
+
+######################################## Process Node functions for both Calculate Job and Workflow #########################
+def GetWorkflowDict(WNode):
+    '''
+    Processing the WorkflowNode and CalculateJob Node,count how many succeed and how many failed for each type
+    The Output dictionary can be the input of ShowWorkflow
+    '''
+    from aiida.orm import WorkflowNode
+    from aiida.orm import QueryBuilder
+    
+
+    Newdict = {}
+    for index,node in WNode.iterrows():
+        if 'FINISHED'in node['Process_State']:
+            Newdict[node['node_type']+'_succeed'] = Newdict.get(node['node_type']+'_succeed',0) + 1
+            Newdict[node['node_type']+'_not_succeed'] = Newdict.get(node['node_type']+'_not_succeed',0) + 0
+        else:
+            Newdict[node['node_type']+'_not_succeed'] = Newdict.get(node['node_type']+'_not_succeed',0) + 1
+            Newdict[node['node_type']+'_succeed'] = Newdict.get(node['node_type']+'_succeed',0) + 0
+    return Newdict
+
+
+def GetCalNodeArray(CalcNode):
+    '''
+    This function works to return the main information of Process Node
+    '''
+    
+    data = []
+    Columns = ['Node_Pk','Process_State','Exit_Message','node_type']
+    for node, in CalcNode:
+        data = data + [[node.pk,str(node.process_state),str(node.exit_message),node.node_type]]
+               
+    return pd.DataFrame(data,columns = Columns)
+    
+
+def ShowWorkflow(WorkflowDict,Title):
+    '''
+    Visualiza the Workflow how many succeed and how many failed for each type
+    '''
+    output_file("ShowingWorkFlow.html")
+
+    index = list(WorkflowDict.keys())
+    counts = list(WorkflowDict.values())
+    #exit_message = exit_message
+    #exit_state_string = exit_state
+    #exit_state_digit = exit_state_digit
+      
+    source = ColumnDataSource(data=dict(index=index, counts=counts, color=inferno(len(index))))
+    
+    TOOLTIPS = [
+    ("Node number", "@counts"),
+    ("(x,y)", "($x, $y)"),
+    ("Node status", "@index"),   
+    ]
+   
+    HT = HoverTool(
+    tooltips=TOOLTIPS,
+
+    mode='vline'
+    )
+    
+    p = figure( y_range=(0,50), x_range=index, plot_width=800, plot_height=800, title=Title,tools = [HoverTool(mode='vline')],tooltips=TOOLTIPS)
+    #print('step figure done')
+    p.vbar(x="index", top="counts", bottom=0, width=1, color='color',  source=source)
+    #print('step hbar done')
+    
+    output_notebook()
+    p.xgrid.grid_line_color = None
+    #p.legend = False
+    show(p)
+    
