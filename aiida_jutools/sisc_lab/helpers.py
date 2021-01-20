@@ -16,6 +16,17 @@ def print_bold(text: str):
 import numpy as np
 import pandas as pd
 
+from collections import Counter
+from math import pi
+import pandas as pd
+from pandas import DataFrame
+import numpy as np
+from bokeh.io import output_file,output_notebook, show
+from bokeh.layouts import column
+from bokeh.palettes import Category20,Category20c
+from bokeh.plotting import figure,ColumnDataSource
+from bokeh.transform import cumsum
+from bokeh.models import Legend,LegendItem,HoverTool
 
 # aiida imports
 from aiida.orm import QueryBuilder as QB
@@ -150,4 +161,136 @@ def bokeh_struc_prop_vis(xdata, ydata, filename='bokeh_visualization.html'):
     # Show plots
     layout = gridplot([[p, pv], [ph, None]], merge_tools=False)
     show(layout)
+    
+    
+#D1.b
+
+def print_Count(types,res):
+    if types=='user':
+        dict_type = Counter([r[4] for r in res])
+    elif types=='types':
+        dict_type = Counter([r[3] for r in res])
+    for count, name in sorted((v, k) for k, v in dict_type.items())[::-1]:
+        print("- {} created {} nodes".format(name, count))
+        
+                
+#D1.c
+
+#split data nodes and process nodes
+def get_data_node_count(types,node_type):
+    labelst,sizest=[],[]
+    for k,v in types.items():
+        if k.split('.')[0]==node_type:
+            labelst.append(k.split('.')[-2])
+            sizest.append(v)
+    x = dict(zip(labelst,sizest))
+    return x
+
+def get_process_node_count(types,node_type):
+    q = QB()
+    q.append(ProcessNode)
+    pro = q.iterall()
+    nodetypes = Counter([p[0].process_label for p in pro if '_' not in p[0].process_label])
+    workchain={k:v for k,v in nodetypes.items() if k.endswith('WorkChain')}
+    calculation={k:v for k,v in nodetypes.items() if k.endswith('Calculation')}
+    workfunction={k:v for k,v in nodetypes.items() if k.endswith('WorkFunction')}
+
+    x1 = get_node_count(types,node_type)
+    for k,v in nodetypes.items():
+        if k.endswith('WorkChain'):
+            x1.pop('WorkChainNode',None)
+            x1.update(**workchain)
+        elif k.endswith('Calculation'):
+            x1.pop('CalcJobNode',None)
+            x1.update(**calculation)
+        elif k.endswith('WorkFunction'):
+            x1.pop('WorkfunctionNode',None)
+            x1.update(**workfuction)
+    return x1
+
+def draw_pie_chart(x,title):
+    data=pd.DataFrame.from_dict(dict(x),orient='index').reset_index().rename(index=str,columns={0:'value','index':'data_nodes'})
+    data['angle'] = data['value']/sum(list(x.values())) * 2*pi
+    data['color'] = Category20[len(x)]
+    data['percent']=data["value"]/sum(x.values())
+    p = figure(title=title, toolbar_location=None,
+           tools="hover", tooltips=[('Data','@data_nodes'),('Percent','@percent{0.00%}'),('Count','@value')])
+    p.wedge(x=0, y=1, radius=0.4,
+        start_angle=cumsum('angle', include_zero=True), end_angle=cumsum('angle'),
+        line_color="white", fill_color='color', legend_field='data_nodes', source=data)
+    p.axis.axis_label=None
+    p.axis.visible=False
+    p.grid.grid_line_color = None 
+    return p
+
+def get_dict_link_types():
+    link_labels={}
+    xl = []
+    q = QB()
+    q.append(Dict)
+    dicts = q.iterall()
+
+    for node in dicts:
+        if len(node[0].get_incoming().all_link_labels())>1 :
+            link_labels = Counter(node[0].get_incoming().all_link_labels())
+            for key,value in link_labels.items():
+                if value>1:
+                    xl.append(key)
+    return xl
+
+
+#D1.d
+
+# line plot by ctime & mtime
+def draw_line_plot(users,res):
+    #ctime & mtime for total
+    ctimes = sorted(r[1] for r in res)
+    mtimes = sorted(r[2] for r in res)
+    num_nodes_integrated = range(len(ctimes))
+    df = pd.DataFrame({'A':ctimes,"B":mtimes})
+
+    p = figure(x_axis_type='datetime',y_axis_type='log')
+    r=p.multi_line([df['A'], df['B']],  
+                   [df.index, df.index],   
+                   color=['red','blue'],      
+                   alpha=[0.8, 0.6],     
+                   line_width=[2,2],     
+                   )
+
+    legend=Legend(items=[
+            LegendItem(label='ctime',renderers=[r],index=0),
+            LegendItem(label='mtime',renderers=[r],index=1),
+            ])
+
+    p.add_layout(legend)
+    p.xaxis.axis_label = 'Date'
+    p.yaxis.axis_label = 'Number of nodes'
+    p.yaxis.axis_label_text_font_size = "15pt"
+    show(p)
+
+    #ctime & mtime for each user
+    for count, email in sorted((v, k) for k, v in users.items())[::-1]:
+        ctimes = sorted(r[1] for r in res if r[4] in email)
+        mtimes = sorted(r[2] for r in res if r[4] in email)
+        num_nodes_integrated = range(len(ctimes))
+        df = pd.DataFrame({'A':ctimes,"B":mtimes})
+
+        p = figure(x_axis_type='datetime',y_axis_type='log')
+        r=p.multi_line([df['A'], df['B']],  
+                   [df.index, df.index],   
+                   color=['red','blue'],      
+                   alpha=[0.8, 0.6],     
+                   line_width=[2,2],     
+                   )
+
+        legend=Legend(items=[
+            LegendItem(label=email+':ctime',renderers=[r],index=0),
+            LegendItem(label=email+':mtime',renderers=[r],index=1),
+            ])
+
+        p.add_layout(legend)
+        p.xaxis.axis_label = 'Date'
+        p.yaxis.axis_label = 'Number of nodes'
+        p.yaxis.axis_label_text_font_size = "15pt"
+        show(p)
 
