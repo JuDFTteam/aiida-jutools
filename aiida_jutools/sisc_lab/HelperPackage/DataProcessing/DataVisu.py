@@ -414,7 +414,7 @@ def Show_In_Out(Mydict):
     mode='vline'
     )
     
-    p = figure( y_range=(0,6000), x_range=index, plot_width=500, plot_height=500, title="CalcNode Information",tools = [HoverTool(mode='vline')],tooltips=TOOLTIPS)
+    p = figure( y_range=(0,np.max(counts)+500), x_range=index, plot_width=500, plot_height=500, title="CalcNode Information",tools = [HoverTool(mode='vline')],tooltips=TOOLTIPS)
     #print('step figure done')
     p.vbar(x="index", top="counts", bottom=0, width=1, color='color',  source=source)
     #print('step hbar done')
