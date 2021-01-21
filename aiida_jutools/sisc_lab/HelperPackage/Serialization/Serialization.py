@@ -2,10 +2,13 @@
 import pandas as pd
 import HelperPackage.DataProcessing.DataVisu as DV
 import json
+import time
 
 class Serializer:
     def __init__(self,data):
         self.data = data
+
+    
     def to_file(self,filepath,Node_type = None):
         '''
         This function serialize different data according to the Node_Type keyword
@@ -60,6 +63,11 @@ class Serializer:
             data = DV.GetCalNodeArray(self.data)
             data.to_json(filepath,orient='records')
             return 0
+        
+        elif(Node_type == 'Provenance'):
+            data = DV.preprocess_provenance(self.data)
+            data.to_json(filepath,orient='records')
+            return 0
     
     
 def deserialize_from_file(filepath,Node_type = None):
@@ -82,5 +90,6 @@ def deserialize_from_file(filepath,Node_type = None):
         return pd.read_json(filepath)
     elif(Node_type == 'ProcessNode'):
         return pd.read_json(filepath)
-    
+    elif(Node_type == 'Provenance'):
+        return pd.read_json(filepath)
     

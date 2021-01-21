@@ -8,14 +8,24 @@ def add_to_sys_path(path:Path):
 
 from itertools import groupby
 import re
-from aiida.orm import QueryBuilder,StructureData
+from aiida.orm import QueryBuilder
 import numpy as np
+import time
+import numpy as np
+from bokeh.io import output_file, show
+from bokeh.models import ColumnDataSource,HoverTool
+from bokeh.plotting import figure
+from bokeh.io import output_notebook
+from bokeh.palettes import inferno
+import pandas as pd
 
-
-####### function to analyse structure data elements number and nodes number for 1.g ###############################
+####### function to analyse structure data elements number and nodes number but not implemented ###############################
 ## class StrucData to analyse the elements 
 class StrucFormulaHelper:
-    'To get the StructureData elements from the formula'
+    '''
+    To get the StructureData elements from the formula
+    
+    '''
     def __init__(self,formula):
         self.Formula = formula
         
@@ -52,23 +62,32 @@ class StrucFormulaHelper:
         return mystr
 
 
-####### function to analyse structure data  ###############################    
-import numpy as np
-from bokeh.io import output_file, show
-from bokeh.models import ColumnDataSource,HoverTool
-from bokeh.plotting import figure
-from bokeh.io import output_notebook
-from bokeh.palettes import inferno
-import pandas as pd
+def AnalyseStructureElements(InputData):
+   
+    '''
+    May not be implemented yet
+    This function count the Elements and number of StructureNode
+    Output can be passed to ShowElements
+    '''
+    #### return the pd.DataFrame including elements and number of each element
+
+    StrucList = []
+
+    for struc, in InputData:
+        form = struc.get_formula()
+        struct = StrucFormulaHelper(form)
+        StrucList = StrucList+ [struct.FormAnalyse()]
+    return pd.DataFrame(StrucList).fillna(0)
+
+####### function to analyse structure data for 1.g ###############################    
+
 
 def AtomsNumNodes(StructDatas):
     '''
     This function return atom numbers and how many Nodes have this atom number;
     Out put can be passed to ShowFormula directly or de-/serialization
     '''
-    #qb = QueryBuilder()
-    #qb.append(StructureData)
-    #StructDatas = qb.all()
+
     Newdict = {}
 
     for data, in StructDatas:
@@ -83,24 +102,7 @@ def AtomsNumNodes(StructDatas):
     return Newdict
 
     
-def AnalyseStructureElements(InputData):
-    '''
-    This function count the Elements and number of StructureNode
-    Output can be passed to ShowElements
-    '''
-    #### return the pd.DataFrame including elements and number of each element
 
-    StrucList = []
-    #qb = QueryBuilder()
-    #qb.append(StructureData)
-    #print('number of StructureData Nodes:',qb.count())
-    #qb.count()
-
-    for struc, in InputData:
-        form = struc.get_formula()
-        struct = StrucFormulaHelper(form)
-        StrucList = StrucList+ [struct.FormAnalyse()]
-    return pd.DataFrame(StrucList).fillna(0)
 
 def ShowElements(Data):
     #### visualize the Elements and number of them
@@ -135,8 +137,11 @@ def ShowElements(Data):
     
     
 def ShowFormula(Data):
-    ## Show the formula and id
-    
+    '''
+    This function shows the 
+    Show the formula and id of some elements
+     
+    '''
 
     output_file("ShowingFormula.html")
     data = Data
@@ -196,10 +201,10 @@ class GroupDataHelper:
                 
                 
 
-######################################## Process Node functions for both Calculate Job and Workflow #########################
+######################################## Process Node functions for both Calculate Job and Workflow for 1.h#########################
 def GetWorkflowDict(WNode):
     '''
-    Processing the WorkflowNode and CalculateJob Node,count how many succeed and how many failed for each type
+    Processing both the WorkflowNode and CalculateJob Node,count how many succeed and how many failed for each type
     The Output dictionary can be the input of ShowWorkflow
     '''
     from aiida.orm import WorkflowNode
@@ -232,9 +237,9 @@ def GetCalNodeArray(CalcNode):
 
 def ShowWorkflow(WorkflowDict,Title):
     '''
-    Visualiza the Workflow how many succeed and how many failed for each type
+    Visualiza the Workflow&CalcJob how many succeed and how many failed for each type
     '''
-    output_file("ShowingWorkFlow.html")
+    output_file("CalcJob&WorkFlow.html")
 
     index = list(WorkflowDict.keys())
     counts = list(WorkflowDict.values())
@@ -265,4 +270,79 @@ def ShowWorkflow(WorkflowDict,Title):
     p.xgrid.grid_line_color = None
     #p.legend = False
     show(p)
+
+####################### provenance for 1.i
+        
+def preprocess_provenance(Nodes):
+    t = time.time()
+    Newlist = []
+    for n, in Nodes:
+        Newlist = Newlist + [[n.node_type, n.pk, n.get_incoming(only_uuid=True).all_nodes(), n.get_outgoing(only_uuid=True).all_nodes()]]
+    Columns = ['Node_Type','PK','FirstInput','FirstOutput']
+    provenance = pd.DataFrame(Newlist,columns = Columns)
+    print('The preprocessing took {} seconds'.format(time.time()-t))
+    return provenance
+
+def Count_In_Out(provenance):
+    '''
+    This function count the Nodes without incoming node, without outgoing nodes and without in/out.
+    Return value is the dictionary with 3 types of nodes as keys and counts and values
+    :param provenance : the pd.DataFrame from function preprocess_provenance
+    '''
     
+    Namelist = ['No_Incoming','No_Outgoing','No_In&Out']
+
+    Mydict = {}
+    for index,n in provenance.iterrows():
+        IncomingFlag,OutgoingFlag = False,False
+        ### if list is empty then we have no incoming/outgoing
+        if(len(n['FirstInput'])==0):
+            IncomingFlag = True
+            Mydict[Namelist[0]] = Mydict.get(Namelist[0],0)+1
+        if(len(n['FirstOutput'])==0):
+            OutgoingFlag = True
+            Mydict[Namelist[1]] = Mydict.get(Namelist[1],0)+1
+        if(IncomingFlag and OutgoingFlag):
+            Mydict[Namelist[2]] = Mydict.get(Namelist[2],0)+1
+
+    return Mydict
+
+def Show_In_Out(Mydict):
+    '''
+    This function shows count the Nodes without incoming node, without outgoing nodes and without in/out
+    :param Mydict : the dictionary output from function Count_In_Out
+    '''
+    from bokeh.io import output_file, show
+    from bokeh.models import ColumnDataSource,HoverTool
+    from bokeh.plotting import figure
+    from bokeh.io import output_notebook
+    from bokeh.palettes import Category20
+
+    output_file("Show_In_Out.html")
+
+    index = list(Mydict.keys())
+    counts = list(Mydict.values())
+      
+    source = ColumnDataSource(data=dict(index=index, counts=counts, color=Category20[len(index)]))
+    
+    TOOLTIPS = [
+    ("Node number", "@counts"),
+    ("(x,y)", "($x, $y)"),
+    ("Node status", "@index"),   
+    ]
+   
+    HT = HoverTool(
+    tooltips=TOOLTIPS,
+
+    mode='vline'
+    )
+    
+    p = figure( y_range=(0,6000), x_range=index, plot_width=800, plot_height=800, title="CalcNode Information",tools = [HoverTool(mode='vline')],tooltips=TOOLTIPS)
+    #print('step figure done')
+    p.vbar(x="index", top="counts", bottom=0, width=1, color='color',  source=source)
+    #print('step hbar done')
+    
+    output_notebook()
+    p.xgrid.grid_line_color = None
+    #p.legend = False
+    show(p)
