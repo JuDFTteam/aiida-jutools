@@ -13,20 +13,13 @@ def print_bold(text: str):
     print(bold_text)
 
 
+# python imports
 import numpy as np
 import pandas as pd
-
 from collections import Counter
 from math import pi
-import pandas as pd
 from pandas import DataFrame
-import numpy as np
-from bokeh.io import output_file,output_notebook, show
-from bokeh.layouts import column
-from bokeh.palettes import Category20,Category20c
-from bokeh.plotting import figure,ColumnDataSource
-from bokeh.transform import cumsum
-from bokeh.models import Legend,LegendItem,HoverTool
+
 
 # aiida imports
 from aiida.orm import QueryBuilder as QB
@@ -37,13 +30,14 @@ StructureData = DataFactory('structure')
 
 
 def get_structure_workflow_dict(
-            structure_project=['extras.formula', 'uuid'], structure_filters=None,
-            workflow_project=['attributes.process_label', 'uuid'], workflow_filters=None,
+            structure_project=['uuid', 'extras.formula'], structure_filters=None,
+            workflow_project=['uuid', 'attributes.process_label'], workflow_filters=None,
             dict_project=['uuid'], dict_filters=None):
     '''
     Input the demanding project information and filters information.
     Return all output dict nodes returned by workflows, which had StructureData nodes as inputs are there in the database 
     with the projections and filters given.
+    The output is a list of dicts
     '''
     qb_wfunc = QB() # qb for WorkFunctionNode
     qb_wfunc.append(StructureData, project=structure_project, filters=structure_filters, tag='structure')
@@ -68,10 +62,12 @@ def get_structure_workflow_dict(
 
 def generate_dict_property_pandas_source(
             workflow_name=None, 
-            dict_project=['attributes.energy', 'attributes.total_energy', 'attributes.distance_charge']):
+            dict_project=['attributes.energy', 'attributes.total_energy', 'attributes.distance_charge'],
+            filename=None):
     '''
-    Given a workflow, generate the dict_project information (which is the output of the workflow) as a pandas object.
-    e.g. workflow_name = 'fleur_scf_wc'
+    Given a workflow, generate the dict_project property (which is the output of the workflow) as a pandas object, 
+    and write it into a json file.
+    e.g. workflow_name='fleur_scf_wc', filename='dict_property.json'
     '''
     if not workflow_name:
         workflowdictlst = get_structure_workflow_dict(dict_project=dict_project)
@@ -81,16 +77,31 @@ def generate_dict_property_pandas_source(
                     workflow_filters={'attributes.process_label':workflow_name})       
 
     dictlst = [wf['dict'] for wf in workflowdictlst] # Generate a list for Dict nodes
-    cleaned_col = [att.split('.')[-1] for att in dict_project]
-    dictpd = pd.DataFrame(dictlst, columns=cleaned_col) # Transform into pd DataFrame
+    cleaned_col = [att.split('.')[-1] for att in dict_project] # Re-define the column name
+    try: # Check if uuid information exists
+        idx = cleaned_col.index('uuid')
+    except ValueError:
+        pass
+    else:
+        cleaned_col[idx] = 'dict_uuid' # Change uuid column name
+        for info in dictlst: # Shorten the uuid to its first part
+            info[0] = info[0].split('-')[0]
+    dictpd = pd.DataFrame(dictlst, columns=cleaned_col) # Transform list into pd DataFrame
+    
+    if filename:
+        dictpd.to_json(filename, orient='records')
 
     return dictpd
 
 
-def generate_structure_property_pandas_source(workflow_name=None, structure_project=['uuid', 'extras.formula']):
+def generate_structure_property_pandas_source(
+            workflow_name=None, 
+            structure_project=['uuid', 'extras.formula'],
+            filename=None):
     '''
-    Given a workflow, generate the structure_project information (which is the input of the workflow) as a pandas object.
-    e.g. workflow_name = 'fleur_scf_wc'
+    Given a workflow, generate the structure_project property (which is the input of the workflow) as a pandas object
+    and write it into a json file.
+    e.g. workflow_name='fleur_scf_wc', filename='structure_property.json'
     '''
     if not workflow_name:
            workflowdictlst = get_structure_workflow_dict(structure_project=structure_project)
@@ -100,14 +111,45 @@ def generate_structure_property_pandas_source(workflow_name=None, structure_proj
                 workflow_filters={'attributes.process_label':workflow_name})
  
     structurelst = [wf['structure'] for wf in workflowdictlst] # Generate a list for Structure nodes
-    cleaned_col = [att.split('.')[-1] for att in structure_project]
+    cleaned_col = [att.split('.')[-1] for att in structure_project] # Re-define the column name
+    try: # Check if uuid exists
+        idx = cleaned_col.index('uuid')
+    except ValueError:
+        pass
+    else:
+        cleaned_col[idx] = 'structure_uuid' # Change the uuid column name
+        for info in structurelst: # Shorten the uuid to its first part
+            info[0] = info[0].split('-')[0]
     structurepd = pd.DataFrame(structurelst, columns=cleaned_col) # Transform into pd DataFrame
+
+    if filename:
+        structurepd.to_json(filename, orient='records')
 
     return structurepd
 
 
+def generate_combination_property_pandas_source(
+            workflow_name=None, 
+            dict_project=['attributes.energy', 'attributes.total_energy', 'attributes.distance_charge'],
+            structure_project=['uuid', 'extras.formula'],
+            filename=None):
+    '''
+    Given a workflow, generate the combination of dict_project and structure_project property as a pandas object, 
+    and write it into a json file.
+    e.g. workflow_name='fleur_scf_wc', filename='combination_property.json'
+    '''
+    dictpd = generate_dict_property_pandas_source(workflow_name,dict_project=dict_project)
+    structurepd = generate_structure_property_pandas_source(workflow_name, structure_project=structure_project)
+    combinepd = pd.concat([dictpd, structurepd], axis=1)
     
-# Interactive visualize by Bokeh
+    if filename:
+        combinepd.to_json(filename, orient='records')
+
+    return combinepd
+
+
+    
+# D2 interactive visualize by Bokeh imports
 from bokeh.io import output_file
 from bokeh.layouts import gridplot
 from bokeh.models import ColumnDataSource
@@ -115,18 +157,64 @@ from bokeh.models.tools import HoverTool, BoxSelectTool
 from bokeh.plotting import figure, show
 
 
-def bokeh_struc_prop_vis(xdata, ydata, filename='bokeh_visualization.html'):
-    filename = filename
-    output_file(filename)
-    TOOLS="pan, wheel_zoom, box_select, reset"
+def read_json_file(filename, xcol, ycol):
+    '''
+    Read the dataset from the file.
+    Use xcol, ycol to specify the columns you want. The function will filter out the missing values of 
+    these columns.
+    Return df(the entire dataframe of the file after filtering), and the data of each column.
+    '''
+    try: # Check if the file could successfully opened
+        df = pd.read_json(filename, orient='records')
+        try: # Check if xcol exists
+            df.dropna(axis=0, how='any', subset=[xcol], inplace=True)
+        except KeyError:
+            print("Column '{}' not found.".format(xcol))
+            xcol, xdata = None, None
+        try: # Check if ycol exists
+            df.dropna(axis=0, how='any', subset=[ycol], inplace=True)
+        except KeyError:
+            print("Column '{}' not found.".format(ycol))
+            ycol, ydata = None, None
+    except ValueError:
+        print("Invalid file '{}'.".format(filename))
+        df, xdata, ydata, xcol, ycol = None, None, None, None, None
+        #raise
+    else:
+        df.reset_index(drop=True, inplace=True)
+    
+    if (xcol != None):
+        xdata = df[xcol]
+    if (ycol != None):
+        ydata = df[ycol]
 
-    # Scatter plot
+    return df, xdata, ydata
+
+
+def bokeh_struc_prop_vis(input_filename, xcol, ycol, output_filename='bokeh_visualization.html'):
+    '''
+        Create Bokeh Interactive scatter-histogram graphs for the xcol and ycol data from the input file.
+        Hover tools included.
+        The return plot file is saved in html format by default.
+    '''
+    # IO and other settings
+    df, xdata, ydata = read_json_file(input_filename, xcol, ycol)
+    output_file(output_filename)
+    TOOLS="pan, wheel_zoom, box_select, reset"
+    
+    # Create the scatter plot
+    TOOLTIPS=[("Index", "$index"), ("Sturture_node uuid:", "@structure_uuid"), ("Input formula:", "@formula"),
+            ("Dict_node uuid:", "@dict_uuid")] # Hover tools
+    source = ColumnDataSource(df)
+    # Settings
     p = figure(plot_width=600, plot_height=600,
             toolbar_location="above", x_axis_location=None, y_axis_location=None,
-            title="Linked Histograms", tools=TOOLS)
-    r = p.scatter(xdata, ydata, color="blue", alpha=0.6)
+            title="Linked Histograms", tools=TOOLS, tooltips=TOOLTIPS)
+    # Render
+    r = p.circle(xcol, ycol, color="blue", alpha=0.6, selection_color="red", selection_fill_alpha=0.8,
+               nonselection_fill_color="grey", nonselection_fill_alpha=0.2, source=source)
 
-    # Horizontal histogram
+    # Create the horizontal histogram
     hhist, hedges = np.histogram(xdata, bins=20)
     hzeros = np.zeros(len(hedges)-1)
     hmax = max(hhist)*1.1
@@ -137,9 +225,9 @@ def bokeh_struc_prop_vis(xdata, ydata, filename='bokeh_visualization.html'):
     ph.xgrid.grid_line_color = None
     ph.yaxis.major_label_orientation = np.pi/4
     # Render
-    ph.quad(bottom="bottom", left="left", right="right", top="top", color="blue", alpha=0.4, source=hsource)
+    ph.quad(bottom="bottom", left="left", right="right", top="top", color="blue", alpha=0.6, source=hsource)
 
-    # Vertical histogram
+    # Create the vertical histogram
     vhist, vedges = np.histogram(ydata, bins=20)
     vzeros = np.zeros(len(vedges)-1)
     vmax = max(vhist)*1.1
@@ -150,19 +238,23 @@ def bokeh_struc_prop_vis(xdata, ydata, filename='bokeh_visualization.html'):
     pv.ygrid.grid_line_color = None
     pv.xaxis.major_label_orientation = np.pi/4
     # Render
-    pv.quad(left="left", bottom="bottom", top="top", right="right", color="blue", alpha=0.4, source=vsource)
-
-
-    # TODO: Add hover tools (should add structure info in the output dict file of d1 first)
-
-
-
+    pv.quad(left="left", bottom="bottom", top="top", right="right", color="blue", alpha=0.6, source=vsource)
 
     # Show plots
     layout = gridplot([[p, pv], [ph, None]], merge_tools=False)
     show(layout)
-    
-    
+  
+
+
+# D1 imports
+from bokeh.io import output_file,output_notebook, show
+from bokeh.layouts import column
+from bokeh.palettes import Category20,Category20c
+from bokeh.plotting import figure,ColumnDataSource
+from bokeh.transform import cumsum
+from bokeh.models import Legend,LegendItem,HoverTool
+
+
 #D1.b
 
 def print_Count(types,res):
