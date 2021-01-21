@@ -198,7 +198,8 @@ def ShowElements(Data):
     #print('step figure done')
     p.hbar(y="elements", right="counts", height=0.5, left=0, color='color',  source=source)
     #print('step hbar done')
-    
+    p.xaxis.axis_label = 'Number of Elements'
+    p.yaxis.axis_label = 'Elements'
     output_notebook()
     p.xgrid.grid_line_color = None
     #p.legend = False
@@ -324,6 +325,9 @@ def ShowWorkflow(WorkflowDict,Title):
     
     output_notebook()
     p.xgrid.grid_line_color = None
+    
+    p.xaxis.axis_label = 'Exit status'
+    p.yaxis.axis_label = 'Number of nodes'
     #p.legend = False
     show(p)
 
@@ -413,5 +417,8 @@ def Show_In_Out(Mydict):
     
     output_notebook()
     p.xgrid.grid_line_color = None
+    
+    p.xaxis.axis_label = 'Incoming and Outgoing status'
+    p.yaxis.axis_label = 'Number of nodes'
     #p.legend = False
     show(p)
