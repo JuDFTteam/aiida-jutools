@@ -31,9 +31,7 @@ class Serializer:
             return 0
         #### Group type 
         elif(Node_type == 'Group'):
-            DataList,Columns = DV.preprocess_group(self.data)
-            Data = pd.DataFrame(DataList,columns = Columns)
-            
+            Data = DV.preprocess_group(self.data)
             ## the aiida object will cause error here, so ensure every value in the list is no object
             Data.to_json(filepath,orient='records')
             return 0

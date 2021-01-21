@@ -19,7 +19,7 @@ from bokeh.io import output_notebook
 from bokeh.palettes import inferno
 import pandas as pd
 
-####### function to analyse structure data elements number and nodes number but not implemented ###############################
+####### function to analyse structure data elements number and nodes number but not implemented yet! ###############################
 ## class StrucData to analyse the elements 
 class StrucFormulaHelper:
     '''
@@ -62,114 +62,9 @@ class StrucFormulaHelper:
         return mystr
 
 
-def AnalyseStructureElements(InputData):
-   
-    '''
-    May not be implemented yet
-    This function count the Elements and number of StructureNode
-    Output can be passed to ShowElements
-    '''
-    #### return the pd.DataFrame including elements and number of each element
-
-    StrucList = []
-
-    for struc, in InputData:
-        form = struc.get_formula()
-        struct = StrucFormulaHelper(form)
-        StrucList = StrucList+ [struct.FormAnalyse()]
-    return pd.DataFrame(StrucList).fillna(0)
-
-####### function to analyse structure data for 1.g ###############################    
 
 
-def AtomsNumNodes(StructDatas):
-    '''
-    This function return atom numbers and how many Nodes have this atom number;
-    Out put can be passed to ShowFormula directly or de-/serialization
-    '''
 
-    Newdict = {}
-
-    for data, in StructDatas:
-        CompositionDict = data.get_composition()
-        NumAtom = int(np.sum(list(CompositionDict.values())))
-        if NumAtom in Newdict.keys():
-            Newdict[NumAtom].append('['+data.uuid[:8])
-            Newdict[NumAtom].append(data.get_formula()+']')
-        else:
-            Newdict[NumAtom] = ['['+data.uuid[:8],data.get_formula()+']']
-            
-    return Newdict
-
-    
-
-
-def ShowElements(Data):
-    #### visualize the Elements and number of them
-    output_file("ShowingElements.html")
-    #data = NumStructureNode()
-    data = Data
-    elements = list(data.columns)
-    counts = list(data.astype(bool).sum(axis=0))
-    # zip sort
-    counts,elements = zip(*sorted(zip(counts,elements)))
-    
-    #print(counts)
-    #print(elements)
-    
-    source = ColumnDataSource(data=dict(elements=elements, counts=counts,color=inferno(len(elements))))
-    
-    TOOLTIPS = [
-    ("element", "@elements"),
-    ("(x,y)", "($x, $y)"),
-    ("Number of Structures containing this element", "@counts"),
-    ]
-
-    p = figure( y_range=elements,x_range=(0,np.max(counts)), plot_width=800, plot_height=800, title="Elements Counts",tools = [HoverTool(mode='hline')], tooltips=TOOLTIPS)
-    #print('step figure done')
-    p.hbar(y="elements", right="counts", height=0.5, left=0, color='color',  source=source)
-    #print('step hbar done')
-    
-    output_notebook()
-    p.xgrid.grid_line_color = None
-    #p.legend = False
-    show(p)
-    
-    
-def ShowFormula(Data):
-    '''
-    This function shows the 
-    Show the formula and id of some elements
-     
-    '''
-
-    output_file("ShowingFormula.html")
-    data = Data
-    elements = list(data.keys())
-    counts = list(len(data[key])/2 for key in data.keys())
-    formulas = list(data[key][:10] for key in data.keys())
-
-    length = len(elements)
-    source = ColumnDataSource(data=dict(elements=elements, counts=counts,formulas=formulas,color=inferno(length)))
-    
-    TOOLTIPS = [
-    ("Number of Atoms", "@elements"),
-    ("(x,y)", "($x, $y)"),
-    ("Number of Nodes", "@counts"),
-    ("Id and formula(first 5 nodes of all)", "@formulas"),
-    ]
-
-    p = figure(x_range=(0,np.max(counts)+20),y_range=(0,np.max(elements)), plot_width=800, plot_height=800, title="Atoms Count",tools = [HoverTool(mode='hline')], tooltips=TOOLTIPS)
-    #print('step figure done')
-    p.hbar(y="elements", right="counts", height=0.5, left=0, color='color',  source=source)
-    #print('step hbar done')
-    
-    output_notebook()
-    p.xgrid.grid_line_color = None
-    #p.legend = False
-    show(p)
-
-#################################################### end #####################################################
 
 ####################################### List group nodes and their number for 1.f#################################
 class GroupDataHelper:
@@ -199,14 +94,167 @@ class GroupDataHelper:
 
                 print('{:<50}|{:5}'.format(row['Group_Name'],row['Node']))
                 
+
+def preprocess_group(data):
+    """
+    :param data: the return value of qb.all() of Group Node
+    :return: a pd.DataFrame containing with data the DataList and columns Columns
+    :rtype: DataFrame
+    """
+    DataList = []
+    Data = {}
+    Columns = ['User','Group_Name','Node','type_string']
+    for column in Columns:
+        Data[column] = []
+    for g, in data:
+        DataList = DataList + [[g.user.get_short_name(),g.label,len(g.nodes),g.type_string]]
+    DataF = pd.DataFrame(DataList,columns = Columns)
+    return DataF
+
+
+####### function to analyse structure data for 1.g ###############################    
+
+def AnalyseStructureElements(InputData):
+   
+    '''
+    This function count the Elements and number of StructureNode.
+    return the pd.DataFrame including elements and number of each element
+    Output can be passed to the function ShowElements
+    
+    :param InputData: the qb.all() of StructureData
+    :return pd.DataFrame with elements as columns and nodes as rows, value would be 1 if node contains this element and 0 otherwise
+    :rtype pd.DataFrame
+    '''
+    print('Counting the number of all elements...')
+    print('This process will take some time...')
+    
+    StrucList = []
+
+    for struc, in InputData:
+        form = struc.get_formula()
+        struct = StrucFormulaHelper(form)
+        StrucList = StrucList+ [struct.FormAnalyse()]
+    return pd.DataFrame(StrucList).fillna(0)
+
+
+def AtomsNumNodes(StructDatas):
+    '''
+    This function return atom numbers and how many Nodes have this atom number;
+    Output can be passed to ShowFormula directly or de-/serialization
+    
+    :param StructDatas: the qb.all() set of the StructureData
+    :return: dictionary with keys as number of elements and values as all uuids(first 8 characters) and formulas
+    :rtype: Python dictionary
+    '''
+
+    Newdict = {}
+    print('Counting 1.number of atoms and 2.number of nodes containing this atom number...')
+    print('This process will take some time...')
+    for data, in StructDatas:
+        #atoms = data.get_composition()
+        #NumAtom = int(np.sum(list(CompositionDict.values())))
+        
+        ## count the length of sites to be Number of atoms
+        NumAtom = len(data.sites)
+        if NumAtom in Newdict.keys():
+            Newdict[NumAtom].append('['+data.uuid[:8])
+            Newdict[NumAtom].append(data.get_formula()+']')
+        else:
+            Newdict[NumAtom] = ['['+data.uuid[:8],data.get_formula()+']']
+            
+    return Newdict
+
+    
+
+
+def ShowElements(Data):
+    '''
+    visualize the Elements and number of them, the sorted by the number of elements
+    
+    :param Data: pd.DataFrame that contain elements as columns and nodes as rows, value would be 1 if node contains this element and 0 otherwise
+    :return: None 
+    '''
+    
+    output_file("ShowingElements.html")
+    #data = NumStructureNode()
+    data = Data
+    elements = list(data.columns)
+    counts = list(data.astype(bool).sum(axis=0))
+    # zip sort
+    counts,elements = zip(*sorted(zip(counts,elements)))
+    
+    #print(counts)
+    #print(elements)
+    
+    source = ColumnDataSource(data=dict(elements=elements, counts=counts,color=inferno(len(elements))))
+    
+    TOOLTIPS = [
+    ("element", "@elements"),
+    ("(x,y)", "($x, $y)"),
+    ("Number of Structures containing this element", "@counts"),
+    ]
+
+    p = figure( y_range=elements,x_range=(0,np.max(counts)), plot_width=800, plot_height=800, title="Number of Elements",tools = [HoverTool(mode='hline')], tooltips=TOOLTIPS)
+    #print('step figure done')
+    p.hbar(y="elements", right="counts", height=0.5, left=0, color='color',  source=source)
+    #print('step hbar done')
+    
+    output_notebook()
+    p.xgrid.grid_line_color = None
+    #p.legend = False
+    show(p)
+    
+    
+def ShowFormula(Data):
+    '''
+    This function visualize the number of nodes that contains certain number of elements, and 
+    Show the formula and id of some elements when move mouse here
+    
+    :param Data: dictionary with keys as number of elements and values as all uuids(first 8 characters) and formulas
+    :return: Node
+    '''
+
+    output_file("ShowingFormula.html")
+    data = Data
+    elements = list(data.keys())
+    counts = list(len(data[key])/2 for key in data.keys())
+    formulas = list(data[key][:10] for key in data.keys())
+
+    length = len(elements)
+    source = ColumnDataSource(data=dict(elements=elements, counts=counts,formulas=formulas,color=inferno(length)))
+    
+    TOOLTIPS = [
+    ("Number of Atoms", "@elements"),
+    ("(x,y)", "($x, $y)"),
+    ("Number of Nodes", "@counts"),
+    ("Id and formula(first 5 nodes of all)", "@formulas"),
+    ]
+
+    p = figure(x_range=(0,np.max(counts)+20),y_range=(0,np.max(elements)), plot_width=800, plot_height=800, title="Atoms Count",tools = [HoverTool(mode='hline')], tooltips=TOOLTIPS)
+    #print('step figure done')
+    p.hbar(y="elements", right="counts", height=0.5, left=0, color='color',  source=source)
+    #print('step hbar done')
+    p.xaxis.axis_label = 'Number of nodes'
+    p.yaxis.axis_label = 'Number of atoms'
+    output_notebook()
+    p.xgrid.grid_line_color = None
+    #p.legend = False
+    show(p)
+
+#################################################### end for 1.g #####################################################
+
                 
 
 ######################################## Process Node functions for both Calculate Job and Workflow for 1.h#########################
 def GetWorkflowDict(WNode):
-    '''
+    """
     Processing both the WorkflowNode and CalculateJob Node,count how many succeed and how many failed for each type
     The Output dictionary can be the input of ShowWorkflow
-    '''
+    
+    :param WNode: pd.DataFrame Workflow or CalculateJob Node information array
+    :return: a dictionary counting the succeed number and failed number
+    :rtype: Python dictionary
+    """
     from aiida.orm import WorkflowNode
     from aiida.orm import QueryBuilder
     
@@ -225,6 +273,10 @@ def GetWorkflowDict(WNode):
 def GetCalNodeArray(CalcNode):
     '''
     This function works to return the main information of Process Node
+    
+    :param CalcNode: the qb.all() return data of CalcNode or WorkflowNode
+    :return: pd.DataFrame containing node.pk, exit_state,exit_message,node_type of each node
+    :rtype: pd.DataFrame
     '''
     
     data = []
@@ -238,6 +290,10 @@ def GetCalNodeArray(CalcNode):
 def ShowWorkflow(WorkflowDict,Title):
     '''
     Visualiza the Workflow&CalcJob how many succeed and how many failed for each type
+    
+    :param WorkflowDict: a dictionary counting the succeed number and failed number. return value of function GetWorkflowDict
+    :param Title: title of the output image
+    :return: None
     '''
     output_file("CalcJob&WorkFlow.html")
 
@@ -274,6 +330,15 @@ def ShowWorkflow(WorkflowDict,Title):
 ####################### provenance for 1.i
         
 def preprocess_provenance(Nodes):
+    """
+    :param Nodes: the return value of pd.all() of Nodes type
+    :return : pd.DataFrame containing node_type,pk,incoming_node,outgoing_node of each node
+    :rtype: pd.DataFrame
+    """
+    # this function is slow because we will dig the incoming and outgoing nodes of each node
+    print('Begin looking for incoming and outgoing nodes of each node...')
+    print('The preprocessing is slow because we will dig the incoming and outgoing nodes of each node, please wait for a moment...')
+    print('Approximate running time for smaller dataset with 5000+ Nodes is about 2 min...')
     t = time.time()
     Newlist = []
     for n, in Nodes:
@@ -288,6 +353,8 @@ def Count_In_Out(provenance):
     This function count the Nodes without incoming node, without outgoing nodes and without in/out.
     Return value is the dictionary with 3 types of nodes as keys and counts and values
     :param provenance : the pd.DataFrame from function preprocess_provenance
+    :return : A dictionary counting number of nodes without incoming node, without outgoing nodes and without in/out.
+    :rtype: python dictionary
     '''
     
     Namelist = ['No_Incoming','No_Outgoing','No_In&Out']
@@ -310,7 +377,9 @@ def Count_In_Out(provenance):
 def Show_In_Out(Mydict):
     '''
     This function shows count the Nodes without incoming node, without outgoing nodes and without in/out
-    :param Mydict : the dictionary output from function Count_In_Out
+    
+    :param Mydict : the dictionary output from function Count_In_Out, which is a dictionary counting number of nodes without incoming node, without outgoing nodes and without in/out
+    :return : None
     '''
     from bokeh.io import output_file, show
     from bokeh.models import ColumnDataSource,HoverTool
