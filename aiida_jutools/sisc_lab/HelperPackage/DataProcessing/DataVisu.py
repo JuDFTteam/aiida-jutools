@@ -299,6 +299,9 @@ def ShowWorkflow(WorkflowDict,Title):
     output_file("CalcJob&WorkFlow.html")
 
     index = list(WorkflowDict.keys())
+    ## make the name shorter
+    index = [key.split('.')[-2]+key.split('.')[-1] for key in index]
+    
     counts = list(WorkflowDict.values())
     #exit_message = exit_message
     #exit_state_string = exit_state
@@ -318,7 +321,7 @@ def ShowWorkflow(WorkflowDict,Title):
     mode='vline'
     )
     
-    p = figure( y_range=(0,50), x_range=index, plot_width=800, plot_height=800, title=Title,tools = [HoverTool(mode='vline')],tooltips=TOOLTIPS)
+    p = figure( y_range=(0,np.max(counts)+10), x_range=index, plot_width=700, plot_height=700, title=Title,tools = [HoverTool(mode='vline')],tooltips=TOOLTIPS)
     #print('step figure done')
     p.vbar(x="index", top="counts", bottom=0, width=1, color='color',  source=source)
     #print('step hbar done')
@@ -328,7 +331,7 @@ def ShowWorkflow(WorkflowDict,Title):
     
     p.xaxis.axis_label = 'Exit status'
     p.yaxis.axis_label = 'Number of nodes'
-    #p.legend = False
+    #p.legend = True
     show(p)
 
 ####################### provenance for 1.i
@@ -411,7 +414,7 @@ def Show_In_Out(Mydict):
     mode='vline'
     )
     
-    p = figure( y_range=(0,6000), x_range=index, plot_width=800, plot_height=800, title="CalcNode Information",tools = [HoverTool(mode='vline')],tooltips=TOOLTIPS)
+    p = figure( y_range=(0,6000), x_range=index, plot_width=500, plot_height=500, title="CalcNode Information",tools = [HoverTool(mode='vline')],tooltips=TOOLTIPS)
     #print('step figure done')
     p.vbar(x="index", top="counts", bottom=0, width=1, color='color',  source=source)
     #print('step hbar done')
