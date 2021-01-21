@@ -346,7 +346,8 @@ def preprocess_provenance(Nodes):
     t = time.time()
     Newlist = []
     for n, in Nodes:
-        Newlist = Newlist + [[n.node_type, n.pk, n.get_incoming(only_uuid=True).all_nodes(), n.get_outgoing(only_uuid=True).all_nodes()]]
+        #Newlist = Newlist + [[n.node_type, n.pk, n.get_incoming(only_uuid=True).all_nodes(), n.get_outgoing(only_uuid=True).all_nodes()]]
+        Newlist = Newlist + [[n.node_type, n.pk, n.get_incoming(only_uuid=True).first(), n.get_outgoing(only_uuid=True).first()]]
     Columns = ['Node_Type','PK','FirstInput','FirstOutput']
     provenance = pd.DataFrame(Newlist,columns = Columns)
     print('The preprocessing took {} seconds'.format(time.time()-t))
@@ -367,10 +368,10 @@ def Count_In_Out(provenance):
     for index,n in provenance.iterrows():
         IncomingFlag,OutgoingFlag = False,False
         ### if list is empty then we have no incoming/outgoing
-        if(len(n['FirstInput'])==0):
+        if(n['FirstInput']==None):
             IncomingFlag = True
             Mydict[Namelist[0]] = Mydict.get(Namelist[0],0)+1
-        if(len(n['FirstOutput'])==0):
+        if(n['FirstOutput']==None):
             OutgoingFlag = True
             Mydict[Namelist[1]] = Mydict.get(Namelist[1],0)+1
         if(IncomingFlag and OutgoingFlag):
