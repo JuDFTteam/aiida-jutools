@@ -19,7 +19,8 @@ import numpy as np
 import pandas as pd
 import json
 import six
-from bokeh.models import (ColumnDataSource, LinearColorMapper, LogColorMapper, ColorBar, BasicTicker, Title, Legend)
+from bokeh.models import (ColumnDataSource, LinearColorMapper, LogColorMapper,
+                          ColorBar, BasicTicker, Title, Legend)
 from bokeh.layouts import gridplot
 from bokeh.core.properties import FontSize
 from bokeh.io import show as bshow
@@ -61,14 +62,16 @@ def get_colormap(colormap, N_cols):
         else:
             raise ValueError(
                 'Could not find <colormap> with name %s. The following predefined colormaps are '
-                'supported (see also https://bokeh.pydata.org/en/latest/docs/reference/palettes.html ): %s' %
-                (colormap, list(all_palettes.keys())))
+                'supported (see also https://bokeh.pydata.org/en/latest/docs/reference/palettes.html ): %s'
+                % (colormap, list(all_palettes.keys())))
     elif isinstance(colormap, (list, tuple)):
         colormap = colormap * int(N_cols / len(colormap) + 1)
         colormap = colormap[:N_cols]
     else:
-        raise ValueError('<colormap> can only be None, a name of a colorpalette as string( see '
-                         'https://bokeh.pydata.org/en/latest/docs/reference/palettes.html ) or a list/tuple of colors.')
+        raise ValueError(
+            '<colormap> can only be None, a name of a colorpalette as string( see '
+            'https://bokeh.pydata.org/en/latest/docs/reference/palettes.html ) or a list/tuple of colors.'
+        )
 
     return colormap
 
@@ -259,8 +262,9 @@ def bokeh_line(source,
                     xdat = xdata[0]
                 source.append(ColumnDataSource({'x': xdat, 'y': ydata}))
         else:
-            raise ValueError('If no source dataframe or ColumnData is given, ydata has to be a list'
-                             ' of lists, not of type: {}'.format(type(ydata[0])))
+            raise ValueError(
+                'If no source dataframe or ColumnData is given, ydata has to be a list'
+                ' of lists, not of type: {}'.format(type(ydata[0])))
     else:
         xdatad = xdata
         ydatad = ydata
@@ -342,9 +346,12 @@ def bokeh_line(source,
 
 # tools="pan, xpan, ypan, poly_select, tap, wheel_zoom, xwheel_zoom, ywheel_zoom, xwheel_pan, ywheel_pan,
 #         box_zoom, redo, undo, reset, save, crosshair, zoom_out, xzoom_out, yzoom_out, hover"
-tooltips_def_period = [('Name', '@name'), ('Atomic number', '@{atomic number}'), ('Atomic mass', '@{atomic mass}'),
+tooltips_def_period = [('Name', '@name'),
+                       ('Atomic number', '@{atomic number}'),
+                       ('Atomic mass', '@{atomic mass}'),
                        ('CPK color', '$color[hex, swatch]:CPK'),
-                       ('Electronic configuration', '@{electronic configuration}')]
+                       ('Electronic configuration',
+                        '@{electronic configuration}')]
 
 
 def periodic_table_plot(source,
@@ -397,7 +404,8 @@ def periodic_table_plot(source,
     """
     # TODO: solve the use of two different color bars, we just one to use a bokeh color bar and not matplotlib...
 
-    from bokeh.models import (ColumnDataSource, LinearColorMapper, LogColorMapper, ColorBar, BasicTicker)
+    from bokeh.models import (ColumnDataSource, LinearColorMapper,
+                              LogColorMapper, ColorBar, BasicTicker)
     from bokeh.io import output_notebook, output_file
     from bokeh.io import show as bshow
     from bokeh.plotting import figure
@@ -453,15 +461,22 @@ def periodic_table_plot(source,
         maxd = max(data)  # 2.81 #
 
     if log_scale == 0:
-        color_mapper = LinearColorMapper(palette=bokeh_palette, low=mind, high=maxd)
+        color_mapper = LinearColorMapper(palette=bokeh_palette,
+                                         low=mind,
+                                         high=maxd)
         norm = Normalize(vmin=mind, vmax=maxd)
     elif log_scale == 1:
         for datum in data:
             if datum < 0:
-                raise ValueError('Entry for element ' + datum + ' is negative but' ' log-scale is selected')
-        color_mapper = LogColorMapper(palette=bokeh_palette, low=mind, high=maxd)
+                raise ValueError('Entry for element ' + datum +
+                                 ' is negative but'
+                                 ' log-scale is selected')
+        color_mapper = LogColorMapper(palette=bokeh_palette,
+                                      low=mind,
+                                      high=maxd)
         norm = LogNorm(vmin=mind, vmax=maxd)
-    color_scale = ScalarMappable(norm=norm, cmap=color_map).to_rgba(data, alpha=None)
+    color_scale = ScalarMappable(norm=norm, cmap=color_map).to_rgba(data,
+                                                                    alpha=None)
 
     # Define color for blank entries
     default_value = None
@@ -512,7 +527,11 @@ def periodic_table_plot(source,
         fill_alpha=0.6,  # legend="metal",
         color='type_color')
 
-    text_props = {'source': source1, 'text_align': 'left', 'text_baseline': 'middle'}
+    text_props = {
+        'source': source1,
+        'text_align': 'left',
+        'text_baseline': 'middle'
+    }
     x = dodge('group', -0.4, range=p.x_range)
 
     # The element names
@@ -550,7 +569,8 @@ def periodic_table_plot(source,
         # I do not like the hardcoded positions of the legend
         legendlabel = Label(
             x=7.1,
-            y=8.4 + display_positions[i],  # x_units='screen', y_units='screen',
+            y=8.4 +
+            display_positions[i],  # x_units='screen', y_units='screen',
             text=label1,
             render_mode='canvas',  # 'css',
             border_line_color='black',
@@ -563,7 +583,8 @@ def periodic_table_plot(source,
             x_start=7.05,
             x_end=6.7,
             y_start=8.5 + display_positions[i],
-            y_end=8.5 + display_positions[i],  # x_units='screen', y_units='screen',
+            y_end=8.5 +
+            display_positions[i],  # x_units='screen', y_units='screen',
             line_width=2,
             end=OpenHead(line_width=2, size=4))  # 'css',
         # border_line_color='black', border_line_alpha=0.0,
@@ -665,12 +686,16 @@ def plot_convergence_results(distance,
     for en0, en1 in zip(total_energy[:-1], total_energy[1:]):
         total_energy_abs_diff.append(abs(en1 - en0))
 
-    source1 = pd.DataFrame({'total_energy_delta': total_energy_abs_diff, 'iterations': iteration[1:]})
+    source1 = pd.DataFrame({
+        'total_energy_delta': total_energy_abs_diff,
+        'iterations': iteration[1:]
+    })
     source2 = pd.DataFrame({'distance': distance, 'iterations': iteration})
 
     tools = 'hover,tap,box_zoom,zoom_out,crosshair,reset,save'
     active_tools = 'hover'
-    tooltips_def_scatter1 = [('Iteration', '@x'), ('Total energy distance', '@y')]
+    tooltips_def_scatter1 = [('Iteration', '@x'),
+                             ('Total energy distance', '@y')]
     tooltips_def_scatter2 = [('Iteration', '@x'), ('Charge distance', '@y')]
     figure_kwargs.update({'active_inspect': 'hover'})
 
@@ -762,9 +787,11 @@ def plot_convergence_results_m(distances,
     data_sources2 = []
 
     tools = 'hover,tap,box_zoom,zoom_out,crosshair,reset,save,pan'
-    tooltips_def_scatter1 = [('Calculation id', '@id'), ('Iteration', '@x'), ('Total energy difference', '@y')]
+    tooltips_def_scatter1 = [('Calculation id', '@id'), ('Iteration', '@x'),
+                             ('Total energy difference', '@y')]
 
-    tooltips_def_scatter2 = [('Calculation id', '@id'), ('Iteration', '@x'), ('Charge distance', '@y')]
+    tooltips_def_scatter2 = [('Calculation id', '@id'), ('Iteration', '@x'),
+                             ('Charge distance', '@y')]
     figure_kwargs.update({'active_inspect': 'hover'})
 
     # since we make a log plot of the total_energy make sure to plot the absolute total energy
@@ -794,18 +821,33 @@ def plot_convergence_results_m(distances,
             'id': [id for j in range(len(total_energy_abs_diff))]
         }
         if nodes:
-            data.update({'nodes_pk': [str(nodes[i]) for j in range(len(total_energy_abs_diff))]})
+            data.update({
+                'nodes_pk':
+                [str(nodes[i]) for j in range(len(total_energy_abs_diff))]
+            })
         if plot_labels:
-            data.update({'process_label': [plot_labels[i] for j in range(len(total_energy_abs_diff))]})
+            data.update({
+                'process_label':
+                [plot_labels[i] for j in range(len(total_energy_abs_diff))]
+            })
 
         datasrc = ColumnDataSource(data)
         data_sources.append(datasrc)
         #print('lengths2 : y {} x {}'.format(len(distances[i]), len(iterations[i])))
-        data = {'y': distances[i], 'x': iterations[i], 'id': [id for j in range(len(distances[i]))]}
+        data = {
+            'y': distances[i],
+            'x': iterations[i],
+            'id': [id for j in range(len(distances[i]))]
+        }
         if nodes:
-            data.update({'nodes_pk': [str(nodes[i]) for j in range(len(distances[i]))]})
+            data.update({
+                'nodes_pk': [str(nodes[i]) for j in range(len(distances[i]))]
+            })
         if plot_labels:
-            data.update({'process_label': [plot_labels[i] for j in range(len(distances[i]))]})
+            data.update({
+                'process_label':
+                [plot_labels[i] for j in range(len(distances[i]))]
+            })
 
         datasrc = ColumnDataSource(data)
         data_sources2.append(datasrc)
