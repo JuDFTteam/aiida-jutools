@@ -1,27 +1,17 @@
 # -*- coding: utf-8 -*-
-import sys
-from pathlib import Path
-
-
-## add path to system path
-def add_to_sys_path(path: Path):
-    if str(path) not in sys.path:
-        sys.path.append(str(path))
-
-
-from itertools import groupby
 import re
-from aiida.orm import QueryBuilder
-import numpy as np
 import time
 import numpy as np
+import pandas as pd
+from itertools import groupby
 from bokeh.io import output_file, show
 from bokeh.models import ColumnDataSource, HoverTool
 from bokeh.plotting import figure
 from bokeh.io import output_notebook
+from bokeh.palettes import Category20
 from bokeh.palettes import inferno
-import pandas as pd
-
+from aiida.orm import WorkflowNode
+from aiida.orm import QueryBuilder
 
 ####### function to analyse structure data elements number and nodes number but not implemented yet! ###############################
 ## class StrucData to analyse the elements
@@ -285,8 +275,6 @@ def GetWorkflowDict(WNode):
     :return: a dictionary counting the succeed number and failed number
     :rtype: Python dictionary
     """
-    from aiida.orm import WorkflowNode
-    from aiida.orm import QueryBuilder
 
     Newdict = {}
     for index, node in WNode.iterrows():
@@ -445,11 +433,6 @@ def Show_In_Out(Mydict):
     :param Mydict : the dictionary output from function Count_In_Out, which is a dictionary counting number of nodes without incoming node, without outgoing nodes and without in/out
     :return : None
     '''
-    from bokeh.io import output_file, show
-    from bokeh.models import ColumnDataSource, HoverTool
-    from bokeh.plotting import figure
-    from bokeh.io import output_notebook
-    from bokeh.palettes import Category20
 
     output_file('Show_In_Out.html')
 
