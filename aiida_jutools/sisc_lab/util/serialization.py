@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 ### Class serialized is used to save data to file
 import pandas as pd
-import HelperPackage.DataProcessing.DataVisu as DV
+import aiida_jutools.sisc_lab.util.data_visu as DV
 import json
 import time
 
