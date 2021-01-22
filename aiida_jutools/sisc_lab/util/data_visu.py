@@ -12,7 +12,8 @@ from bokeh.palettes import Category20
 from bokeh.palettes import inferno
 from aiida.orm import WorkflowNode
 from aiida.orm import QueryBuilder
-
+from aiida.common.constants import elements
+AllElements = elements
 ####### function to analyse structure data elements number and nodes number but not implemented yet! ###############################
 ## class StrucData to analyse the elements
 class StrucFormulaHelper:
@@ -159,7 +160,30 @@ def AtomsNumNodes(StructDatas):
 
     return Newdict
 
+def get_element_index(elements):
+    """
+    Use the aiida.elements as input
+    :param : aiida.common.constants.elements which contain all elements and information
+    :return the dictionary that has index as key and element as value
+    """
+    ElementOder={}
+    for key in elements:
+        ElementOder[key] = elements[key]['symbol']
+    return ElementOder
 
+def sort_element_index(Elements):
+    """
+    :param : the elements list we want to sort
+    :return : the correct index order and correct elements order
+    """
+    ReferenceOder = get_element_index(AllElements) #dictionary with index as key and element as value
+    keys=list(ReferenceOder.keys())  
+    values=list(ReferenceOder.values())
+    OderElement = [keys[values.index(element)] for element in Elements]
+    
+    ########## the correct oder after sorting ##########
+    CorrectIndex, CorrectElements = (list(t) for t in zip(*sorted(zip(OderElement, Elements))))    
+    return CorrectIndex, CorrectElements
 def ShowElements(Data):
     '''
     visualize the Elements and number of them, the sorted by the number of elements
@@ -172,18 +196,23 @@ def ShowElements(Data):
     #data = NumStructureNode()
     data = Data
     elements = list(data.columns)
-    counts = list(data.astype(bool).sum(axis=0))
+    
     # zip sort
-    counts, elements = zip(*sorted(zip(counts, elements)))
-
+    #_ , elements = zip(*sorted(zip(counts, elements)))
+    print(elements)
+    AtonicNumber,elements = sort_element_index(elements)
+    
+    #counts = list(data.astype(bool).sum(axis=0))
+    counts = [data[element].astype(bool).sum(axis=0) for element in elements]
     #print(counts)
     #print(elements)
 
     source = ColumnDataSource(data=dict(
-        elements=elements, counts=counts, color=inferno(len(elements))))
+        elements=elements, counts=counts,AtonicNumber =AtonicNumber, color=inferno(len(elements))))
 
     TOOLTIPS = [
-        ('element', '@elements'),
+        ('Element', '@elements'),
+        ('Atonic Number', '@AtonicNumber'),
         ('(x,y)', '($x, $y)'),
         ('Number of Structures containing this element', '@counts'),
     ]
