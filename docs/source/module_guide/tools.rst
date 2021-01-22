@@ -12,4 +12,3 @@ Common (work)functions that need aiida
    :members:
    :private-members:
    :special-members:
-

@@ -6,5 +6,3 @@ User's guide
     :maxdepth: 3
 
     tools
-
-

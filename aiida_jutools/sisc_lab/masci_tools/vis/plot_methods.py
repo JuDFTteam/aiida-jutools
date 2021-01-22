@@ -68,12 +68,34 @@ labelfonstsize_g = 15
 # ticks
 ticklabelsizex_g = 14
 ticklabelsizey_g = 14
-tick_paramsx_g = {'size': 4.0, 'width': 1.0, 'labelsize': ticklabelsizex_g, 'length': 5, 'labelrotation': 0}
-tick_paramsy_g = {'size': 4.0, 'width': 1.0, 'labelsize': ticklabelsizey_g, 'length': 5, 'labelrotation': 0}
+tick_paramsx_g = {
+    'size': 4.0,
+    'width': 1.0,
+    'labelsize': ticklabelsizex_g,
+    'length': 5,
+    'labelrotation': 0
+}
+tick_paramsy_g = {
+    'size': 4.0,
+    'width': 1.0,
+    'labelsize': ticklabelsizey_g,
+    'length': 5,
+    'labelrotation': 0
+}
 ticklabelsizex_minor_g = 0
 ticklabelsizey_minor_g = 0
-tick_paramsx_minor_g = {'size': 2.0, 'width': 1.0, 'labelsize': ticklabelsizex_minor_g, 'length': 2.5}
-tick_paramsy_minor_g = {'size': 2.0, 'width': 1.0, 'labelsize': ticklabelsizey_minor_g, 'length': 2.5}
+tick_paramsx_minor_g = {
+    'size': 2.0,
+    'width': 1.0,
+    'labelsize': ticklabelsizex_minor_g,
+    'length': 2.5
+}
+tick_paramsy_minor_g = {
+    'size': 2.0,
+    'width': 1.0,
+    'labelsize': ticklabelsizey_minor_g,
+    'length': 2.5
+}
 # legend properties
 legend_g = False
 
@@ -211,7 +233,11 @@ def single_scatterplot(ydata,
     if axis:
         ax = axis
     else:
-        fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+        fig = pp.figure(num=None,
+                        figsize=figsize_g,
+                        dpi=dpi_g,
+                        facecolor=facecolor_g,
+                        edgecolor=edgecolor_g)
         ax = fig.add_subplot(111)
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(axis_linewidth_g)
@@ -222,12 +248,14 @@ def single_scatterplot(ydata,
                              width=tick_paramsy_g.get('width', 1.0),
                              labelsize=tick_paramsy_g.get('labelsize', 14),
                              length=tick_paramsy_g.get('length', 5),
-                             labelrotation=tick_paramsy_g.get('labelrotation', 0))
+                             labelrotation=tick_paramsy_g.get(
+                                 'labelrotation', 0))
     ax.xaxis.set_tick_params(size=tick_paramsx_g.get('size', 4.0),
                              width=tick_paramsx_g.get('width', 1.0),
                              labelsize=tick_paramsx_g.get('labelsize', 14),
                              length=tick_paramsx_g.get('length', 5),
-                             labelrotation=tick_paramsx_g.get('labelrotation', 0))
+                             labelrotation=tick_paramsx_g.get(
+                                 'labelrotation', 0))
     if use_axis_fromatter_g:
         ax.yaxis.get_major_formatter().set_powerlimits((0, 3))
         ax.yaxis.get_major_formatter().set_useOffset(False)
@@ -307,7 +335,9 @@ def multiple_scatterplots(ydata,
     basic plots.
     """
     nplots = len(ydata)
-    if not (nplots == len(xdata)):  # todo check dimention not len, without moving to special datatype.
+    if not (
+            nplots == len(xdata)
+    ):  # todo check dimention not len, without moving to special datatype.
         print('ydata and xdata must have the same dimension')
         return
 
@@ -316,7 +346,11 @@ def multiple_scatterplots(ydata,
     if axis:
         ax = axis
     else:
-        fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+        fig = pp.figure(num=None,
+                        figsize=figsize_g,
+                        dpi=dpi_g,
+                        facecolor=facecolor_g,
+                        edgecolor=edgecolor_g)
         ax = fig.add_subplot(111)
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(axis_linewidth_g)
@@ -476,7 +510,9 @@ def multi_scatter_plot(xdata,
     """
 
     nplots = len(ydata)
-    if not (nplots == len(xdata)):  # todo check dimention not len, without moving to special datatype.
+    if not (
+            nplots == len(xdata)
+    ):  # todo check dimention not len, without moving to special datatype.
         print('ydata and xdata must have the same dimension')
         return
 
@@ -485,7 +521,11 @@ def multi_scatter_plot(xdata,
     if axis:
         ax = axis
     else:
-        fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+        fig = pp.figure(num=None,
+                        figsize=figsize_g,
+                        dpi=dpi_g,
+                        facecolor=facecolor_g,
+                        edgecolor=edgecolor_g)
         ax = fig.add_subplot(111)
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(axis_linewidth_g)
@@ -541,7 +581,13 @@ def multi_scatter_plot(xdata,
             marker1 = marker[i]
         else:
             marker1 = marker
-        ax.scatter(xdata[i], y=y, s=s, c=color1, alpha=alpha, marker=marker1, label=label)
+        ax.scatter(xdata[i],
+                   y=y,
+                   s=s,
+                   c=color1,
+                   alpha=alpha,
+                   marker=marker1,
+                   label=label)
 
     #TODO nice legend
     if legend:
@@ -594,17 +640,25 @@ def waterfall_plot(xdata,
     from mpl_toolkits.mplot3d.axes3d import Axes3D
 
     nplots = len(ydata)
-    if not (nplots == len(xdata)):  # todo check dimention not len, without moving to special datatype.
+    if not (
+            nplots == len(xdata)
+    ):  # todo check dimention not len, without moving to special datatype.
         print('ydata and xdata must have the same dimension')
         return
-    if not (nplots == len(zdata)):  # todo check dimention not len, without moving to special datatype.
+    if not (
+            nplots == len(zdata)
+    ):  # todo check dimention not len, without moving to special datatype.
         print('ydata and zdata must have the same dimension')
         return
 
     # TODO allow plotlabels to have different dimension
     pl = []
 
-    fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+    fig = pp.figure(num=None,
+                    figsize=figsize_g,
+                    dpi=dpi_g,
+                    facecolor=facecolor_g,
+                    edgecolor=edgecolor_g)
     ax = fig.add_subplot(111, projection='3d')
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(axis_linewidth_g)
@@ -759,7 +813,11 @@ def histogram(xdata,
     if axis:
         ax = axis
     else:
-        fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+        fig = pp.figure(num=None,
+                        figsize=figsize_g,
+                        dpi=dpi_g,
+                        facecolor=facecolor_g,
+                        edgecolor=edgecolor_g)
         ax = fig.add_subplot(111)
 
     for axis in ['top', 'bottom', 'left', 'right']:
@@ -780,12 +838,14 @@ def histogram(xdata,
 
     ax.yaxis.set_tick_params(size=tick_paramsy_minor_g.get('size', 2.0),
                              width=tick_paramsy_minor_g.get('width', 1.0),
-                             labelsize=tick_paramsy_minor_g.get('labelsize', 0),
+                             labelsize=tick_paramsy_minor_g.get(
+                                 'labelsize', 0),
                              length=tick_paramsy_minor_g.get('length', 2.5),
                              which='minor')
     ax.xaxis.set_tick_params(size=tick_paramsx_minor_g.get('size', 2.0),
                              width=tick_paramsx_minor_g.get('width', 1.0),
-                             labelsize=tick_paramsx_minor_g.get('labelsize', 0),
+                             labelsize=tick_paramsx_minor_g.get(
+                                 'labelsize', 0),
                              length=tick_paramsx_minor_g.get('length', 2.5),
                              which='minor')
 
@@ -903,7 +963,11 @@ def default_histogram(xdata,
     if axis:
         ax = axis
     else:
-        fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+        fig = pp.figure(num=None,
+                        figsize=figsize_g,
+                        dpi=dpi_g,
+                        facecolor=facecolor_g,
+                        edgecolor=edgecolor_g)
         ax = fig.add_subplot(111)
 
     for axis in ['top', 'bottom', 'left', 'right']:
@@ -989,7 +1053,9 @@ def barchart(ydata,
     Has to be overworked, was quickly adjusted from scatterplots, some things not used or not needed
     """
     nplots = len(ydata)
-    if not (nplots == len(xdata)):  # todo check dimention not len, without moving to special datatype.
+    if not (
+            nplots == len(xdata)
+    ):  # todo check dimention not len, without moving to special datatype.
         print('ydata and xdata must have the same dimension')
         return
 
@@ -998,7 +1064,11 @@ def barchart(ydata,
     if axis:
         ax = axis
     else:
-        fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+        fig = pp.figure(num=None,
+                        figsize=figsize_g,
+                        dpi=dpi_g,
+                        facecolor=facecolor_g,
+                        edgecolor=edgecolor_g)
         ax = fig.add_subplot(111)
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(axis_linewidth_g)
@@ -1009,12 +1079,14 @@ def barchart(ydata,
                              width=tick_paramsy_g.get('width', 1.0),
                              labelsize=tick_paramsy_g.get('labelsize', 14),
                              length=tick_paramsy_g.get('length', 5),
-                             labelrotation=tick_paramsy_g.get('labelrotation', 0))
+                             labelrotation=tick_paramsy_g.get(
+                                 'labelrotation', 0))
     ax.xaxis.set_tick_params(size=tick_paramsx_g.get('size', 4.0),
                              width=tick_paramsx_g.get('width', 1.0),
                              labelsize=tick_paramsx_g.get('labelsize', 14),
                              length=tick_paramsx_g.get('length', 5),
-                             labelrotation=tick_paramsx_g.get('labelrotation', 0))
+                             labelrotation=tick_paramsx_g.get(
+                                 'labelrotation', 0))
     if len(xticks) != 0:
         ax.xaxis.set_ticks(xticks[0])
         ax.xaxis.set_ticklabels(xticks[1])
@@ -1178,7 +1250,11 @@ def plot_convex_hull2d(hull,
     if axis:
         ax = axis
     else:
-        fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+        fig = pp.figure(num=None,
+                        figsize=figsize_g,
+                        dpi=dpi_g,
+                        facecolor=facecolor_g,
+                        edgecolor=edgecolor_g)
         ax = fig.add_subplot(111)
 
     for axis in ['top', 'bottom', 'left', 'right']:
@@ -1199,7 +1275,13 @@ def plot_convex_hull2d(hull,
 
     points = hull.points
 
-    a = ax.plot(points[:, 0], points[:, 1], marker=marker, markersize=markersize, linestyle='', color=color, **kwargs)
+    a = ax.plot(points[:, 0],
+                points[:, 1],
+                marker=marker,
+                markersize=markersize,
+                linestyle='',
+                color=color,
+                **kwargs)
     for simplex in hull.simplices:
         # TODO leave out some lines, the ones about [0,0 -1,0]
         data = simplex.coords
@@ -1274,7 +1356,12 @@ def plot_residuen(xdata,
     a = single_scatterplot(ydata, xdata, xlabel, ylabel, title, axis=ax2)
 
     if hist:
-        default_histogram(ydata, bins=20, axis=ax3, orientation='horizontal', title='Residuen distribution', normed=1)
+        default_histogram(ydata,
+                          bins=20,
+                          axis=ax3,
+                          orientation='horizontal',
+                          title='Residuen distribution',
+                          normed=1)
     show_g = True
     return ydata
 
@@ -1375,7 +1462,9 @@ def plot_convergence_results_m(distances,
     for i, mode in enumerate(modes):
         if mode == 'force':
             iterations[i].pop()
-            print('Drop the last iteration because there was no charge distance, mode=force')
+            print(
+                'Drop the last iteration because there was no charge distance, mode=force'
+            )
 
     p2 = multiple_scatterplots(distances,
                                iterations,
@@ -1435,7 +1524,11 @@ def plot_lattice_constant(Total_energy,
     if axis:
         ax = axis
     else:
-        fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+        fig = pp.figure(num=None,
+                        figsize=figsize_g,
+                        dpi=dpi_g,
+                        facecolor=facecolor_g,
+                        edgecolor=edgecolor_g)
         ax = fig.add_subplot(111)
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(axis_linewidth_g)
@@ -1473,12 +1566,26 @@ def plot_lattice_constant(Total_energy,
                              linewidth=linewidth_g,
                              markersize=markersize_g)
     else:
-        p1 = pp.plot(scaling, Total_energy, 'o-', label=plotlables[0], linewidth=linewidth_g, markersize=markersize_g)
+        p1 = pp.plot(scaling,
+                     Total_energy,
+                     'o-',
+                     label=plotlables[0],
+                     linewidth=linewidth_g,
+                     markersize=markersize_g)
         if fit_y:
-            p2 = pp.plot(scaling, fit_y, r'-', label=plotlables[1], linewidth=linewidth_g, markersize=markersize_g)
+            p2 = pp.plot(scaling,
+                         fit_y,
+                         r'-',
+                         label=plotlables[1],
+                         linewidth=linewidth_g,
+                         markersize=markersize_g)
     if legend_g:
-        pp.legend(bbox_to_anchor=(0.85, 1), loc=2, borderaxespad=0., fancybox=True)
-        pp.legend(loc='best', borderaxespad=0., fancybox=True)  #, framealpha=0.5) #loc='upper right')
+        pp.legend(bbox_to_anchor=(0.85, 1),
+                  loc=2,
+                  borderaxespad=0.,
+                  fancybox=True)
+        pp.legend(loc='best', borderaxespad=0.,
+                  fancybox=True)  #, framealpha=0.5) #loc='upper right')
         #lg = pp.legend(bbox_to_anchor=(0.76, 0.400), loc=2, borderaxespad=0., borderpad=1, fancybox=True, title =r'K-pts in $\bf{k_{x,y,z}}$',fontsize=14)#loc='best', fancybox=True) #, framealpha=0.5) #loc='upper right')
         #lg.get_frame().set_linewidth(2.0)
         #lg.get_title().set_fontsize('16') #legend 'Title' fontsize
@@ -1552,17 +1659,18 @@ def plot_dos(path_to_dosfile,
                            limits=limits,
                            saveas=saveas)
     else:
-        multiple_scatterplots(doses,
-                              energies,
-                              xlabel,
-                              ylabel,
-                              title,
-                              plot_labels=['Total', 'Interstitial', 'Muffin-Tin'],
-                              linestyle=linestyle,
-                              marker=marker,
-                              legend=legend,
-                              limits=limits,
-                              saveas=saveas)
+        multiple_scatterplots(
+            doses,
+            energies,
+            xlabel,
+            ylabel,
+            title,
+            plot_labels=['Total', 'Interstitial', 'Muffin-Tin'],
+            linestyle=linestyle,
+            marker=marker,
+            legend=legend,
+            limits=limits,
+            saveas=saveas)
 
 
 def plot_dos_total_atom_resolved():
@@ -1627,7 +1735,11 @@ def plot_bands(path_to_bands_file,
     ymax = max(ydata)
     xlabel = ''
     ylabel = r'$E - E_F$ [eV]'
-    fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+    fig = pp.figure(num=None,
+                    figsize=figsize_g,
+                    dpi=dpi_g,
+                    facecolor=facecolor_g,
+                    edgecolor=edgecolor_g)
     ax = fig.add_subplot(111)
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(axis_linewidth_g)
@@ -1646,7 +1758,13 @@ def plot_bands(path_to_bands_file,
                              length=tick_paramsx_g.get('length', 5))
     ax.yaxis.get_major_formatter().set_powerlimits((0, 3))
     ax.yaxis.get_major_formatter().set_useOffset(False)
-    p1 = pp.plot(xdata, ydata, linetyp, label=plotlabel, color=color, linewidth=linewidth_g, markersize=markersize_g)
+    p1 = pp.plot(xdata,
+                 ydata,
+                 linetyp,
+                 label=plotlabel,
+                 color=color,
+                 linewidth=linewidth_g,
+                 markersize=markersize_g)
 
     if limits:
         if limits[0]:
@@ -1719,7 +1837,8 @@ def plot_one_element_corelv(corelevel_dict, element, compound=''):
     ydata = ydata_all[0]
     xlabel = '{} atomtype'.format(elem)
     ylabel = 'energy in eV'
-    title = 'Element: {} from {} cl {}'.format(elem, compound, corelevels_names)
+    title = 'Element: {} from {} cl {}'.format(elem, compound,
+                                               corelevels_names)
     #plotlabel ='corelevel shifts'
     #linetyp='o-'
     xmin = xdata[0] - 0.5
@@ -1737,7 +1856,11 @@ def plot_one_element_corelv(corelevel_dict, element, compound=''):
         'size': 16,
     }
 
-    fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+    fig = pp.figure(num=None,
+                    figsize=figsize_g,
+                    dpi=dpi_g,
+                    facecolor=facecolor_g,
+                    edgecolor=edgecolor_g)
     ax = fig.add_subplot(111)
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(axis_linewidth_g)
@@ -1762,7 +1885,11 @@ def plot_one_element_corelv(corelevel_dict, element, compound=''):
             offset = 0.5 / lenx
             xminline = x / lenx + offset - length / 2
             xmaxline = x / lenx + offset + length / 2
-            pp.axhline(y=y[i], xmin=xminline, xmax=xmaxline, linewidth=2, color='k')
+            pp.axhline(y=y[i],
+                       xmin=xminline,
+                       xmax=xmaxline,
+                       linewidth=2,
+                       color='k')
             text = r'{}'.format(y[i])
             pp.text(x - 0.25, y[i] + 0.3, text, fontdict=font)
 
@@ -1861,13 +1988,21 @@ def construct_corelevel_spectrum(coreleveldict,
         if peakfunction == 'gaus':
             data_f = np.array(gaussian(xdata_spec, fwhm_g, xpoint))  #, 1.0))
         elif peakfunction == 'voigt':
-            data_f = np.array(voigt_profile(xdata_spec, fwhm_g, fwhm_l, xpoint))  # different fwhn for g und l
+            data_f = np.array(
+                voigt_profile(xdata_spec, fwhm_g, fwhm_l,
+                              xpoint))  # different fwhn for g und l
         elif peakfunction == 'pseudo-voigt':
-            data_f = np.array(pseudo_voigt_profile(xdata_spec, fwhm_g, fwhm_l, xpoint))
+            data_f = np.array(
+                pseudo_voigt_profile(xdata_spec, fwhm_g, fwhm_l, xpoint))
         elif peakfunction == 'lorentz':
             data_f = np.array(lorentzian(xdata_spec, fwhm_l, xpoint))
         elif peakfunction == 'doniach-sunjic':
-            data_f = np.array(doniach_sunjic(xdata_spec, scale=1.0, E_0=xpoint, gamma=fwhm_l, alpha=fwhm_g))
+            data_f = np.array(
+                doniach_sunjic(xdata_spec,
+                               scale=1.0,
+                               E_0=xpoint,
+                               gamma=fwhm_l,
+                               alpha=fwhm_g))
         elif peakfunction == 'asymmetric_lorentz_gauss_conv':
             #print(xpoint, xdata_spec)
             data_f = np.array(
@@ -1906,7 +2041,10 @@ def construct_corelevel_spectrum(coreleveldict,
             ydata_single_all_new.append(ydata_single * scalingfactor)
         ydata_single_all = ydata_single_all_new
 
-    return [xdata_spec, ydata_spec, ydata_single_all, xdata_all, ydata_all, xdatalabel]
+    return [
+        xdata_spec, ydata_spec, ydata_single_all, xdata_all, ydata_all,
+        xdatalabel
+    ]
 
 
 def plot_corelevel_spectra(coreleveldict,
@@ -1955,19 +2093,21 @@ def plot_corelevel_spectra(coreleveldict,
     """
     #show_compound=True, , compound_info={} compound_info dict: dict that can be used to specify what component should be shown together     compound_info = {'Be12Ti' : {'Be' : 4, 'Ti' : 1}, 'BeTi' : {'Be' : 1, 'Ti' : 1}}
     # TODO feature to make singles of different compounds a different color
-    [xdata_spec, ydata_spec, ydata_single_all, xdata_all, ydata_all,
-     xdatalabel] = construct_corelevel_spectrum(coreleveldict,
-                                                natom_typesdict,
-                                                exp_references=exp_references,
-                                                scale_to=scale_to,
-                                                fwhm_g=fwhm_g,
-                                                fwhm_l=fwhm_l,
-                                                energy_range=energy_range,
-                                                xspec=xspec,
-                                                energy_grid=energy_grid,
-                                                peakfunction=peakfunction,
-                                                alpha_l=alpha_l,
-                                                beta_l=beta_l)
+    [
+        xdata_spec, ydata_spec, ydata_single_all, xdata_all, ydata_all,
+        xdatalabel
+    ] = construct_corelevel_spectrum(coreleveldict,
+                                     natom_typesdict,
+                                     exp_references=exp_references,
+                                     scale_to=scale_to,
+                                     fwhm_g=fwhm_g,
+                                     fwhm_l=fwhm_l,
+                                     energy_range=energy_range,
+                                     xspec=xspec,
+                                     energy_grid=energy_grid,
+                                     peakfunction=peakfunction,
+                                     alpha_l=alpha_l,
+                                     beta_l=beta_l)
 
     xmin = min(xdata_all) - 2  #0.5
     xmax = max(xdata_all) + 2  #0.5
@@ -2017,9 +2157,16 @@ def plot_corelevel_spectra(coreleveldict,
     ##### PLOT 1, plot raw datapoints
 
     if not show_g:
-        return [xdata_spec, ydata_spec, ydata_single_all, xdata_all, ydata_all, xdatalabel]
+        return [
+            xdata_spec, ydata_spec, ydata_single_all, xdata_all, ydata_all,
+            xdatalabel
+        ]
 
-    fig = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+    fig = pp.figure(num=None,
+                    figsize=figsize_g,
+                    dpi=dpi_g,
+                    facecolor=facecolor_g,
+                    edgecolor=edgecolor_g)
     ax = fig.add_subplot(111)
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(axis_linewidth_g)
@@ -2048,7 +2195,11 @@ def plot_corelevel_spectra(coreleveldict,
         for elm, ref_list_dict in six.iteritems(exp_references):
             for state, ref_list in six.iteritems(ref_list_dict):
                 for ref in ref_list:
-                    pp.axvline(ymin=0, ymax=0.1, x=ref, linewidth=linewidth_g, color='k')
+                    pp.axvline(ymin=0,
+                               ymax=0.1,
+                               x=ref,
+                               linewidth=linewidth_g,
+                               color='k')
     '''
     for j,y in enumerate(ydata_all):
         for i,x in enumerate(xdata):
@@ -2091,7 +2242,11 @@ def plot_corelevel_spectra(coreleveldict,
     ##############################################################
     ##### PLOT 2, plot spectra, voigts around datapoints #########
 
-    fig1 = pp.figure(num=None, figsize=figsize_g, dpi=dpi_g, facecolor=facecolor_g, edgecolor=edgecolor_g)
+    fig1 = pp.figure(num=None,
+                     figsize=figsize_g,
+                     dpi=dpi_g,
+                     facecolor=facecolor_g,
+                     edgecolor=edgecolor_g)
     ax1 = fig1.add_subplot(111)
     for axis in ['top', 'bottom', 'left', 'right']:
         ax1.spines[axis].set_linewidth(axis_linewidth_g)
@@ -2165,7 +2320,10 @@ def plot_corelevel_spectra(coreleveldict,
         pp.show()
 
     # for plotting or file writting
-    return [xdata_spec, ydata_spec, ydata_single_all, xdata_all, ydata_all, xdatalabel, fig, fig1]
+    return [
+        xdata_spec, ydata_spec, ydata_single_all, xdata_all, ydata_all,
+        xdatalabel, fig, fig1
+    ]
 
 
 def asymmetric_lorentz(x, fwhm, mu, alpha=1.0, beta=1.5):
@@ -2215,7 +2373,8 @@ def asymmetric_lorentz_gauss_sum(x, mu, fwhm_l, fwhm_g, alpha=1.0, beta=1.5):
     import numpy as np
 
     ygaus = np.array(gauss_one(x, fwhm_g, mu))
-    ylorentz = np.array(asymmetric_lorentz(x, fwhm_l, mu, alpha=alpha, beta=beta))
+    ylorentz = np.array(
+        asymmetric_lorentz(x, fwhm_l, mu, alpha=alpha, beta=beta))
     ydata = ylorentz + ygaus
 
     return ydata
@@ -2238,7 +2397,12 @@ def asymmetric_lorentz_gauss_conv(x, mu, fwhm_l, fwhm_g, alpha=1.0, beta=1.5):
     xgaus = np.arange(-rangex / 2.0, rangex / 2.0 + xstep, xstep)
     #print(xgaus[:10], xgaus[-1])
     ygaus = np.array(gauss_one(xgaus, fwhm_g, mu=0.0), dtype=np.float64)
-    ylorentz = np.array(asymmetric_lorentz(x, fwhm_l, mu=mu, alpha=alpha, beta=beta), dtype=np.float64)
+    ylorentz = np.array(asymmetric_lorentz(x,
+                                           fwhm_l,
+                                           mu=mu,
+                                           alpha=alpha,
+                                           beta=beta),
+                        dtype=np.float64)
     ydata = np.convolve(ylorentz, ygaus, mode='same')
 
     return ydata
@@ -2456,7 +2620,8 @@ def doniach_sunjic(x, scale=1.0, E_0=0, gamma=1.0, alpha=0.0):
     arg = (E_0 - x) / gamma
     alpha2 = (1.0 - alpha)
     #scale = scale/(gamma**alpha2)
-    don_su = np.cos(np.pi * alpha + alpha2 * np.arctan(arg)) / (1 + arg**2)**(alpha2 / 2)
+    don_su = np.cos(np.pi * alpha +
+                    alpha2 * np.arctan(arg)) / (1 + arg**2)**(alpha2 / 2)
     return np.array(scale * don_su)
 
 
@@ -2470,7 +2635,8 @@ def gaussian(x, fwhm, mu):
     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
     #return np.sqrt(np.log(2) / np.pi) / hwhm\
     #                         * np.exp(-((x-mu) / hwhm)**2 * np.log(2))
-    return np.exp(-(x - mu)**2 / (2 * (sigma**2))) / (np.sqrt(2 * np.pi) * sigma)
+    return np.exp(-(x - mu)**2 / (2 *
+                                  (sigma**2))) / (np.sqrt(2 * np.pi) * sigma)
 
 
 def lorentzian(x, fwhm, mu):
@@ -2495,7 +2661,9 @@ def voigt_profile(x, fwhm_g, fwhm_l, mu):
     hwhm_l = fwhm_l / 2.0
     sigma = fwhm_g / (2 * np.sqrt(2 * np.log(2)))
     # complex 1j
-    return np.real(wofz(((x - mu) + 1j * hwhm_l) / sigma / np.sqrt(2))) / sigma / np.sqrt(2 * np.pi)
+    return np.real(wofz(
+        ((x - mu) + 1j * hwhm_l) / sigma / np.sqrt(2))) / sigma / np.sqrt(
+            2 * np.pi)
 
 
 def CDF_voigt_profile(x, fwhm_g, fwhm_l, mu):
@@ -2550,7 +2718,13 @@ def pseudo_voigt_profile(x, fwhm_g, fwhm_l, mu, mix=0.5):
     return mix * gaus + (1 - mix) * lorentz
 
 
-def plot_bands2(xs, ys, ss, axis=None, linestyle='-', markersize_scaling=20, **kwargs):
+def plot_bands2(xs,
+                ys,
+                ss,
+                axis=None,
+                linestyle='-',
+                markersize_scaling=20,
+                **kwargs):
     """
     """
     markersize_band = 5
@@ -2561,7 +2735,8 @@ def plot_bands2(xs, ys, ss, axis=None, linestyle='-', markersize_scaling=20, **k
             for i, entry in enumerate(data[1:]):
                 ynew = [data[i], entry]
                 xnew = [xs[j][i], xs[j][i + 1]]
-                linewidth = np.sqrt(markersize_scaling * (ss[j][i] + ss[j][i + 1]) / 4.0)
+                linewidth = np.sqrt(markersize_scaling *
+                                    (ss[j][i] + ss[j][i + 1]) / 4.0)
                 ax.plot(xnew,
                         ynew,
                         linestyle=linestyle,
@@ -2608,7 +2783,9 @@ def plot_fleur_bands(filename, limits=[None, [-15, 15]]):
                         #print kpoint
                         #for spin in kpoint:
                         #    total = total + spin
-                        markersize_temp.append((kpoint * markersize_scaling)**2)  # scatter needs size squared
+                        markersize_temp.append(
+                            (kpoint * markersize_scaling
+                             )**2)  # scatter needs size squared
                     markersize_band.append(markersize_temp)
                 markersize.append(markersize_band)
                 # always make the last one the total of all atomtypes
