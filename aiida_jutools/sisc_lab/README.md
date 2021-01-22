@@ -20,4 +20,3 @@ TODO.
 - [Instructions](docs/dev/instructions.md)
 - [Meetings](docs/dev/meetings.md)
 - [Resources](docs/dev/resources.md)
-

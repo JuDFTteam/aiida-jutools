@@ -5,4 +5,3 @@ Modules provided with aiida-kkr (API reference)
     :maxdepth: 3
 
     tools
-

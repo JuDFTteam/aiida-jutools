@@ -81,4 +81,3 @@ for this go to the top folder in the git repository (`cd aiida-jutools`) and exe
 pip install -e .
 ```
 This requires aiida so you can only install it somewhere where you have already aiida installed i.e on quantum mobile for example.
-
