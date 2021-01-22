@@ -24,9 +24,25 @@
     "version": "0.0.1",
     "reentry_register": true,
     "install_requires": [
+	    "aiida-core>=1.3.0"
     ],
     "extras_require": {
+        "docs": [
+            "Sphinx",
+            "docutils",
+            "sphinx_rtd_theme"
+        ],
         "pre-commit": [
+            "pre-commit>=2.6.0",
+            "yapf~=0.30",
+            "pylint>=2.5"
+        ],
+        "testing" : [
+            "pytest>=2.9",
+            "pytest-timeout",
+            "pytest-cov>= 2.5.0",
+            "pgtest",
+            "pytest-regressions>=1.0"
         ]
     },
     "entry_points": {
