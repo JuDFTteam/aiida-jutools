@@ -428,7 +428,7 @@ def preprocess_provenance(Nodes):
     return provenance
 
 
-def Count_In_Out(provenance):
+def Count_In_Out_Old_version(provenance):
     '''
     This function count the Nodes without incoming node, without outgoing nodes and without in/out.
     Return value is the dictionary with 3 types of nodes as keys and counts and values
@@ -455,7 +455,37 @@ def Count_In_Out(provenance):
     return Mydict
 
 
-def Show_In_Out(Mydict):
+#### takes very long time
+def Count_In_Out(provenance):
+    '''
+    This function count the Nodes without incoming node, without outgoing nodes and without in/out.
+    Return value is the dictionary with 3 types of nodes as keys and counts and values
+    :param provenance : the pd.DataFrame from function preprocess_provenance
+    :return : A dictionary counting number of nodes without incoming node, without outgoing nodes and without in/out.
+    :rtype: python dictionary
+    '''
+
+    Namelist = ['No_Incoming', 'No_Outgoing', 'No_In&Out']
+
+    No_Incoming_Mydict,No_Outgoing_Mydict,No_InOut_Mydict = {},{},{}
+    
+    for index, n in provenance.iterrows():
+        IncomingFlag, OutgoingFlag = False, False
+        ### if list is empty then we have no incoming/outgoing
+        if (n['FirstInput'] == None):
+            IncomingFlag = True
+            No_Incoming_Mydict[n['Node_Type']] = No_Incoming_Mydict.get(n['Node_Type'], 0) + 1
+        if (n['FirstOutput'] == None):
+            OutgoingFlag = True
+            No_Outgoing_Mydict[n['Node_Type']] = No_Outgoing_Mydict.get(n['Node_Type'], 0) + 1
+        if (IncomingFlag and OutgoingFlag):
+            No_InOut_Mydict[n['Node_Type']] = No_InOut_Mydict.get(n['Node_Type'], 0) + 1
+
+    return No_Incoming_Mydict,No_Outgoing_Mydict,No_InOut_Mydict
+
+
+
+def Show_In_Out_Old_Version(Mydict):
     '''
     This function shows count the Nodes without incoming node, without outgoing nodes and without in/out
 
@@ -497,6 +527,70 @@ def Show_In_Out(Mydict):
 
     output_notebook()
     p.xgrid.grid_line_color = None
+
+    p.xaxis.axis_label = 'Incoming and Outgoing status'
+    p.yaxis.axis_label = 'Number of nodes'
+    #p.legend = False
+    show(p)
+
+def Show_In_Out(No_Incoming_Mydict,No_Outgoing_Mydict,No_InOut_Mydict):
+    '''
+    This function shows count the Nodes without incoming node, without outgoing nodes and without in/out
+
+    :param Mydict : the dictionary outputs from function Count_In_Out, which are 3 dictionaries counting number of nodes without incoming node, without outgoing nodes and without in/out for all kinds of nodes
+    :return : None
+    '''
+    output_file('Show_In_Out.html')
+
+    No_Incoming_Node_types = list(No_Incoming_Mydict.keys())
+    No_Incoming_counts = list(No_Incoming_Mydict.values())
+    
+    No_Outgoing_Node_types = list(No_Outgoing_Mydict.keys())
+    No_Outgoing_counts = list(No_Outgoing_Mydict.values())
+    
+    No_InOut_Node_types = list(No_InOut_Mydict.keys())
+    No_InOut_counts = list(No_InOut_Mydict.values())
+    
+    color=Category20[len(No_InOut_Node_types)]
+    labels = ['No_Incoming', 'No_Outgoing', 'No_In&Out']
+    
+    #source = ColumnDataSource(data=dict(index=index, counts=counts, color=Category20[len(index)]))
+    
+    source = {'labels': labels}
+    for key in No_Incoming_Node_types:
+        source[key] = [No_Incoming_Mydict[key],No_Outgoing_Mydict[key],No_InOut_Mydict[key]]
+    
+    TOOLTIPS = [
+        #('Node type', "$name @No_Incoming_Node_types: @$name"),
+        ('Node type', "$name"),
+        ('Node Number',"@$name"),
+        ('(x,y)', '($x, $y)'),
+        ('Node status', '@labels'),
+    ]
+
+    HT = HoverTool(tooltips=TOOLTIPS, mode='vline')
+
+    p = figure(y_range=(0, np.max(No_Incoming_counts+No_Outgoing_counts+No_InOut_counts) + 1000),
+               x_range=labels,
+               plot_width=500,
+               plot_height=500,
+               title='CalcNode Information',
+               
+               tooltips=TOOLTIPS)
+    #print('step figure done')
+    p.vbar_stack(No_Incoming_Node_types,
+                 x='labels',
+                 #top='counts',
+                 #bottom=0,
+                 width=1,
+                 color=color,
+                 source=source,
+                 legend_label=No_Incoming_Node_types)
+    #print('step hbar done')
+
+    output_notebook()
+    p.xgrid.grid_line_color = None
+    #p.legend.location = "bottom_left"
 
     p.xaxis.axis_label = 'Incoming and Outgoing status'
     p.yaxis.axis_label = 'Number of nodes'
