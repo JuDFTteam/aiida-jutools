@@ -1,18 +1,10 @@
 # -*- coding: utf-8 -*-
-# In here you can implement all functions you need within the notebooks
-# you can import them via `from .helpers.import <function_namw>`
+'''
+In here you can implement all functions you need within the notebooks
+you can import them via `from .helpers.import <function_namw>`
 
-# helpers function for subtask d2.a
-
-
-def print_bold(text: str):
-    """Print text in bold.
-
-    :param text: text to print in bold.
-    """
-    bold_text = f'\033[1m{text}\033[1m'
-    print(bold_text)
-
+helpers function for subtask d2.a
+'''
 
 # python imports
 import numpy as np
@@ -21,6 +13,22 @@ from collections import Counter
 from math import pi
 from pandas import DataFrame
 
+# D1 imports
+from bokeh.io import output_file, output_notebook, show
+from bokeh.layouts import column
+from bokeh.palettes import Category20, Category20c
+from bokeh.plotting import figure, ColumnDataSource
+from bokeh.transform import cumsum
+from bokeh.models import Legend, LegendItem, HoverTool
+
+# D2 interactive visualize by Bokeh imports
+from bokeh.io import output_file
+from bokeh.layouts import gridplot
+from bokeh.models import ColumnDataSource
+from bokeh.models.tools import HoverTool, BoxSelectTool
+from bokeh.plotting import figure, show
+
+
 # aiida imports
 from aiida.orm import QueryBuilder as QB
 from aiida.orm import WorkFunctionNode, WorkChainNode
@@ -28,6 +36,13 @@ from aiida.orm import Dict
 from aiida.plugins import DataFactory  #, WorkflowFactory
 StructureData = DataFactory('structure')
 
+def print_bold(text: str):
+    """Print text in bold.
+
+    :param text: text to print in bold.
+    """
+    bold_text = f'\033[1m{text}\033[1m'
+    print(bold_text)
 
 def get_structure_workflow_dict(
         structure_project=['uuid', 'extras.formula'],
@@ -191,14 +206,6 @@ def generate_combination_property_pandas_source(
     return combinepd
 
 
-# D2 interactive visualize by Bokeh imports
-from bokeh.io import output_file
-from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource
-from bokeh.models.tools import HoverTool, BoxSelectTool
-from bokeh.plotting import figure, show
-
-
 def read_json_file(filename, xcol, ycol):
     '''
     Read the dataset from the file.
@@ -334,14 +341,6 @@ def bokeh_struc_prop_vis(input_filename,
     layout = gridplot([[p, pv], [ph, None]], merge_tools=False)
     show(layout)
 
-
-# D1 imports
-from bokeh.io import output_file, output_notebook, show
-from bokeh.layouts import column
-from bokeh.palettes import Category20, Category20c
-from bokeh.plotting import figure, ColumnDataSource
-from bokeh.transform import cumsum
-from bokeh.models import Legend, LegendItem, HoverTool
 
 #D1.b
 
