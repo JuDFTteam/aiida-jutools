@@ -206,59 +206,85 @@ def generate_combination_property_pandas_source(
     return combinepd
 
 
-def read_json_file(filename, xcol, ycol):
+
+def filter_missing_value(df, xcol=None, ycol=None):
     '''
-    Read the dataset from the file.
-    Use xcol, ycol to specify the columns you want. The function will filter out the missing values of
-    these columns.
-    Return df(the entire dataframe of the file after filtering), and the data of each column.
+    Given xcol, ycol specifying the columns in need. The function will filter out the missing values of
+    these columns in the DataFrame. If both xcol and ycol are None, just return the original DataFrame.
+    Return filtered_df(the entire DataFrame of the file after filtering), and the data of each column.
+    '''
+    filtered_df = df.copy()
+    try:  # Check if xcol exists
+        filtered_df.dropna(axis=0, how='any', subset=[xcol], inplace=True)
+    except KeyError:
+        if xcol!=None:
+            print("Column '{}' not found.".format(xcol))
+        xcol, xdata = None, None
+    try:  # Check if ycol exists
+        filtered_df.dropna(axis=0, how='any', subset=[ycol], inplace=True)
+    except KeyError:
+        if ycol!=None:
+            print("Column '{}' not found.".format(ycol))
+        ycol, ydata = None, None
+
+    filtered_df.reset_index(drop=True, inplace=True)
+    if (xcol != None):
+        xdata = filtered_df[xcol]
+    if (ycol != None):
+        ydata = filtered_df[ycol]
+
+    return filtered_df, xdata, ydata
+
+
+def read_json_file(filename):
+    '''
+    Read the dataset from the file and return a DataFrame object.
     '''
     try:  # Check if the file could successfully opened
         df = pd.read_json(filename, orient='records')
-        try:  # Check if xcol exists
-            df.dropna(axis=0, how='any', subset=[xcol], inplace=True)
-        except KeyError:
-            print("Column '{}' not found.".format(xcol))
-            xcol, xdata = None, None
-        try:  # Check if ycol exists
-            df.dropna(axis=0, how='any', subset=[ycol], inplace=True)
-        except KeyError:
-            print("Column '{}' not found.".format(ycol))
-            ycol, ydata = None, None
     except ValueError:
         print("Invalid file '{}'.".format(filename))
-        df, xdata, ydata, xcol, ycol = None, None, None, None, None
-        #raise
-    else:
-        df.reset_index(drop=True, inplace=True)
+        #raise  
 
-    if (xcol != None):
-        xdata = df[xcol]
-    if (ycol != None):
-        ydata = df[ycol]
+    return df
 
-    return df, xdata, ydata
+
+def get_options_and_units(df):
+    '''
+    Given the columns of DataFrame, return the possible attributes in the columns as options and their 
+    corresponding units.
+    '''
+    cols = list(df.columns)
+    cleaned_cols = cols[2:-2]
+    options = [col for idx, col in enumerate(cleaned_cols) if idx % 2 == 0 ]
+    unitscols = [col for idx, col in enumerate(cleaned_cols) if idx % 2 != 0 ]
+    units = list(df[unitscols].dropna().iloc[0])
+
+    return options, units
 
 
 def bokeh_struc_prop_vis(input_filename,
                          xcol,
                          ycol,
-                         output_filename='bokeh_visualization.html'):
+                         output_filename='Interactive_visualization.html'):
     '''
         Create Bokeh Interactive scatter-histogram graphs for the xcol and ycol data from the input file.
         Hover tools included.
         The return plot file is saved in html format by default.
     '''
     # IO and other settings
-    df, xdata, ydata = read_json_file(input_filename, xcol, ycol)
+    original_df = read_json_file(input_filename)
+    df, xdata, ydata = filter_missing_value(original_df, xcol, ycol)
+    OPTIONS, UNITS = get_options_and_units(df)
     output_file(output_filename)
-    TOOLS = 'pan, wheel_zoom, box_select, reset'
+    TOOLS = 'pan, wheel_zoom, box_select, reset, save'
 
     # Create the scatter plot
     TOOLTIPS = [('Index', '$index'),
-                ('Sturture_node uuid:', '@structure_uuid'),
-                ('Input formula:', '@formula'),
-                ('Dict_node uuid:', '@dict_uuid')]  # Hover tools
+                ('Sturture_node uuid', '@structure_uuid'),
+                ('Input formula', '@formula'),
+                ('Dict_node uuid', '@dict_uuid'),
+                ('Value', '($x, $y)')]  # Hover tools
     source = ColumnDataSource(df)
     # Settings
     p = figure(plot_width=600,
@@ -269,10 +295,11 @@ def bokeh_struc_prop_vis(input_filename,
                title='Linked Histograms',
                tools=TOOLS,
                tooltips=TOOLTIPS)
+    p.title.text = "Properties visualization"
     # Render
     r = p.circle(xcol,
                  ycol,
-                 color='blue',
+                 color='#3a5785',
                  alpha=0.6,
                  selection_color='red',
                  selection_fill_alpha=0.8,
@@ -305,9 +332,11 @@ def bokeh_struc_prop_vis(input_filename,
             left='left',
             right='right',
             top='top',
-            color='blue',
+            color='#3a5785',
             alpha=0.6,
             source=hsource)
+    xunit = UNITS[OPTIONS.index(xcol)]
+    ph.xaxis.axis_label = xcol + ' (' + xunit + ')'
 
     # Create the vertical histogram
     vhist, vedges = np.histogram(ydata, bins=20)
@@ -333,12 +362,16 @@ def bokeh_struc_prop_vis(input_filename,
             bottom='bottom',
             top='top',
             right='right',
-            color='blue',
+            color='#3a5785',
             alpha=0.6,
             source=vsource)
+    yunit = UNITS[OPTIONS.index(ycol)]
+    pv.yaxis.axis_label = ycol + ' (' + yunit + ')'
 
     # Show plots
     layout = gridplot([[p, pv], [ph, None]], merge_tools=False)
+    curdoc().add_root(layout)
+    #curdoc().title = "Properties visualization"
     show(layout)
 
 
