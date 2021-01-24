@@ -384,7 +384,7 @@ def get_process_node_count(types, node_type):
         for k, v in nodetypes.items() if k.endswith('WorkFunction')
     }
 
-    x1 = get_node_count(types, node_type)
+    x1 = get_data_node_count(types, node_type)
     for k, v in nodetypes.items():
         if k.endswith('WorkChain'):
             x1.pop('WorkChainNode', None)
@@ -408,7 +408,8 @@ def draw_pie_chart(x, title):
     data['angle'] = data['value'] / sum(list(x.values())) * 2 * pi
     data['color'] = Category20[len(x)]
     data['percent'] = data['value'] / sum(x.values())
-    p = figure(title=title,
+    p = figure(plot_height=500,plot_width=900,
+               title=title,
                toolbar_location=None,
                tools='hover',
                tooltips=[('Data', '@data_nodes'),
