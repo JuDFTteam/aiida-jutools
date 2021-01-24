@@ -12,6 +12,7 @@ import pandas as pd
 from collections import Counter
 from math import pi
 from pandas import DataFrame
+import time
 
 # D1 imports
 from bokeh.io import output_file, output_notebook, show
@@ -22,9 +23,9 @@ from bokeh.transform import cumsum
 from bokeh.models import Legend, LegendItem, HoverTool
 
 # D2 interactive visualize by Bokeh imports
-from bokeh.io import output_file
-from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource
+from bokeh.io import output_file, show, curdoc
+from bokeh.layouts import gridplot, column, row
+from bokeh.models import ColumnDataSource, Select
 from bokeh.models.tools import HoverTool, BoxSelectTool
 from bokeh.plotting import figure, show
 
@@ -36,6 +37,7 @@ from aiida.orm import Dict
 from aiida.plugins import DataFactory  #, WorkflowFactory
 StructureData = DataFactory('structure')
 
+
 def print_bold(text: str):
     """Print text in bold.
 
@@ -44,19 +46,30 @@ def print_bold(text: str):
     bold_text = f'\033[1m{text}\033[1m'
     print(bold_text)
 
+
 def get_structure_workflow_dict(
         structure_project=['uuid', 'extras.formula'],
         structure_filters=None,
         workflow_project=['uuid', 'attributes.process_label'],
         workflow_filters=None,
         dict_project=['uuid'],
-        dict_filters=None):
+        dict_filters=None,
+        timing=False,
+        check_version=False):
     '''
-    Input the demanding project information and filters information.
+    Input the required project information and filters information.
     Return all output dict nodes returned by workflows, which had StructureData nodes as inputs are there in the database
     with the projections and filters given.
-    The output is a list of dicts
+    The output is a list of dicts.
     '''
+    if check_version:
+        dict_project.extend(['attributes.workflow_version', 'attributes.parser_info'])
+        tmp = dict_project
+        dict_project = list(set(dict_project))
+        dict_project.sort(key=tmp.index)
+    if timing:
+        time_start = time.time()
+
     qb_wfunc = QB()  # qb for WorkFunctionNode
     qb_wfunc.append(StructureData,
                     project=structure_project,
@@ -89,15 +102,33 @@ def get_structure_workflow_dict(
                      tag='results',
                      with_incoming='work_chain')
 
-    workflowlst = qb_wchain.all() + qb_wchain.all(
+    workflowlst = qb_wfunc.all() + qb_wchain.all(
     )  # Combine into a workflow list
+
+    if timing:
+        time_end = time.time()
+        time_elapsed = time_end - time_start
+        print("Elapsed time: ", time_elapsed, 's\n')
+
+
     stlen, wflen, dclen = len(structure_project), len(workflow_project), len(
         dict_project)
     workflowdictlst = [{
         'structure': wf[0:stlen],
         'workflow': wf[stlen:(stlen + wflen)],
         'dict': wf[(stlen + wflen):(stlen + wflen + dclen)]
-    } for wf in workflowlst]  # Transform to a list of dicts
+    } for wf in workflowlst]  # Transform workflowlst to a list of dicts
+
+    if check_version:
+        idx1 = dict_project.index('attributes.workflow_version')
+        idx2 = dict_project.index('attributes.parser_info')
+        versions = [[item['dict'][idx1], item['dict'][idx2]
+    ] for item in workflowdictlst] # Generate a version list
+        flattened_versions = [val for version in versions for val in version]
+        flattened_versions = list(filter(None, flattened_versions))
+        c = Counter(flattened_versions) # Count versions
+        print("Versions and frequency:\n", c.most_common(), '\n')   
+
 
     return workflowdictlst
 
@@ -204,7 +235,6 @@ def generate_combination_property_pandas_source(
         combinepd.to_json(filename, orient='records')
 
     return combinepd
-
 
 
 def filter_missing_value(df, xcol=None, ycol=None):
@@ -371,7 +401,7 @@ def bokeh_struc_prop_vis(input_filename,
     # Show plots
     layout = gridplot([[p, pv], [ph, None]], merge_tools=False)
     curdoc().add_root(layout)
-    #curdoc().title = "Properties visualization"
+    curdoc().title = "Properties visualization"
     show(layout)
 
 
