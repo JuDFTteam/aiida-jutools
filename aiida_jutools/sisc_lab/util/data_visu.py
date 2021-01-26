@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from itertools import groupby
 from bokeh.io import output_file, show
-from bokeh.models import ColumnDataSource, HoverTool
+from bokeh.models import ColumnDataSource, HoverTool, Legend
 from bokeh.plotting import figure
 from bokeh.io import output_notebook
 from bokeh.palettes import Category20
@@ -551,15 +551,15 @@ def Show_In_Out(No_Incoming_Mydict,No_Outgoing_Mydict,No_InOut_Mydict):
     No_InOut_Node_types = list(No_InOut_Mydict.keys())
     No_InOut_counts = list(No_InOut_Mydict.values())
     
-    color=Category20[len(No_InOut_Node_types)]
     labels = ['No_Incoming', 'No_Outgoing', 'No_In&Out']
-    
+    keyset = list(set(No_Incoming_Node_types+No_Outgoing_Node_types+No_InOut_Node_types))
     #source = ColumnDataSource(data=dict(index=index, counts=counts, color=Category20[len(index)]))
-    
+    color=Category20[len(keyset)]
     source = {'labels': labels}
-    for key in No_Incoming_Node_types:
-        source[key] = [No_Incoming_Mydict[key],No_Outgoing_Mydict[key],No_InOut_Mydict[key]]
-    
+    #print(No_Incoming_Node_types)
+    for key in keyset:
+        source[key] = [No_Incoming_Mydict.get(key, 0), No_Outgoing_Mydict.get(key, 0), No_InOut_Mydict.get(key, 0)]
+
     TOOLTIPS = [
         #('Node type', "$name @No_Incoming_Node_types: @$name"),
         ('Node type', "$name"),
@@ -572,27 +572,26 @@ def Show_In_Out(No_Incoming_Mydict,No_Outgoing_Mydict,No_InOut_Mydict):
 
     p = figure(y_range=(0, np.max(No_Incoming_counts+No_Outgoing_counts+No_InOut_counts) + 1000),
                x_range=labels,
-               plot_width=500,
+               plot_width=1200,
                plot_height=500,
                title='CalcNode Information',
                
                tooltips=TOOLTIPS)
+    p.add_layout(Legend(), 'right')
     #print('step figure done')
-    p.vbar_stack(No_Incoming_Node_types,
+    p.vbar_stack(keyset,
                  x='labels',
                  #top='counts',
                  #bottom=0,
                  width=1,
                  color=color,
                  source=source,
-                 legend_label=No_Incoming_Node_types)
+                 legend_label=keyset)
     #print('step hbar done')
 
-    output_notebook()
     p.xgrid.grid_line_color = None
     #p.legend.location = "bottom_left"
 
     p.xaxis.axis_label = 'Incoming and Outgoing status'
     p.yaxis.axis_label = 'Number of nodes'
-    #p.legend = False
     show(p)
