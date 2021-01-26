@@ -30,227 +30,227 @@ from bokeh.models.tools import HoverTool, BoxSelectTool
 from bokeh.plotting import figure, show
 
 
-# # aiida imports
-# from aiida.orm import QueryBuilder as QB
-# from aiida.orm import WorkFunctionNode, WorkChainNode
-# from aiida.orm import Dict
-# from aiida.plugins import DataFactory  #, WorkflowFactory
-# StructureData = DataFactory('structure')
+# aiida imports
+from aiida.orm import QueryBuilder as QB
+from aiida.orm import WorkFunctionNode, WorkChainNode
+from aiida.orm import Dict
+from aiida.plugins import DataFactory  #, WorkflowFactory
+StructureData = DataFactory('structure')
 
 
-# def print_bold(text: str):
-#     """Print text in bold.
+def print_bold(text: str):
+    """Print text in bold.
 
-#     :param text: text to print in bold.
-#     """
-#     bold_text = f'\033[1m{text}\033[1m'
-#     print(bold_text)
-
-
-# def set_structure_formula():
-#     '''
-#     Proprocessing.
-#     Set extras.formula attributes for structure nodes
-#     '''
-#     qb = QB()
-#     qb.append(StructureData)
-#     strucs = qb.all()
-#     for struc in strucs:
-#         struc = struc[0]
-#         if 'formula' in struc.extras: # Could be projected in the query
-#             continue
-#         formula = struc.get_formula()
-#         struc.set_extra('formula', formula)
+    :param text: text to print in bold.
+    """
+    bold_text = f'\033[1m{text}\033[1m'
+    print(bold_text)
 
 
-# def get_structure_workflow_dict(
-#         structure_project=['uuid', 'extras.formula'],
-#         structure_filters=None,
-#         workflow_project=['uuid', 'attributes.process_label'],
-#         workflow_filters=None,
-#         dict_project=['uuid'],
-#         dict_filters=None,
-#         timing=False,
-#         check_version=False):
-#     '''
-#     Input the required project information and filters information.
-#     Return all output dict nodes returned by workflows, which had StructureData nodes as inputs are there in the database
-#     with the projections and filters given.
-#     The output is a list of dicts.
-#     '''
-#     if check_version:
-#         dict_project.extend(['attributes.workflow_version', 'attributes.parser_info'])
-#         tmp = dict_project
-#         dict_project = list(set(dict_project))
-#         dict_project.sort(key=tmp.index)
-#     if timing:
-#         time_start = time.time()
-
-#     qb_wfunc = QB()  # qb for WorkFunctionNode
-#     qb_wfunc.append(StructureData,
-#                     project=structure_project,
-#                     filters=structure_filters,
-#                     tag='structure')
-#     qb_wfunc.append(WorkFunctionNode,
-#                     project=workflow_project,
-#                     filters=workflow_filters,
-#                     tag='work_function',
-#                     with_incoming='structure')
-#     qb_wfunc.append(Dict,
-#                     project=dict_project,
-#                     filters=dict_filters,
-#                     tag='results',
-#                     with_incoming='work_function')
-
-#     qb_wchain = QB()  # qb for WorkChainNode
-#     qb_wchain.append(StructureData,
-#                      project=structure_project,
-#                      filters=structure_filters,
-#                      tag='structure')
-#     qb_wchain.append(WorkChainNode,
-#                      project=workflow_project,
-#                      filters=workflow_filters,
-#                      tag='work_chain',
-#                      with_incoming='structure')
-#     qb_wchain.append(Dict,
-#                      project=dict_project,
-#                      filters=dict_filters,
-#                      tag='results',
-#                      with_incoming='work_chain')
-
-#     workflowlst = qb_wfunc.all() + qb_wchain.all(
-#     )  # Combine into a workflow list
-
-#     if timing:
-#         time_end = time.time()
-#         time_elapsed = time_end - time_start
-#         print("Elapsed time: ", time_elapsed, 's\n')
+def set_structure_formula():
+    '''
+    Proprocessing.
+    Set extras.formula attributes for structure nodes
+    '''
+    qb = QB()
+    qb.append(StructureData)
+    strucs = qb.all()
+    for struc in strucs:
+        struc = struc[0]
+        if 'formula' in struc.extras: # Could be projected in the query
+            continue
+        formula = struc.get_formula()
+        struc.set_extra('formula', formula)
 
 
-#     stlen, wflen, dclen = len(structure_project), len(workflow_project), len(
-#         dict_project)
-#     workflowdictlst = [{
-#         'structure': wf[0:stlen],
-#         'workflow': wf[stlen:(stlen + wflen)],
-#         'dict': wf[(stlen + wflen):(stlen + wflen + dclen)]
-#     } for wf in workflowlst]  # Transform workflowlst to a list of dicts
+def get_structure_workflow_dict(
+        structure_project=['uuid', 'extras.formula'],
+        structure_filters=None,
+        workflow_project=['uuid', 'attributes.process_label'],
+        workflow_filters=None,
+        dict_project=['uuid'],
+        dict_filters=None,
+        timing=False,
+        check_version=False):
+    '''
+    Input the required project information and filters information.
+    Return all output dict nodes returned by workflows, which had StructureData nodes as inputs are there in the database
+    with the projections and filters given.
+    The output is a list of dicts.
+    '''
+    if check_version:
+        dict_project.extend(['attributes.workflow_version', 'attributes.parser_info'])
+        tmp = dict_project
+        dict_project = list(set(dict_project))
+        dict_project.sort(key=tmp.index)
+    if timing:
+        time_start = time.time()
 
-#     if check_version:
-#         idx1 = dict_project.index('attributes.workflow_version')
-#         idx2 = dict_project.index('attributes.parser_info')
-#         versions = [[item['dict'][idx1], item['dict'][idx2]
-#     ] for item in workflowdictlst] # Generate a version list
-#         flattened_versions = [val for version in versions for val in version]
-#         flattened_versions = list(filter(None, flattened_versions))
-#         c = Counter(flattened_versions) # Count versions
-#         print("Versions and frequency:\n", c.most_common(), '\n')   
+    qb_wfunc = QB()  # qb for WorkFunctionNode
+    qb_wfunc.append(StructureData,
+                    project=structure_project,
+                    filters=structure_filters,
+                    tag='structure')
+    qb_wfunc.append(WorkFunctionNode,
+                    project=workflow_project,
+                    filters=workflow_filters,
+                    tag='work_function',
+                    with_incoming='structure')
+    qb_wfunc.append(Dict,
+                    project=dict_project,
+                    filters=dict_filters,
+                    tag='results',
+                    with_incoming='work_function')
 
+    qb_wchain = QB()  # qb for WorkChainNode
+    qb_wchain.append(StructureData,
+                     project=structure_project,
+                     filters=structure_filters,
+                     tag='structure')
+    qb_wchain.append(WorkChainNode,
+                     project=workflow_project,
+                     filters=workflow_filters,
+                     tag='work_chain',
+                     with_incoming='structure')
+    qb_wchain.append(Dict,
+                     project=dict_project,
+                     filters=dict_filters,
+                     tag='results',
+                     with_incoming='work_chain')
 
-#     return workflowdictlst
+    workflowlst = qb_wfunc.all() + qb_wchain.all(
+    )  # Combine into a workflow list
 
-
-# def generate_dict_property_pandas_source(workflow_name=None,
-#                                          dict_project=[
-#                                              'attributes.energy',
-#                                              'attributes.total_energy',
-#                                              'attributes.distance_charge'
-#                                          ],
-#                                          filename=None):
-#     '''
-#     Given a workflow, generate the dict_project property (which is the output of the workflow) as a pandas object,
-#     and write it into a json file.
-#     e.g. workflow_name='fleur_scf_wc', filename='dict_property.json'
-#     '''
-#     if not workflow_name:
-#         workflowdictlst = get_structure_workflow_dict(
-#             dict_project=dict_project)
-#     else:
-#         workflowdictlst = get_structure_workflow_dict(
-#             dict_project=dict_project,
-#             workflow_filters={'attributes.process_label': workflow_name})
-
-#     dictlst = [wf['dict']
-#                for wf in workflowdictlst]  # Generate a list for Dict nodes
-#     cleaned_col = [att.split('.')[-1]
-#                    for att in dict_project]  # Re-define the column name
-#     try:  # Check if uuid information exists
-#         idx = cleaned_col.index('uuid')
-#     except ValueError:
-#         pass
-#     else:
-#         cleaned_col[idx] = 'dict_uuid'  # Change uuid column name
-#         for info in dictlst:  # Shorten the uuid to its first part
-#             info[0] = info[0].split('-')[0]
-#     dictpd = pd.DataFrame(
-#         dictlst, columns=cleaned_col)  # Transform list into pd DataFrame
-
-#     if filename:
-#         dictpd.to_json(filename, orient='records')
-
-#     return dictpd
-
-
-# def generate_structure_property_pandas_source(
-#         workflow_name=None,
-#         structure_project=['uuid', 'extras.formula'],
-#         filename=None):
-#     '''
-#     Given a workflow, generate the structure_project property (which is the input of the workflow) as a pandas object
-#     and write it into a json file.
-#     e.g. workflow_name='fleur_scf_wc', filename='structure_property.json'
-#     '''
-#     if not workflow_name:
-#         workflowdictlst = get_structure_workflow_dict(
-#             structure_project=structure_project)
-#     else:
-#         workflowdictlst = get_structure_workflow_dict(
-#             structure_project=structure_project,
-#             workflow_filters={'attributes.process_label': workflow_name})
-
-#     structurelst = [wf['structure'] for wf in workflowdictlst
-#                     ]  # Generate a list for Structure nodes
-#     cleaned_col = [att.split('.')[-1]
-#                    for att in structure_project]  # Re-define the column name
-#     try:  # Check if uuid exists
-#         idx = cleaned_col.index('uuid')
-#     except ValueError:
-#         pass
-#     else:
-#         cleaned_col[idx] = 'structure_uuid'  # Change the uuid column name
-#         for info in structurelst:  # Shorten the uuid to its first part
-#             info[0] = info[0].split('-')[0]
-#     structurepd = pd.DataFrame(
-#         structurelst, columns=cleaned_col)  # Transform into pd DataFrame
-
-#     if filename:
-#         structurepd.to_json(filename, orient='records')
-
-#     return structurepd
+    if timing:
+        time_end = time.time()
+        time_elapsed = time_end - time_start
+        print("Elapsed time: ", time_elapsed, 's\n')
 
 
-# def generate_combination_property_pandas_source(
-#         workflow_name=None,
-#         dict_project=[
-#             'attributes.energy', 'attributes.total_energy',
-#             'attributes.distance_charge'
-#         ],
-#         structure_project=['uuid', 'extras.formula'],
-#         filename=None):
-#     '''
-#     Given a workflow, generate the combination of dict_project and structure_project property as a pandas object,
-#     and write it into a json file.
-#     e.g. workflow_name='fleur_scf_wc', filename='combination_property.json'
-#     '''
-#     dictpd = generate_dict_property_pandas_source(workflow_name,
-#                                                   dict_project=dict_project)
-#     structurepd = generate_structure_property_pandas_source(
-#         workflow_name, structure_project=structure_project)
-#     combinepd = pd.concat([dictpd, structurepd], axis=1)
+    stlen, wflen, dclen = len(structure_project), len(workflow_project), len(
+        dict_project)
+    workflowdictlst = [{
+        'structure': wf[0:stlen],
+        'workflow': wf[stlen:(stlen + wflen)],
+        'dict': wf[(stlen + wflen):(stlen + wflen + dclen)]
+    } for wf in workflowlst]  # Transform workflowlst to a list of dicts
 
-#     if filename:
-#         combinepd.to_json(filename, orient='records')
+    if check_version:
+        idx1 = dict_project.index('attributes.workflow_version')
+        idx2 = dict_project.index('attributes.parser_info')
+        versions = [[item['dict'][idx1], item['dict'][idx2]
+    ] for item in workflowdictlst] # Generate a version list
+        flattened_versions = [val for version in versions for val in version]
+        flattened_versions = list(filter(None, flattened_versions))
+        c = Counter(flattened_versions) # Count versions
+        print("Versions and frequency:\n", c.most_common(), '\n')   
 
-#     return combinepd
+
+    return workflowdictlst
+
+
+def generate_dict_property_pandas_source(workflow_name=None,
+                                         dict_project=[
+                                             'attributes.energy',
+                                             'attributes.total_energy',
+                                             'attributes.distance_charge'
+                                         ],
+                                         filename=None):
+    '''
+    Given a workflow, generate the dict_project property (which is the output of the workflow) as a pandas object,
+    and write it into a json file.
+    e.g. workflow_name='fleur_scf_wc', filename='dict_property.json'
+    '''
+    if not workflow_name:
+        workflowdictlst = get_structure_workflow_dict(
+            dict_project=dict_project)
+    else:
+        workflowdictlst = get_structure_workflow_dict(
+            dict_project=dict_project,
+            workflow_filters={'attributes.process_label': workflow_name})
+
+    dictlst = [wf['dict']
+               for wf in workflowdictlst]  # Generate a list for Dict nodes
+    cleaned_col = [att.split('.')[-1]
+                   for att in dict_project]  # Re-define the column name
+    try:  # Check if uuid information exists
+        idx = cleaned_col.index('uuid')
+    except ValueError:
+        pass
+    else:
+        cleaned_col[idx] = 'dict_uuid'  # Change uuid column name
+        for info in dictlst:  # Shorten the uuid to its first part
+            info[0] = info[0].split('-')[0]
+    dictpd = pd.DataFrame(
+        dictlst, columns=cleaned_col)  # Transform list into pd DataFrame
+
+    if filename:
+        dictpd.to_json(filename, orient='records')
+
+    return dictpd
+
+
+def generate_structure_property_pandas_source(
+        workflow_name=None,
+        structure_project=['uuid', 'extras.formula'],
+        filename=None):
+    '''
+    Given a workflow, generate the structure_project property (which is the input of the workflow) as a pandas object
+    and write it into a json file.
+    e.g. workflow_name='fleur_scf_wc', filename='structure_property.json'
+    '''
+    if not workflow_name:
+        workflowdictlst = get_structure_workflow_dict(
+            structure_project=structure_project)
+    else:
+        workflowdictlst = get_structure_workflow_dict(
+            structure_project=structure_project,
+            workflow_filters={'attributes.process_label': workflow_name})
+
+    structurelst = [wf['structure'] for wf in workflowdictlst
+                    ]  # Generate a list for Structure nodes
+    cleaned_col = [att.split('.')[-1]
+                   for att in structure_project]  # Re-define the column name
+    try:  # Check if uuid exists
+        idx = cleaned_col.index('uuid')
+    except ValueError:
+        pass
+    else:
+        cleaned_col[idx] = 'structure_uuid'  # Change the uuid column name
+        for info in structurelst:  # Shorten the uuid to its first part
+            info[0] = info[0].split('-')[0]
+    structurepd = pd.DataFrame(
+        structurelst, columns=cleaned_col)  # Transform into pd DataFrame
+
+    if filename:
+        structurepd.to_json(filename, orient='records')
+
+    return structurepd
+
+
+def generate_combination_property_pandas_source(
+        workflow_name=None,
+        dict_project=[
+            'attributes.energy', 'attributes.total_energy',
+            'attributes.distance_charge'
+        ],
+        structure_project=['uuid', 'extras.formula'],
+        filename=None):
+    '''
+    Given a workflow, generate the combination of dict_project and structure_project property as a pandas object,
+    and write it into a json file.
+    e.g. workflow_name='fleur_scf_wc', filename='combination_property.json'
+    '''
+    dictpd = generate_dict_property_pandas_source(workflow_name,
+                                                  dict_project=dict_project)
+    structurepd = generate_structure_property_pandas_source(
+        workflow_name, structure_project=structure_project)
+    combinepd = pd.concat([dictpd, structurepd], axis=1)
+
+    if filename:
+        combinepd.to_json(filename, orient='records')
+
+    return combinepd
 
 
 # D2 part b
