@@ -33,7 +33,7 @@ from bokeh.plotting import figure, show
 # aiida imports
 from aiida.orm import QueryBuilder as QB
 from aiida.orm import WorkFunctionNode, WorkChainNode
-from aiida.orm import Dict
+from aiida.orm import Dict, ProcessNode
 from aiida.plugins import DataFactory  #, WorkflowFactory
 StructureData = DataFactory('structure')
 
