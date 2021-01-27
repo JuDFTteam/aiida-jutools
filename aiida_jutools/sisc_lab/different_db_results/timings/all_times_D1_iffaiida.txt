@@ -1,0 +1,4 @@
+# Timings of D1 in seconds
+# Database info: 5150 nodes; 3658 processes, 1472 data, 34 MB size 
+# Database overview, user info, node type, database evolution, code analysis, group analysis, structure analysis, process info, provenance analysis
+0.4876291751861572  0.0016245841979980469  19.15062975883484  0.3624391555786133  0.4651219844818115  0.4667534828186035  2.020296573638916  1.9521443843841553  69.69794654846191  
