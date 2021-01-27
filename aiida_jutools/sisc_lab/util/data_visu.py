@@ -13,7 +13,12 @@ from bokeh.palettes import inferno
 from aiida.orm import WorkflowNode
 from aiida.orm import QueryBuilder
 from aiida.common.constants import elements
+from aiida_jutools.sisc_lab.helpers import FIGURE_HEIGHT, FIGURE_WIDTH
+
 AllElements = elements
+
+
+
 ####### function to analyse structure data elements number and nodes number but not implemented yet! ###############################
 ## class StrucData to analyse the elements
 class StrucFormulaHelper:
@@ -184,6 +189,7 @@ def sort_element_index(Elements):
     ########## the correct oder after sorting ##########
     CorrectIndex, CorrectElements = (list(t) for t in zip(*sorted(zip(OderElement, Elements))))    
     return CorrectIndex, CorrectElements
+
 def ShowElements(Data):
     '''
     visualize the Elements and number of them, the sorted by the number of elements
@@ -199,8 +205,8 @@ def ShowElements(Data):
     
     # zip sort
     #_ , elements = zip(*sorted(zip(counts, elements)))
-    print(elements)
-    AtonicNumber,elements = sort_element_index(elements)
+    #print(elements)
+    AtomicNumber,elements = sort_element_index(elements)
     
     #counts = list(data.astype(bool).sum(axis=0))
     counts = [data[element].astype(bool).sum(axis=0) for element in elements]
@@ -208,21 +214,21 @@ def ShowElements(Data):
     #print(elements)
 
     source = ColumnDataSource(data=dict(
-        elements=elements, counts=counts,AtonicNumber =AtonicNumber, color=inferno(len(elements))))
+        elements=elements, counts=counts,AtomicNumber =AtomicNumber, color=inferno(len(elements))))
 
     TOOLTIPS = [
         ('Element', '@elements'),
-        ('Atonic Number', '@AtonicNumber'),
+        ('Atomic Number', '@AtomicNumber'),
         ('(x,y)', '($x, $y)'),
         ('Number of Structures containing this element', '@counts'),
     ]
 
     p = figure(y_range=elements,
                x_range=(0, np.max(counts)),
-               plot_width=800,
-               plot_height=800,
+               # This we make rectengular
+               plot_height=FIGURE_WIDTH, plot_width=FIGURE_WIDTH,
                title='Number of Elements',
-               tools=[HoverTool(mode='hline')],
+               #tools=[HoverTool(mode='hline')],
                tooltips=TOOLTIPS)
     #print('step figure done')
     p.hbar(y='elements',
@@ -270,10 +276,9 @@ def ShowFormula(Data):
 
     p = figure(x_range=(0, np.max(counts) + 20),
                y_range=(0, np.max(elements)),
-               plot_width=800,
-               plot_height=800,
+               plot_height=FIGURE_HEIGHT, plot_width=FIGURE_WIDTH,
                title='Atoms Count',
-               tools=[HoverTool(mode='hline')],
+               #tools=[HoverTool(mode='hline')],
                tooltips=TOOLTIPS)
     #print('step figure done')
     p.hbar(y='elements',
@@ -373,10 +378,9 @@ def ShowWorkflow(WorkflowDict, Title):
 
     p = figure(y_range=(0, np.max(counts) + 10),
                x_range=index,
-               plot_width=700,
-               plot_height=700,
+               plot_height=FIGURE_HEIGHT, plot_width=FIGURE_WIDTH,
                title=Title,
-               tools=[HoverTool(mode='vline')],
+               #tools=[HoverTool(mode='vline')],
                tooltips=TOOLTIPS)
     #print('step figure done')
     p.vbar(x='index',
@@ -510,11 +514,9 @@ def Show_In_Out_Old_Version(Mydict):
     HT = HoverTool(tooltips=TOOLTIPS, mode='vline')
 
     p = figure(y_range=(0, np.max(counts) + 500),
-               x_range=index,
-               plot_width=500,
-               plot_height=500,
+               x_range=index, plot_height=FIGURE_HEIGHT,plot_width=FIGURE_WIDTH,
                title='CalcNode Information',
-               tools=[HoverTool(mode='vline')],
+               #tools=[HoverTool(mode='vline')],
                tooltips=TOOLTIPS)
     #print('step figure done')
     p.vbar(x='index',
@@ -540,6 +542,8 @@ def Show_In_Out(No_Incoming_Mydict,No_Outgoing_Mydict,No_InOut_Mydict):
     :param Mydict : the dictionary outputs from function Count_In_Out, which are 3 dictionaries counting number of nodes without incoming node, without outgoing nodes and without in/out for all kinds of nodes
     :return : None
     '''
+    # would be nice to add total number of nodes, and percentage of it
+
     output_file('Show_In_Out.html')
 
     No_Incoming_Node_types = list(No_Incoming_Mydict.keys())
@@ -572,8 +576,7 @@ def Show_In_Out(No_Incoming_Mydict,No_Outgoing_Mydict,No_InOut_Mydict):
 
     p = figure(y_range=(0, np.max(No_Incoming_counts+No_Outgoing_counts+No_InOut_counts) + 1000),
                x_range=labels,
-               plot_width=1200,
-               plot_height=500,
+               plot_height=FIGURE_HEIGHT,plot_width=FIGURE_WIDTH,
                title='CalcNode Information',
                
                tooltips=TOOLTIPS)
