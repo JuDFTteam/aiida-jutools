@@ -379,7 +379,7 @@ def ShowWorkflow(WorkflowDict, Title):
         colors = inferno(length)
     
     source = ColumnDataSource(
-        data=dict(index=index, counts=counts, color=colors)
+        data=dict(index=index, counts=counts, color=colors))
 
     TOOLTIPS = [
         ('Node number', '@counts'),
