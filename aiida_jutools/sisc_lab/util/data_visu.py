@@ -221,7 +221,7 @@ def ShowElements(Data):
                x_range=(0, np.max(counts)),
                plot_width=800,
                plot_height=800,
-               title='Number of Elements',
+               title='Number of Elements Information',
                tools=[HoverTool(mode='hline')],
                tooltips=TOOLTIPS)
     #print('step figure done')
@@ -272,7 +272,7 @@ def ShowFormula(Data):
                y_range=(0, np.max(elements)),
                plot_width=800,
                plot_height=800,
-               title='Atoms Count',
+               title='Number of Atoms Information',
                tools=[HoverTool(mode='hline')],
                tooltips=TOOLTIPS)
     #print('step figure done')
@@ -553,6 +553,7 @@ def Show_In_Out(No_Incoming_Mydict,No_Outgoing_Mydict,No_InOut_Mydict):
     
     labels = ['No_Incoming', 'No_Outgoing', 'No_In&Out']
     keyset = list(set(No_Incoming_Node_types+No_Outgoing_Node_types+No_InOut_Node_types))
+    #keyset = No_Incoming_Node_types
     #source = ColumnDataSource(data=dict(index=index, counts=counts, color=Category20[len(index)]))
     color=Category20[len(keyset)]
     source = {'labels': labels}
@@ -574,7 +575,7 @@ def Show_In_Out(No_Incoming_Mydict,No_Outgoing_Mydict,No_InOut_Mydict):
                x_range=labels,
                plot_width=1200,
                plot_height=500,
-               title='CalcNode Information',
+               title='Provenance Health Information',
                
                tooltips=TOOLTIPS)
     p.add_layout(Legend(), 'right')
