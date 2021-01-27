@@ -262,10 +262,16 @@ def ShowFormula(Data):
     formulas = list(data[key][:10] for key in data.keys())
 
     length = len(elements)
+    if length > 256:
+        # While this works through a different coloring with meaning is probably better
+        inferno256_1 = inferno(256)
+        colors = inferno256_1*int(length/256) + inferno(length%256)
+    else:
+        colors = inferno(length)
     source = ColumnDataSource(data=dict(elements=elements,
                                         counts=counts,
                                         formulas=formulas,
-                                        color=inferno(length)))
+                                        color=colors))
 
     TOOLTIPS = [
         ('Number of Atoms', '@elements'),
@@ -364,9 +370,16 @@ def ShowWorkflow(WorkflowDict, Title):
     #exit_message = exit_message
     #exit_state_string = exit_state
     #exit_state_digit = exit_state_digit
-
+    length = len(index)
+    if length > 256:
+        # While this works through a different coloring with meaning is probably better
+        inferno256_1 = inferno(256)
+        colors = inferno256_1*int(length/256) + inferno(length%256)
+    else:
+        colors = inferno(length)
+    
     source = ColumnDataSource(
-        data=dict(index=index, counts=counts, color=inferno(len(index))))
+        data=dict(index=index, counts=counts, color=colors)
 
     TOOLTIPS = [
         ('Node number', '@counts'),
