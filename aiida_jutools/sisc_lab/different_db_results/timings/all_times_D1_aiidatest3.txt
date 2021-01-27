@@ -1,0 +1,4 @@
+# Timings of D1 in seconds, aiidatest3
+# Database info: 98411 nodes; 80194 processes, 18214 data, 1738 MB size 
+# Database overview, user info, node type, database evolution, code analysis, group analysis, structure analysis, process info, provenance analysis
+2.822274684906006  0.011598348617553711  90.66472434997559  3.6650545597076416  2.3047056198120117  15.561893224716187  172.53158831596375  20.713788270950317  1218.1035690307617  

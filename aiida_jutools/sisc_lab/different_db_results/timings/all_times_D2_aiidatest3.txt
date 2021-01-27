@@ -1,0 +1,4 @@
+# Timings of D2 in seconds aiidatest3
+# Database info: None nodes; None processes, None data, 1738 MB size 
+# Preprocess structures, Prepare Structure, Prepare Dict, Join Data, Loading file, Plot 1, Plot 2
+25.48940372467041  0.18366599082946777  0.37715744972229004  0.579298734664917  0.1258387565612793  0.22066521644592285  0.15006375312805176  
