@@ -258,13 +258,30 @@ def generate_combination_property_pandas_source(
 
 # D2 part b
 
-def filter_missing_value(df, xcol=None, ycol=None):
+def filter_missing_value(df, xcol=None, ycol=None, cut_lists=True):
     '''
     Given xcol, ycol specifying the columns in need. The function will filter out the missing values of
     these columns in the DataFrame. If both xcol and ycol are None, just return the original DataFrame.
     Return filtered_df(the entire DataFrame of the file after filtering), and the data of each column.
     '''
     filtered_df = df.copy()
+    '''
+    if cut_lists:
+        # lists do not work, here we hard iterate them out and take the last element before we remove the nodes
+        # greedy
+        xdata = list(filtered_df[xcol])
+        ydata = list(filtered_df[ycol])
+        for i, data in enumerate(xdata):
+            if isinstance(data, list):
+                xdata[i] = data[-1]
+        for i, data in enumerate(ydata):
+            if isinstance(data, list):
+                ydata[i] = data[-1]
+        xdata = pd.Series(xdata)
+        ydata = pd.Series(ydata)
+        filtered_df[xcol] = xdata
+        filtered_df[ycol] = ydata
+    '''
     try:  # Check if xcol exists
         filtered_df.dropna(axis=0, how='any', subset=[xcol], inplace=True)
     except KeyError:
@@ -283,6 +300,23 @@ def filter_missing_value(df, xcol=None, ycol=None):
         xdata = filtered_df[xcol]
     if (ycol != None):
         ydata = filtered_df[ycol]
+    
+    if cut_lists:
+        # lists do not work, here we hard iterate them out and take the last element before we remove the nodes
+        # greedy
+        xdata = list(filtered_df[xcol])
+        ydata = list(filtered_df[ycol])
+        for i, data in enumerate(xdata):
+            if isinstance(data, list):
+                xdata[i] = data[-1]
+        for i, data in enumerate(ydata):
+            if isinstance(data, list):
+                ydata[i] = data[-1]
+        xdata = pd.Series(xdata)
+        ydata = pd.Series(ydata)
+        filtered_df[xcol] = xdata
+        filtered_df[ycol] = ydata
+
 
     return filtered_df, xdata, ydata
 
@@ -317,18 +351,23 @@ def get_options_and_units(df):
 def bokeh_struc_prop_vis(input_filename,
                          xcol,
                          ycol,
-                         output_filename='Interactive_visualization.html'):
+                         output_filename='Interactive_visualization.html', nbins=20, axis_type=['linear', 'linear'], maker_size=10):
     '''
         Create Bokeh Interactive scatter-histogram graphs for the xcol and ycol data from the input file.
         Hover tools included.
         The return plot file is saved in html format by default.
     '''
+
+    # TODO: choose auto axis scale
+
     # IO and other settings
     original_df = read_json_file(input_filename)
     df, xdata, ydata = filter_missing_value(original_df, xcol, ycol)
+    #print(list(xdata))
+    #print(list(ydata))
     OPTIONS, UNITS = get_options_and_units(df)
     output_file(output_filename)
-    TOOLS = 'pan, wheel_zoom, box_select, reset, save'
+    TOOLS = 'box_zoom, pan, wheel_zoom, box_select, reset, save'
 
     # Create the scatter plot
     TOOLTIPS = [('Index', '$index'),
@@ -338,20 +377,24 @@ def bokeh_struc_prop_vis(input_filename,
                 ('Value', '($x, $y)')]  # Hover tools
     source = ColumnDataSource(df)
     # Settings
-    p = figure(plot_width=600,
-               plot_height=600,
+    p = figure(plot_width=FIGURE_HEIGHT+100,
+               plot_height=FIGURE_HEIGHT+100,
                toolbar_location='above',
                x_axis_location=None,
                y_axis_location=None,
+               y_axis_type=axis_type[1],
+               x_axis_type=axis_type[0],
                title='Linked Histograms',
                tools=TOOLS,
                tooltips=TOOLTIPS)
-    p.title.text = "Properties visualization for " + xcol + " and " + ycol
+    # Title to large, it will overlap with the toolbar
+    p.title.text = "Properties visualization"# for " + xcol + " and " + ycol
     # Render
     r = p.circle(xcol,
                  ycol,
                  color='#3a5785',
                  alpha=0.6,
+                 size=maker_size,
                  selection_color='red',
                  selection_fill_alpha=0.8,
                  nonselection_fill_color='grey',
@@ -359,7 +402,15 @@ def bokeh_struc_prop_vis(input_filename,
                  source=source)
 
     # Create the horizontal histogram
-    hhist, hedges = np.histogram(xdata, bins=20)
+    if axis_type[0] == 'log':
+        # assumes positive values
+        minb = np.log10(abs(min(xdata)))
+        maxb = np.log10(abs(max(xdata)))
+        bins = [10**i for i in np.linspace(minb, maxb, num=nbins)]
+    else:
+        bins = np.linspace(min(xdata), max(xdata), num=nbins)
+
+    hhist, hedges = np.histogram(xdata, bins=bins)
     hzeros = np.zeros(len(hedges) - 1)
     hmax = max(hhist) * 1.1
     hsource = ColumnDataSource(
@@ -371,6 +422,7 @@ def bokeh_struc_prop_vis(input_filename,
     ph = figure(toolbar_location=None,
                 plot_width=p.plot_width,
                 plot_height=200,
+                x_axis_type=axis_type[0],
                 x_range=p.x_range,
                 y_range=(-1, hmax),
                 min_border=10,
@@ -392,7 +444,16 @@ def bokeh_struc_prop_vis(input_filename,
     ph.xaxis.axis_label = xcol + ' (' + xunit + ')'
 
     # Create the vertical histogram
-    vhist, vedges = np.histogram(ydata, bins=20)
+    if axis_type[1] == 'log':
+        # assumes positive values
+        # assumes positive values
+        minb = np.log10(abs(min(ydata)))
+        maxb = np.log10(abs(max(ydata)))
+        bins = [10**i for i in np.linspace(minb, maxb, num=nbins)]
+    else:
+        bins = np.linspace(min(ydata), max(ydata), num=nbins)
+
+    vhist, vedges = np.histogram(ydata, bins=bins)
     vzeros = np.zeros(len(vedges) - 1)
     vmax = max(vhist) * 1.1
     vsource = ColumnDataSource(
@@ -406,6 +467,7 @@ def bokeh_struc_prop_vis(input_filename,
                 plot_height=p.plot_height,
                 x_range=(-1, vmax),
                 y_range=p.y_range,
+                y_axis_type=axis_type[1],
                 min_border=10,
                 y_axis_location='right',
                 tools='hover',
