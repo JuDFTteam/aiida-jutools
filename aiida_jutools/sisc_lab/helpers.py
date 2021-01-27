@@ -25,7 +25,7 @@ from bokeh.models import Legend, LegendItem, HoverTool
 # D2 interactive visualize by Bokeh imports
 from bokeh.io import output_file, show, curdoc
 from bokeh.layouts import gridplot, column, row
-from bokeh.models import ColumnDataSource, Select
+from bokeh.models import ColumnDataSource, Select, Legend
 from bokeh.models.tools import HoverTool, BoxSelectTool
 from bokeh.plotting import figure, show
 
@@ -37,6 +37,9 @@ from aiida.orm import Dict, ProcessNode
 from aiida.plugins import DataFactory  #, WorkflowFactory
 StructureData = DataFactory('structure')
 
+# 16:9
+FIGURE_HEIGHT = 540
+FIGURE_WIDTH = 960
 
 def print_bold(text: str):
     """Print text in bold.
@@ -493,15 +496,16 @@ def draw_pie_chart(x, title):
     data['angle'] = data['value'] / sum(list(x.values())) * 2 * pi
     data['color'] = Category20[len(x)]
     data['percent'] = data['value'] / sum(x.values())
-    p = figure(plot_height=500,plot_width=900,
+    p = figure(plot_height=FIGURE_HEIGHT,plot_width=FIGURE_WIDTH,
                title=title,
                toolbar_location=None,
                tools='hover',
                tooltips=[('Data', '@data_nodes'),
                          ('Percent', '@percent{0.00%}'), ('Count', '@value')])
+    p.add_layout(Legend(), 'right')
     p.wedge(x=0,
             y=1,
-            radius=0.4,
+            radius=0.6,
             start_angle=cumsum('angle', include_zero=True),
             end_angle=cumsum('angle'),
             line_color='white',
@@ -541,7 +545,8 @@ def draw_line_plot(users, res):
     num_nodes_integrated = range(len(ctimes))
     df = pd.DataFrame({'A': ctimes, 'B': mtimes})
 
-    p = figure(x_axis_type='datetime', y_axis_type='log')
+    p = figure(x_axis_type='datetime', #y_axis_type='log', 
+               plot_height=FIGURE_HEIGHT,plot_width=FIGURE_WIDTH)
     r = p.multi_line(
         [df['A'], df['B']],
         [df.index, df.index],
@@ -568,7 +573,8 @@ def draw_line_plot(users, res):
         num_nodes_integrated = range(len(ctimes))
         df = pd.DataFrame({'A': ctimes, 'B': mtimes})
 
-        p = figure(x_axis_type='datetime', y_axis_type='log')
+        p = figure(x_axis_type='datetime',# y_axis_type='log', 
+                  plot_height=FIGURE_HEIGHT, plot_width=FIGURE_WIDTH)
         r = p.multi_line(
             [df['A'], df['B']],
             [df.index, df.index],
