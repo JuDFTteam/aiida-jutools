@@ -343,7 +343,8 @@ def get_options_and_units(df):
     cleaned_cols = cols[2:-2]
     options = [col for idx, col in enumerate(cleaned_cols) if idx % 2 == 0 ]
     unitscols = [col for idx, col in enumerate(cleaned_cols) if idx % 2 != 0 ]
-    units = list(df[unitscols].dropna().iloc[0])
+    # units = list(df[unitscols].dropna().iloc[0])
+    units = list(df[unitscols].iloc[0])
 
     return options, units
 
@@ -483,7 +484,8 @@ def bokeh_struc_prop_vis(input_filename,
             alpha=0.6,
             source=vsource)
     yunit = UNITS[OPTIONS.index(ycol)]
-    pv.yaxis.axis_label = ycol + ' (' + yunit + ')'
+    # pv.yaxis.axis_label = ycol + ' (' + yunit + ')'
+    pv.yaxis.axis_label = f"{ycol} ({yunit})"
 
     # Show plots
     layout = gridplot([[p, pv], [ph, None]], merge_tools=False)
