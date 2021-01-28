@@ -361,6 +361,7 @@ def bokeh_struc_prop_vis(input_filename,
     # TODO: choose auto axis scale
 
     # IO and other settings
+    # This IO will fail for very large json files.
     original_df = read_json_file(input_filename)
     df, xdata, ydata = filter_missing_value(original_df, xcol, ycol)
     #print(list(xdata))
