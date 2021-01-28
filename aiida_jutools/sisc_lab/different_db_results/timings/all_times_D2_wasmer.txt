@@ -1,0 +1,4 @@
+# Timings of D2 in seconds
+# Database info: None nodes; None processes, None data, 34 MB size 
+# Preprocess structures, Prepare Structure, Prepare Dict, Join Data, Loading file, Plot 1, Plot 2
+0.36632251739501953  0.05082345008850098  0.2183690071105957  0.3093297481536865  0.12601280212402344  0.17334818840026855  0.19423842430114746  
