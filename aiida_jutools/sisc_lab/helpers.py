@@ -30,12 +30,13 @@ from bokeh.models.tools import HoverTool, BoxSelectTool
 from bokeh.plotting import figure, show
 
 
-# aiida imports
-from aiida.orm import QueryBuilder as QB
-from aiida.orm import WorkFunctionNode, WorkChainNode
-from aiida.orm import Dict, ProcessNode
-from aiida.plugins import DataFactory  #, WorkflowFactory
-StructureData = DataFactory('structure')
+# # aiida imports
+# from aiida.orm import QueryBuilder as QB
+# from aiida.orm import WorkFunctionNode, WorkChainNode
+# from aiida.orm import Dict, ProcessNode
+# from aiida.plugins import DataFactory  #, WorkflowFactory
+# StructureData = DataFactory('structure')
+
 
 # 16:9
 FIGURE_HEIGHT = 540
@@ -48,6 +49,133 @@ def print_bold(text: str):
     """
     bold_text = f'\033[1m{text}\033[1m'
     print(bold_text)
+
+
+MAP = {'workflow_0.2.2':'wf_0_2_2', 
+      'workflow_0.3.0':'wf_0_3_0',
+      'workflow_0.4.2':'wf_0_4_2',
+      'workflow_0.8.0':'wf_0_8_0',
+      'workflow_0.9.4':'wf_0_9_4',
+      'workflow_0.10.4':'wf_0_10_4',
+      'workflow_0.12.0':'wf_0_12_0',
+      'parser_AiiDA Fleur Parser v0.3.0':'ps_0_3_0',
+      'parser_AiiDA Fleur Parser v0.3.1':'ps_0_3_1',
+      'parser_AiiDA Fleur Parser v0.3.2':'ps_0_3_2',
+      'parser_0.4.2':'ps_0_4_2',
+      'parser_0.6.6':'ps_0_6_6'}
+INVMAP = {value:key for key, value in MAP.items()}
+
+
+class StandardWorkflow():
+
+    def __init__(self):
+        self.workflow_list = {}
+
+    def show_workflow_list(self):
+        return list(self.workflow_list.keys())
+
+    def add_workflow(self, *workflows):
+        for workflow in workflows:
+            self.workflow_list[workflow.workflow_version_name] = workflow
+
+    def get_workflow(self, workflow_version_name):
+        return self.workflow_list[workflow_version_name]
+    
+    def del_workflow(self, *workflows):
+        for workflow in workflows:
+            del self.workflow_list[str(workflow)]
+
+class WorkflowProjects():
+    '''Standard projects for each workflow/parse version'''
+    def __init__(self, proj, workflow_version_name):
+        '''
+        Format  of self.proj: ["uuid", "attributes.workflow_version", "attrbutes.attr1","attrbutes.attr1_units"
+        "attrbutes.attr2","attrbutes.attr2_units'",...]
+        Have to have a pair of [attr, attr_units] for each atribute.      
+        '''
+        self.projects = proj
+        self.workflow_version_name = workflow_version_name
+
+    def set_projects(self, proj):
+        self.projects = proj
+        
+    def add_projects(self, new_proj):
+        if (isinstance(new_proj) & (len(new_proj)==22)):
+            self.projects = self.projects + new_proj
+
+    def get_projects(self):
+        print(self.projects)
+
+# Workflow
+wf_0_2_2 = WorkflowProjects(['uuid', 'attributes.workflow_version','attributes.force',
+                            'attributes.force_units', 'attributes.energy', 'attributes.energy_units'],
+                            'wf_0_2_2')
+wf_0_3_0 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.energy', 'attributes.energy_units',
+                             'attributes.total_magnetic_moment_cell', 'attributes.total_magnetic_moment_cell_units'],
+                             'wf_0_3_0')
+wf_0_4_2 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.total_energy', 
+                            'attributes.total_energy_units', 'attributes.distance_charge',
+                            'attributes.distance_charge_units', 'attributes.total_wall_time',
+                            'attributes.total_wall_time_units'],
+                            'wf_0_4_2')
+wf_0_8_0 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.number_of_rms_steps', 
+                            'attributes.number_of_rms_steps_units', 'attributes.convergence_values_all_step',
+                            'attributes.convergence_values_all_step_units'],
+                            'wf_0_8_0')
+wf_0_9_4 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.loop_count', 
+                            'attributes.loop_count_units', 'attributes.convergence_values_all_step',
+                            'attributes.convergence_values_all_step_units'],
+                            'wf_0_9_4')
+wf_0_10_4 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.charge_neutrality', 
+                             'attributes.charge_neutrality_unints','attributes.convergence_value',
+                             'attributes.convergence_value_units'],
+                             'wf_0_10_4')
+wf_0_12_0 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.starting_fermi_energy',
+                               'attributes.starting_fermi_energy_units', 'attributes.last_rclustz',
+                               'attributes.last_rclustz_units', 'attributes.max_wallclock_seconds',
+                               'attributes.max_wallclock_seconds_units'],
+                               'wf_0_12_0')
+# Parser
+ps_0_3_0 = WorkflowProjects(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
+                            'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.energy_hartree',
+                            'attributes.energy_hartree_units', 'attributes.bandgap', 'attributes.bandgap_units',
+                            'attributes.walltime', 'attributes.walltime_units'],
+                            'ps_0_3_0')
+ps_0_3_1 =  WorkflowProjects(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
+                            'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.energy_hartree',
+                            'attributes.energy_hartree_units', 'attributes.bandgap', 'attributes.bandgap_units',
+                            'attributes.walltime', 'attributes.walltime_units'],
+                            'ps_0_3_1')
+ps_0_3_2 =  WorkflowProjects(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
+                            'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.energy_hartree',
+                            'attributes.energy_hartree_units', 'attributes.bandgap', 'attributes.bandgap_units',
+                            'attributes.walltime', 'attributes.walltime_units'],
+                            'ps_0_3_2')
+ps_0_4_2 = WorkflowProjects(['uuid','attributes.parser_version', 'attributes.energy', 'attributes.energy_unit',
+                              'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.total_energy_Ry',
+                              'attributes.total_energy_Ry_unit', 'attributes.total_energies_atom',
+                              'attributes.total_energy_energies_atom_unit', 'attributes.single_particle_energies', 
+                              'attributes.single_particle_energies_unit','attributes.total_charge_per_atom',
+                              'attributes.total_charge_per_atom_unit', 'attributes.charge_core_states_per_atom',
+                              'attributes.charge_core_states_per_atom_unit','attributes.charge_valence_states_per_atom',
+                              'attributes.charge_valence_states_per_atom', 'attributes.timings', 'attributes.timings_unit'],
+                              'ps_0_4_2')
+ps_0_6_6 = WorkflowProjects(['uuid','attributes.parser_version', 'attributes.energy', 'attributes.energy_unit',
+                              'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.total_energy_Ry',
+                              'attributes.total_energy_Ry_unit', 'attributes.single_particle_energies', 
+                              'attributes.single_particle_energies_unit', 'attributes.alat_internal',
+                              'attributes.alat_internal_unit', 'attributes.two_pi_over_alat_internal',
+                              'attributes.two_pi_over_alat_internal_unit', 'attributes.dos_at_fermi_energy',
+                              'attributes.dos_at_fermi_energy_units', 'attributes.total_charge_per_atom',
+                              'attributes.total_charge_per_atom_unit', 'attributes.charge_core_states_per_atom',
+                              'attributes.charge_core_states_per_atom_unit','attributes.charge_valence_states_per_atom',
+                              'attributes.charge_valence_states_per_atom', 'attributes.timings', 'attributes.timings_unit'],
+                              'ps_0_6_6')
+
+predifined_workflow = StandardWorkflow()
+predifined_workflow.add_workflow(
+            wf_0_2_2, wf_0_3_0, wf_0_4_2, wf_0_8_0, wf_0_9_4, wf_0_10_4, wf_0_12_0, 
+            ps_0_3_0, ps_0_3_1, ps_0_3_2, ps_0_4_2, ps_0_6_6)
 
 
 def set_structure_formula():
@@ -82,7 +210,7 @@ def get_structure_workflow_dict(
     The output is a list of dicts.
     '''
     if check_version:
-        dict_project.extend(['attributes.workflow_version', 'attributes.parser_info'])
+        dict_project.extend(['attributes.workflow_version', 'attributes.parser_info', 'attributes.parser_version'])
         tmp = dict_project
         dict_project = list(set(dict_project))
         dict_project.sort(key=tmp.index)
@@ -141,37 +269,59 @@ def get_structure_workflow_dict(
     if check_version:
         idx1 = dict_project.index('attributes.workflow_version')
         idx2 = dict_project.index('attributes.parser_info')
-        versions = [[item['dict'][idx1], item['dict'][idx2]
-    ] for item in workflowdictlst] # Generate a version list
-        flattened_versions = [val for version in versions for val in version]
-        flattened_versions = list(filter(None, flattened_versions))
-        c = Counter(flattened_versions) # Count versions
-        print("Versions and frequency:\n", c.most_common(), '\n')   
+        idx3 = dict_project.index('attributes.parser_version')
+        versions_wf = [item['dict'][idx1] for item in workflowdictlst] # Generate versions for workflow
+        versions_ps = [[item['dict'][idx2], item['dict'][idx3]
+                       ] for item in workflowdictlst] # Generate versions for parser
+        filtered_wf = filter(None, versions_wf)
+        flattened_ps = [val for version in versions_ps for val in version]
+        flattened_ps = filter(None, flattened_ps)
+        final_wf = ['workflow_' + vs for vs in filtered_wf]
+        final_ps = ['parser_' + vs for vs in flattened_ps]
+        final_versions = Counter(final_wf + final_ps).most_common() # Count versions
+        print("Versions and frequency:\n", final_versions, '\n')   
 
-
-    return workflowdictlst
+    if check_version:
+        return workflowdictlst, final_versions
+    else:
+        return workflowdictlst
 
 
 def generate_dict_property_pandas_source(workflow_name=None,
+                                         version=None,
                                          dict_project=[
                                              'attributes.energy',
+                                             'attributes.energy_units',
                                              'attributes.total_energy',
-                                             'attributes.distance_charge'
+                                             'attributes.total_energy_units'
                                          ],
                                          filename=None):
     '''
-    Given a workflow, generate the dict_project property (which is the output of the workflow) as a pandas object,
+    Given a workflow and version, generate the dict_project property (which is the output of the workflow) as a pandas object,
     and write it into a json file.
     e.g. workflow_name='fleur_scf_wc', filename='dict_property.json'
     '''
-    if not workflow_name:
-        workflowdictlst = get_structure_workflow_dict(
-            dict_project=dict_project)
+    if version:
+        type_name, version_name = version.split('_')
+        if type_name == 'workflow':
+            dict_filters = {'attributes.workflow_version': {'==': version_name}}
+        elif type_name == 'parser':
+            dict_filters = {'or': [{'attributes.parser_info': {'==': version_name}},
+                                  {'attributes.parser_version': {'==': version_name}}]}
+        else:
+            print("Invalid version!")
+            dict_filters = None
     else:
-        workflowdictlst = get_structure_workflow_dict(
-            dict_project=dict_project,
-            workflow_filters={'attributes.process_label': workflow_name})
+        dict_filters = None
+        
+    if workflow_name:
+        workflow_filters = {'attributes.process_label': {'==': workflow_name}}
+    else:
+        workflow_filters = None
 
+    workflowdictlst = get_structure_workflow_dict(dict_project=dict_project,
+                                                  workflow_filters=workflow_filters,
+                                                  dict_filters=dict_filters)
     dictlst = [wf['dict']
                for wf in workflowdictlst]  # Generate a list for Dict nodes
     cleaned_col = [att.split('.')[-1]
@@ -195,6 +345,7 @@ def generate_dict_property_pandas_source(workflow_name=None,
 
 def generate_structure_property_pandas_source(
         workflow_name=None,
+        version=None,
         structure_project=['uuid', 'extras.formula'],
         filename=None):
     '''
@@ -202,14 +353,27 @@ def generate_structure_property_pandas_source(
     and write it into a json file.
     e.g. workflow_name='fleur_scf_wc', filename='structure_property.json'
     '''
-    if not workflow_name:
-        workflowdictlst = get_structure_workflow_dict(
-            structure_project=structure_project)
+    if version:
+        type_name, version_name = version.split('_')
+        if type_name == 'workflow':
+            dict_filters = {'attributes.workflow_version': {'==': version_name}}
+        elif type_name == 'parser':
+            dict_filters = {'or': [{'attributes.parser_info': {'==': version_name}},
+                                  {'attributes.parser_version': {'==': version_name}}]}
+        else:
+            print("Invalid version!")
+            dict_filters = None
     else:
-        workflowdictlst = get_structure_workflow_dict(
-            structure_project=structure_project,
-            workflow_filters={'attributes.process_label': workflow_name})
+        dict_filters = None
+        
+    if workflow_name:
+        workflow_filters = {'attributes.process_label': {'==': workflow_name}}
+    else:
+        workflow_filters = None
 
+    workflowdictlst = get_structure_workflow_dict(structure_project=structure_project,
+                                                  workflow_filters=workflow_filters,
+                                                  dict_filters=dict_filters)
     structurelst = [wf['structure'] for wf in workflowdictlst
                     ]  # Generate a list for Structure nodes
     cleaned_col = [att.split('.')[-1]
@@ -231,23 +395,27 @@ def generate_structure_property_pandas_source(
     return structurepd
 
 
-def generate_combination_property_pandas_source(
+def generate_combined_property_pandas_source(
         workflow_name=None,
-        dict_project=[
-            'attributes.energy', 'attributes.total_energy',
-            'attributes.distance_charge'
-        ],
+        version=None,
         structure_project=['uuid', 'extras.formula'],
+        dict_project=[
+            'attributes.energy',
+            'attributes.energy_units', 
+            'attributes.total_energy',
+            'attributes.total_energy_units'],
         filename=None):
     '''
-    Given a workflow, generate the combination of dict_project and structure_project property as a pandas object,
+    Given a workflow and a version, generate the combination of dict_project and structure_project property as a pandas object,
     and write it into a json file.
     e.g. workflow_name='fleur_scf_wc', filename='combination_property.json'
     '''
-    dictpd = generate_dict_property_pandas_source(workflow_name,
+    dictpd = generate_dict_property_pandas_source(workflow_name=workflow_name,
+                                                  version=version,
                                                   dict_project=dict_project)
-    structurepd = generate_structure_property_pandas_source(
-        workflow_name, structure_project=structure_project)
+    structurepd = generate_structure_property_pandas_source(workflow_name=workflow_name, 
+                                                            version=version, 
+                                                            structure_project=structure_project)
     combinepd = pd.concat([dictpd, structurepd], axis=1)
 
     if filename:
@@ -258,7 +426,7 @@ def generate_combination_property_pandas_source(
 
 # D2 part b
 
-def filter_missing_value(df, xcol=None, ycol=None, cut_lists=True):
+def filter_missing_value(df, xcol=None, ycol=None):
     '''
     Given xcol, ycol specifying the columns in need. The function will filter out the missing values of
     these columns in the DataFrame. If both xcol and ycol are None, just return the original DataFrame.
@@ -287,73 +455,143 @@ def filter_missing_value(df, xcol=None, ycol=None, cut_lists=True):
     except KeyError:
         if xcol!=None:
             print("Column '{}' not found.".format(xcol))
-        xcol, xdata = None, None
+        xcol = None
     try:  # Check if ycol exists
         filtered_df.dropna(axis=0, how='any', subset=[ycol], inplace=True)
     except KeyError:
         if ycol!=None:
             print("Column '{}' not found.".format(ycol))
-        ycol, ydata = None, None
+        ycol = None
 
     filtered_df.reset_index(drop=True, inplace=True)
-    if (xcol != None):
+    if xcol:
         xdata = filtered_df[xcol]
-    if (ycol != None):
+    else:
+        xdata = None
+    if ycol:
         ydata = filtered_df[ycol]
-    
-    if cut_lists:
-        # lists do not work, here we hard iterate them out and take the last element before we remove the nodes
-        # greedy
-        xdata = list(filtered_df[xcol])
-        ydata = list(filtered_df[ycol])
-        for i, data in enumerate(xdata):
-            if isinstance(data, list):
-                xdata[i] = data[-1]
-        for i, data in enumerate(ydata):
-            if isinstance(data, list):
-                ydata[i] = data[-1]
-        xdata = pd.Series(xdata)
-        ydata = pd.Series(ydata)
-        filtered_df[xcol] = xdata
-        filtered_df[ycol] = ydata
-
+    else:
+        ydata = None
+ 
+    # Deal with lists
+    if xcol:
+        if not all([not isinstance(val, list) for val in xdata]):       
+            xdata = list(filtered_df[xcol])
+            for i, data in enumerate(xdata):
+                if isinstance(data, list):
+                    xdata[i] = data[-1]
+            xdata = pd.Series(xdata)
+            filtered_df[xcol] = xdata
+    if ycol:
+        if not all([not isinstance(val, list) for val in ydata]):    
+            ydata = list(filtered_df[ycol])
+            for i, data in enumerate(ydata):
+                if isinstance(data, list):
+                    ydata[i] = data[-1]
+            ydata = pd.Series(ydata)
+            filtered_df[ycol] = ydata
 
     return filtered_df, xdata, ydata
 
 
-def read_json_file(filename):
+def filter_unavailable_df(df, node_num_thres=20, attr_num_thres=2):
     '''
-    Read the dataset from the file and return a DataFrame object.
+    Check if the input dataframe is capable of plotting.
+    If the dataframe cannot pass the number of nodes check or the number of attributes check,
+    return df = None.
+    If the attributes of the dataframe cannot pass the checks, filter out that attributes and the
+    corresponding units from the dataframe.
+    '''
+    node_num_flag, attr_num_flag, del_attr_flag = 0, 0, 0
+    # Number of nodes check
+    if df.shape[0] < node_num_thres:
+        node_num_flag = 1
+    # Number of attributess check
+    if df.shape[1] < 4 + 2 * attr_num_thres:
+        attr_num_flag = 1
+    
+    if (node_num_flag==0) and (attr_num_flag==0):
+        # Values check
+        attrs, _, units_cols = get_attrs_and_units(df, get_units_cols=True)
+        for idx, attr in enumerate(attrs):
+            _, attr_data, _ = filter_missing_value(df, attr)
+            # Number of filtered attribute data check
+            if attr_data.shape[0] < node_num_thres:
+                df.drop([attr, units_cols[idx]], axis=1, inplace=True)
+                del_attr_flag = 1
+                continue
+            # Type of attribute data check
+            if not all([isinstance(val, (int, float)) for val in attr_data]):
+                df.drop([attr, units_cols[idx]], axis=1, inplace=True)
+                del_attr_flag = 1
+
+    if (del_attr_flag == 1):
+        # Number of attributess check
+        if df.shape[1] < 4 + 2 * attr_num_thres:
+            attr_num_flag = 1  
+
+    # set final df
+    if (node_num_flag==1) or (attr_num_flag==1):
+        df = pd.DataFrame()
+
+    return df
+
+
+def read_json_file(filename, chunksize=None):
+    '''
+    Read the dataset from the json file and return a DataFrame object.
+    Use chuncksize for large json file
     '''
     try:  # Check if the file could successfully opened
-        df = pd.read_json(filename, orient='records')
+        df = pd.read_json(filename, orient='records', lines=True, chunksize=chunksize)
     except ValueError:
+        df = None
         print("Invalid file '{}'.".format(filename))
         #raise  
 
     return df
 
 
-def get_options_and_units(df):
+def read_excel_file(filename):
     '''
-    Given the columns of DataFrame, return the possible attributes in the columns as options and their 
+    Read the dataset from the excel file and return a dict of DataFrame object.
+    '''
+    try:  # Check if the file could successfully opened
+        dfs = pd.read_excel(filename, sheet_name=None)
+    except FileNotFoundError:
+        dfs = None
+        print("Invalid file '{}'.".format(filename))
+        #raise  
+
+    return dfs
+
+
+def get_attrs_and_units(df, get_units_cols=False):
+    '''
+    Given the DataFrame, return the available attributes in the columns as options and their 
     corresponding units.
     '''
     cols = list(df.columns)
     cleaned_cols = cols[2:-2]
-    options = [col for idx, col in enumerate(cleaned_cols) if idx % 2 == 0 ]
-    unitscols = [col for idx, col in enumerate(cleaned_cols) if idx % 2 != 0 ]
-    units = list(df[unitscols].dropna().iloc[0])
-
-    return options, units
+    attrs = [col for idx, col in enumerate(cleaned_cols) if idx % 2 == 0 ]
+    units_cols = [col for idx, col in enumerate(cleaned_cols) if idx % 2 != 0 ]
+    units = list(df[units_cols].iloc[0])
+    
+    if get_units_cols:
+        return attrs, units, units_cols
+    else:
+        return attrs, units
 
 
 def bokeh_struc_prop_vis(input_filename,
                          xcol,
                          ycol,
-                         output_filename='Interactive_visualization.html', nbins=20, axis_type=['linear', 'linear'], maker_size=10):
+                         chunksize=None,
+                         output_filename='Interactive_visualization.html', 
+                         nbins=20, axis_type=['linear', 'linear'], maker_size=10):
     '''
-        Create Bokeh Interactive scatter-histogram graphs for the xcol and ycol data from the input file.
+        Create a single Bokeh Interactive scatter-histogram graphs for the xcol and ycol data from 
+        the input json file.
         Hover tools included.
         The return plot file is saved in html format by default.
     '''
@@ -361,12 +599,11 @@ def bokeh_struc_prop_vis(input_filename,
     # TODO: choose auto axis scale
 
     # IO and other settings
-    # This IO will fail for very large json files.
-    original_df = read_json_file(input_filename)
+    original_df = read_json_file(input_filename, chunksize=chunksize)
     df, xdata, ydata = filter_missing_value(original_df, xcol, ycol)
     #print(list(xdata))
     #print(list(ydata))
-    OPTIONS, UNITS = get_options_and_units(df)
+    OPTIONS, UNITS = get_attrs_and_units(df)
     output_file(output_filename)
     TOOLS = 'box_zoom, pan, wheel_zoom, box_select, reset, save'
 
@@ -388,8 +625,7 @@ def bokeh_struc_prop_vis(input_filename,
                title='Linked Histograms',
                tools=TOOLS,
                tooltips=TOOLTIPS)
-    # Title to large, it will overlap with the toolbar
-    p.title.text = "Properties visualization"# for " + xcol + " and " + ycol
+    p.title.text = "Properties visualization"
     # Render
     r = p.circle(xcol,
                  ycol,
@@ -412,7 +648,6 @@ def bokeh_struc_prop_vis(input_filename,
         bins = np.linspace(min(xdata), max(xdata), num=nbins)
 
     hhist, hedges = np.histogram(xdata, bins=bins)
-    hzeros = np.zeros(len(hedges) - 1)
     hmax = max(hhist) * 1.1
     hsource = ColumnDataSource(
         dict(left=hedges[:-1],
@@ -442,7 +677,10 @@ def bokeh_struc_prop_vis(input_filename,
             alpha=0.6,
             source=hsource)
     xunit = UNITS[OPTIONS.index(xcol)]
-    ph.xaxis.axis_label = xcol + ' (' + xunit + ')'
+    if xunit:
+        ph.xaxis.axis_label = f"{xcol} ({xunit})"
+    else:
+        ph.xaxis.axis_label = xcol
 
     # Create the vertical histogram
     if axis_type[1] == 'log':
@@ -455,7 +693,6 @@ def bokeh_struc_prop_vis(input_filename,
         bins = np.linspace(min(ydata), max(ydata), num=nbins)
 
     vhist, vedges = np.histogram(ydata, bins=bins)
-    vzeros = np.zeros(len(vedges) - 1)
     vmax = max(vhist) * 1.1
     vsource = ColumnDataSource(
         dict(left=np.zeros(vhist.shape),
@@ -484,7 +721,10 @@ def bokeh_struc_prop_vis(input_filename,
             alpha=0.6,
             source=vsource)
     yunit = UNITS[OPTIONS.index(ycol)]
-    pv.yaxis.axis_label = ycol + ' (' + yunit + ')'
+    if yunit:
+        pv.yaxis.axis_label = ycol + f"{ycol} ({yunit})"
+    else:
+        pv.yaxis.axis_label = ycol
 
     # Show plots
     layout = gridplot([[p, pv], [ph, None]], merge_tools=False)
