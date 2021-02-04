@@ -99,13 +99,13 @@ def preprocess_group(data):
     """
     DataList = []
     Data = {}
-    Columns = ['User', 'Group_Name', 'Node', 'type_string']
+    Columns = ['User', 'Group_Name', 'Node', 'type_string','uuid']
     for column in Columns:
         Data[column] = []
     for g, in data:
         DataList = DataList + [[
             g.user.get_short_name(), g.label,
-            len(g.nodes), g.type_string
+            len(g.nodes), g.type_string, g.uuid
         ]]
     DataF = pd.DataFrame(DataList, columns=Columns)
     return DataF
@@ -217,16 +217,16 @@ def ShowElements(Data):
         elements=elements, counts=counts,AtomicNumber =AtomicNumber, color=inferno(len(elements))))
 
     TOOLTIPS = [
-        ('Element', '@elements'),
+        ('AllElement', '@elements'),
         ('Atomic Number', '@AtomicNumber'),
         ('(x,y)', '($x, $y)'),
         ('Number of Structures containing this element', '@counts'),
     ]
 
-    p = figure(y_range=elements,
-               x_range=(0, np.max(counts)),
+    p = figure(y_range=[AllElements[key]['symbol'] for key in AllElements],
+               x_range=(0, np.max(counts)+10),
                # This we make rectengular
-               plot_height=FIGURE_WIDTH, plot_width=FIGURE_WIDTH,
+               plot_height=FIGURE_WIDTH+100, plot_width=FIGURE_WIDTH,
                title='Number of Elements Information',
                #tools=[HoverTool(mode='hline')],
                tooltips=TOOLTIPS)
@@ -341,12 +341,17 @@ def GetCalNodeArray(CalcNode):
     '''
 
     data = []
-    Columns = ['Node_Pk', 'Process_State', 'Exit_Message', 'node_type']
+    Columns = ['Node_uuid', 'Process_State','Exit Status','Exit_Message', 'node_type','comments','label']
     for node, in CalcNode:
         data = data + [[
-            node.pk,
+            node.uuid,
             str(node.process_state),
-            str(node.exit_message), node.node_type
+            node.exit_status,
+            str(node.exit_message), 
+            node.node_type,
+            node.get_comments(),
+            str(node.process_label)
+            
         ]]
 
     return pd.DataFrame(data, columns=Columns)
