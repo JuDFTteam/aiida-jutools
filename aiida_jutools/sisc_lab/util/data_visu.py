@@ -14,6 +14,8 @@ from aiida.orm import WorkflowNode
 from aiida.orm import QueryBuilder
 from aiida.common.constants import elements
 from aiida_jutools.sisc_lab.helpers import FIGURE_HEIGHT, FIGURE_WIDTH
+from math import pi
+from bokeh.transform import cumsum
 
 AllElements = elements
 
@@ -341,15 +343,19 @@ def GetCalNodeArray(CalcNode):
     '''
 
     data = []
-    Columns = ['Node_uuid', 'Process_State','Exit Status','Exit_Message', 'node_type','comments','label']
+    Columns = ['Node_uuid', 'Process_State','Exit Status','Exit_Message', 'node_type','Called by','label']
     for node, in CalcNode:
+        if(node.caller==None):
+            caller = 'None'
+        else:
+            caller = node.caller.uuid
         data = data + [[
             node.uuid,
             str(node.process_state),
             node.exit_status,
             str(node.exit_message), 
             node.node_type,
-            node.get_comments(),
+            str(caller),
             str(node.process_label)
             
         ]]
@@ -382,38 +388,59 @@ def ShowWorkflow(WorkflowDict, Title):
         colors = inferno256_1*int(length/256) + inferno(length%256)
     else:
         colors = inferno(length)
+    percentage = [counts[i]/sum(counts) for i in range(len(counts))]
+    startAngle = [counts[i]/sum(counts)*2*pi for i in range(len(counts))]
     
     source = ColumnDataSource(
-        data=dict(index=index, counts=counts, color=colors))
-
+        data=dict(index=index, counts=counts, color=colors,startAngle=startAngle,percentage=percentage))       
+    
     TOOLTIPS = [
         ('Node number', '@counts'),
+        ('percentage', '@percentage{%0.2f}'),
         ('(x,y)', '($x, $y)'),
         ('Node status', '@index'),
     ]
 
     HT = HoverTool(tooltips=TOOLTIPS, mode='vline')
+    
+    p = figure( plot_height=350, 
+            title="Pie Chart", 
+            toolbar_location=None,
+            tools="hover", 
+            tooltips=TOOLTIPS, 
+            x_range=(-0.5, 1.0))
 
-    p = figure(y_range=(0, np.max(counts) + 10),
-               x_range=index,
-               plot_height=FIGURE_HEIGHT, plot_width=FIGURE_WIDTH,
-               title=Title,
-               #tools=[HoverTool(mode='vline')],
-               tooltips=TOOLTIPS)
-    #print('step figure done')
-    p.vbar(x='index',
-           top='counts',
-           bottom=0,
-           width=1,
-           color='color',
-           source=source)
+#     p = figure(y_range=(0, np.max(counts) + 10),
+#                x_range=index,
+#                plot_height=FIGURE_HEIGHT, plot_width=FIGURE_WIDTH,
+#                title=Title,
+#                #tools=[HoverTool(mode='vline')],
+#                tooltips=TOOLTIPS)
+    p.wedge( x=0, 
+          y=1,
+          radius=0.4,
+          start_angle=cumsum('startAngle', include_zero=True), 
+          end_angle=cumsum('startAngle'),
+          line_color="white", 
+          fill_color='color', 
+          legend_field='index', 
+          source=source)
+    
+#     p.vbar(x='index',
+#            top='counts',
+#            bottom=0,
+#            width=1,
+#            color='color',
+#            source=source)
     #print('step hbar done')
 
     output_notebook()
+    p.axis.axis_label=None
+    p.axis.visible=False
     p.xgrid.grid_line_color = None
 
-    p.xaxis.axis_label = 'Exit status'
-    p.yaxis.axis_label = 'Number of nodes'
+    #p.xaxis.axis_label = 'Exit status'
+    #p.yaxis.axis_label = 'Number of nodes'
     #p.legend = True
     show(p)
 
