@@ -281,7 +281,7 @@ def ShowFormula(Data):
     ]
 
     p = figure(x_range=(0, np.max(counts) + 20),
-               y_range=(0, np.max(elements)),
+               y_range=(0, np.max(elements)+5),
                plot_height=FIGURE_HEIGHT, plot_width=FIGURE_WIDTH,
                title='Number of Atoms Information',
                #tools=[HoverTool(mode='hline')],
