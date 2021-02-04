@@ -17,10 +17,10 @@ import time
 # D1 imports
 from bokeh.io import output_file, output_notebook, show
 from bokeh.layouts import column
-from bokeh.palettes import Category20, Category20c
+from bokeh.palettes import Category20, Category20c,Spectral11
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.transform import cumsum
-from bokeh.models import Legend, LegendItem, HoverTool
+from bokeh.models import Legend, LegendItem, HoverTool,ColumnDataSource
 
 # D2 interactive visualize by Bokeh imports
 from bokeh.io import output_file, show, curdoc
@@ -756,6 +756,7 @@ def get_data_node_count(types, node_type):
             labelst.append(k.split('.')[-2])
             sizest.append(v)
     x = dict(zip(labelst, sizest))
+    nodes=sum(list(x.values()))
     return x
 
 
@@ -799,8 +800,9 @@ def draw_pie_chart(x, title):
     data['angle'] = data['value'] / sum(list(x.values())) * 2 * pi
     data['color'] = Category20[len(x)]
     data['percent'] = data['value'] / sum(x.values())
+    nodes=sum(list(x.values()))
     p = figure(plot_height=FIGURE_HEIGHT,plot_width=FIGURE_WIDTH,
-               title=title,
+               title=title%nodes,
                toolbar_location=None,
                tools='hover',
                tooltips=[('Data', '@data_nodes'),
@@ -841,58 +843,60 @@ def get_dict_link_types():
 
 
 # line plot by ctime & mtime
-def draw_line_plot(users, res):
-    #ctime & mtime for total
+def draw_line_plot(users,res):
+    #ctime & mtime for total 
     ctimes = sorted(r[1] for r in res)
     mtimes = sorted(r[2] for r in res)
     num_nodes_integrated = range(len(ctimes))
-    df = pd.DataFrame({'A': ctimes, 'B': mtimes})
+    df = pd.DataFrame({'A':ctimes,"B":mtimes})
 
-    p = figure(x_axis_type='datetime', #y_axis_type='log', 
-               plot_height=FIGURE_HEIGHT,plot_width=FIGURE_WIDTH)
-    r = p.multi_line(
-        [df['A'], df['B']],
-        [df.index, df.index],
-        color=['red', 'blue'],
-        alpha=[0.8, 0.6],
-        line_width=[2, 2],
-    )
+    #plot multiline
+    p = figure(x_axis_type='datetime',y_axis_type='log')
+    r=p.multi_line([df['A'], df['B']],  
+                   [df.index, df.index],   
+                   color=["blue", "red"],   
+                   alpha=[0.8, 0.6],     
+                   line_width=[2,2],     
+                   )
 
-    legend = Legend(items=[
-        LegendItem(label='ctime', renderers=[r], index=0),
-        LegendItem(label='mtime', renderers=[r], index=1),
+    legend=Legend(items=[
+        LegendItem(label="ctime",renderers=[r],index=0),
+        LegendItem(label="mtime",renderers=[r],index=1),
     ])
-
-    p.add_layout(legend)
-    p.xaxis.axis_label = 'Date'
-    p.yaxis.axis_label = 'Number of nodes'
-    p.yaxis.axis_label_text_font_size = '15pt'
-    show(p)
-
     #ctime & mtime for each user
-    for count, email in sorted((v, k) for k, v in users.items())[::-1]:
+    ctimes = sorted(r[1] for r in res)
+    mtimes = sorted(r[2] for r in res)
+    num_nodes_integrated = range(len(ctimes))
+    df = pd.DataFrame({'ctimes':ctimes,"mtimes":mtimes})
+    userss = Counter([r[4] for r in res])
+    #p = figure(x_axis_type='datetime')
+
+    numlines=2*len(userss)
+    mypalettes=Spectral11[0:numlines]
+
+    for count, email in sorted((v, k) for k, v in userss.items())[::-1]:
         ctimes = sorted(r[1] for r in res if r[4] in email)
         mtimes = sorted(r[2] for r in res if r[4] in email)
         num_nodes_integrated = range(len(ctimes))
-        df = pd.DataFrame({'A': ctimes, 'B': mtimes})
+        df_user = pd.DataFrame({email+':ctimes':ctimes,email+':mtimes':mtimes})
+        df = pd.concat([df,df_user],axis=1)
+    
+    
+    p = figure(plot_width=600,plot_height=800,x_axis_type='datetime',y_axis_type='log')
+    df_list = df.columns
+    for i in range(len(df_list)):
+        source = ColumnDataSource(
+            data={'x':df[df_list[i]],
+                  'y':df.index})
+        p.line(x='x',
+               y='y',
+               source=source,
+               legend_label = df_list[i],
+               color = (Category20[8])[i])#add tool tips
+    #show(p)
 
-        p = figure(x_axis_type='datetime',# y_axis_type='log', 
-                  plot_height=FIGURE_HEIGHT, plot_width=FIGURE_WIDTH)
-        r = p.multi_line(
-            [df['A'], df['B']],
-            [df.index, df.index],
-            color=['red', 'blue'],
-            alpha=[0.8, 0.6],
-            line_width=[2, 2],
-        )
-
-        legend = Legend(items=[
-            LegendItem(label=email + ':ctime', renderers=[r], index=0),
-            LegendItem(label=email + ':mtime', renderers=[r], index=1),
-        ])
-
-        p.add_layout(legend)
-        p.xaxis.axis_label = 'Date'
-        p.yaxis.axis_label = 'Number of nodes'
-        p.yaxis.axis_label_text_font_size = '15pt'
-        show(p)
+    #p.add_layout(legend)
+    p.xaxis.axis_label = 'Date'
+    p.yaxis.axis_label = 'Number of nodes'
+    p.yaxis.axis_label_text_font_size = "11pt"
+    show(p)
