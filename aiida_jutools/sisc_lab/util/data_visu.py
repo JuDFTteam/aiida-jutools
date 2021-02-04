@@ -114,7 +114,20 @@ def preprocess_group(data):
 
 
 ####### function to analyse structure data for 1.g ###############################
-
+def PreprocessStructureGeneral(StructDatas):
+    DataList = []
+    Data = {}
+    Columns = ['uuid','User', 'Cell_volume', 'Formula', 'Composition']
+    for column in Columns:
+        Data[column] = []
+    for struc, in StructDatas:
+        DataList.append([
+            struc.uuid,struc.user.get_short_name(),struc.get_cell_volume(),struc.get_formula(),struc.get_composition()
+        ])
+    DataF = pd.DataFrame(DataList, columns=Columns)
+    # for struc, in StructDatas:
+    #     print(struc.uuid,struc.user,struc.get_cell_volume(),struc.get_formula(),struc.get_composition)
+    return DataF
 
 def AnalyseStructureElements(InputData):
     '''

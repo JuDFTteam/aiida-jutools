@@ -41,13 +41,16 @@ class Serializer:
             with open(filepath, 'w') as fp:
                 json.dump(dic, fp)
             return 0
-
+        elif(Node_type == 'StructureGeneral'):
+            DataF = DV.PreprocessStructureGeneral(self.data)
+            DataF.to_json(filepath,orient='records')
+            return 0
         ###### structure Element type
         elif (Node_type == 'StructureElement'):
-
             Data = DV.AnalyseStructureElements(self.data)
             Data.to_json(filepath, orient='records')
             return 0
+        
         ###### ProcessNode type
         elif (Node_type == 'ProcessNode'):
             data = DV.GetCalNodeArray(self.data)
@@ -82,6 +85,8 @@ def deserialize_from_file(filepath, Node_type=None):
             Newdata[int(key)] = data2[key]
         return Newdata
     elif (Node_type == 'StructureElement'):
+        return pd.read_json(filepath)
+    elif (Node_type == 'StructureGeneral'):
         return pd.read_json(filepath)
     elif (Node_type == 'ProcessNode'):
         return pd.read_json(filepath)
