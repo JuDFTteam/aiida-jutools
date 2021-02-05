@@ -1,0 +1,133 @@
+\documentclass[a4paper,12pt]{report}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage[english]{babel}
+\usepackage{biblatex}
+\addbibresource{sample.bib}
+\usepackage[toc,page]{appendix}
+\usepackage{xpatch}
+\usepackage[toc]{appendix}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{dsfont}
+\usepackage{amsfonts}
+\usepackage[T1]{fontenc}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage[document]{ragged2e}
+
+\title{TitlePage}
+\author{Your Name}
+\date{Put the date}
+
+\renewcommand{\cftaftertoctitle}{\hrulefill}
+
+
+\begin{document}
+
+\pagenumbering{roman} 
+
+\begin{titlepage}
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}} % Defines a new command for the horizontal lines, change thickness here
+
+    \begin{center}
+            
+        \Huge
+        \textbf{RWTH AACHEN UNIVERSITY}   
+        \vspace{1 cm}
+            
+           \HRule \\[0.4cm]
+{ \huge \bfseries SISC LAB TITLE}\\[0.2cm] % Title of your document
+\HRule \\[1.5cm]
+            
+     \end{center}  
+     
+\raggedright
+\begin{flushleft}
+\Large
+    Supervisors:
+    \vspace{0.5cm}\\
+\Large
+    Prof.
+    \vspace{0.5cm}\\
+\Large
+    Dr.
+\end{flushleft}
+
+\raggedleft
+
+\begin{flushright}
+\Large
+    Written by:
+    \vspace{0.5cm}\\
+\Large
+    *Authors names*
+\end{flushright}
+
+\begin{center}
+    \vspace{1cm}
+     \mbox{}
+      \vfill
+      \today \\
+        Academic year 2020/2021  
+\end{center}
+    
+\end{titlepage}
+
+\tableofcontents
+    
+\pagenumbering{arabic}
+
+\titleformat
+{\chapter} % command
+[display] % shape
+{\bfseries\Huge\itshape} % format
+{Chapter \ \thechapter} % label
+{0.5ex} % sep
+{
+    \rule{\textwidth}{1pt}
+    \vspace{1ex}
+    \centering
+} % before-code
+[
+\vspace{-2ex}%
+\rule{\textwidth}{0.3pt}
+] % after-code
+
+
+\chapter{Introduction}
+
+\chapter{Background / Theory}
+
+\chapter{Materials \& Methods}
+
+\chapter{Results}
+
+\chapter{Further Discussion}
+
+\chapter{Outlook}
+
+
+%%%Don't know yet, how to display the lines by hiding the chapter number.
+\chapter{References}
+\printbibliography[ heading=none]
+
+
+%Can't put Appendices on the same page with Appendix A and also delete this 'chapter A', 'Chapter B'.
+\begin{appendices}
+%\addtocontents{toc}{protect}%\setcounter{tocdepth}{0}}
+ %\addappheadtotoc
+  \chapter{Appendix A}
+   \section{First section}
+   \section{Second section}
+
+    \chapter{Appendix B}
+    \section{First section}
+     \section{Second section}
+\end{appendices}
+
+
+\end{document}

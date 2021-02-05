@@ -1,0 +1,908 @@
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (MiKTeX 2.9.7440 64-bit) (preloaded format=pdflatex 2020.11.1)  5 FEB 2021 15:18
+entering extended mode
+**./REPORT.tex
+(REPORT.tex
+LaTeX2e <2020-02-02> patch level 5
+L3 programming layer <2020-05-15>
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/base\report.cls"
+Document Class: report 2019/12/20 v1.4l Standard LaTeX document class
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/base\size12.clo"
+File: size12.clo 2019/12/20 v1.4l Standard LaTeX file (size option)
+)
+\c@part=\count167
+\c@chapter=\count168
+\c@section=\count169
+\c@subsection=\count170
+\c@subsubsection=\count171
+\c@paragraph=\count172
+\c@subparagraph=\count173
+\c@figure=\count174
+\c@table=\count175
+\abovecaptionskip=\skip47
+\belowcaptionskip=\skip48
+\bibindent=\dimen134
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/titlesec\titlesec.
+sty"
+Package: titlesec 2019/10/16 v2.13 Sectioning titles
+\ttl@box=\box45
+\beforetitleunit=\skip49
+\aftertitleunit=\skip50
+\ttl@plus=\dimen135
+\ttl@minus=\dimen136
+\ttl@toksa=\toks15
+\titlewidth=\dimen137
+\titlewidthlast=\dimen138
+\titlewidthfirst=\dimen139
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/tocloft\tocloft.st
+y"
+Package: tocloft 2017/08/31 v2.3i parameterised ToC, etc., typesetting
+Package tocloft Info: The document has chapter divisions on input line 51.
+\cftparskip=\skip51
+\cftbeforetoctitleskip=\skip52
+\cftaftertoctitleskip=\skip53
+\cftbeforepartskip=\skip54
+\cftpartnumwidth=\skip55
+\cftpartindent=\skip56
+\cftbeforechapskip=\skip57
+\cftchapindent=\skip58
+\cftchapnumwidth=\skip59
+\cftbeforesecskip=\skip60
+\cftsecindent=\skip61
+\cftsecnumwidth=\skip62
+\cftbeforesubsecskip=\skip63
+\cftsubsecindent=\skip64
+\cftsubsecnumwidth=\skip65
+\cftbeforesubsubsecskip=\skip66
+\cftsubsubsecindent=\skip67
+\cftsubsubsecnumwidth=\skip68
+\cftbeforeparaskip=\skip69
+\cftparaindent=\skip70
+\cftparanumwidth=\skip71
+\cftbeforesubparaskip=\skip72
+\cftsubparaindent=\skip73
+\cftsubparanumwidth=\skip74
+\cftbeforeloftitleskip=\skip75
+\cftafterloftitleskip=\skip76
+\cftbeforefigskip=\skip77
+\cftfigindent=\skip78
+\cftfignumwidth=\skip79
+\c@lofdepth=\count176
+\c@lotdepth=\count177
+\cftbeforelottitleskip=\skip80
+\cftafterlottitleskip=\skip81
+\cftbeforetabskip=\skip82
+\cfttabindent=\skip83
+\cfttabnumwidth=\skip84
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/base\inputenc.sty"
+Package: inputenc 2018/08/11 v1.3c Input encoding file
+\inpenc@prehook=\toks16
+\inpenc@posthook=\toks17
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/graphics\graphicx.
+sty"
+Package: graphicx 2019/11/30 v1.2a Enhanced LaTeX Graphics (DPC,SPQR)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/graphics\keyval.st
+y"
+Package: keyval 2014/10/28 v1.15 key=value parser (DPC)
+\KV@toks@=\toks18
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/graphics\graphics.
+sty"
+Package: graphics 2019/11/30 v1.4a Standard LaTeX Graphics (DPC,SPQR)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/graphics\trig.sty"
+Package: trig 2016/01/03 v1.10 sin cos tan (DPC)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/graphics-cfg\graph
+ics.cfg"
+File: graphics.cfg 2016/06/04 v1.11 sample graphics configuration
+)
+Package graphics Info: Driver file: pdftex.def on input line 105.
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/graphics-def\pdfte
+x.def"
+File: pdftex.def 2018/01/08 v1.0l Graphics/color driver for pdftex
+))
+\Gin@req@height=\dimen140
+\Gin@req@width=\dimen141
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/babel\babel.sty"
+Package: babel 2020/05/13 3.44 The Babel package
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/babel\babel.def"
+File: babel.def 2020/05/13 3.44 Babel common definitions
+\babel@savecnt=\count178
+\U@D=\dimen142
+\l@babelnohyphens=\language78
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/babel\txtbabel.d
+ef")
+\bbl@readstream=\read2
+)
+\bbl@dirlevel=\count179
+
+*************************************
+* Local config file bblopts.cfg used
+*
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/arabi\bblopts.cfg"
+File: bblopts.cfg 2005/09/08 v0.1 add Arabic and Farsi to "declared" options of
+ babel
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/babel-english\engl
+ish.ldf"
+Language: english 2017/06/06 v3.3r English support from the babel system
+Package babel Info: \l@canadian = using hyphenrules for english
+(babel)             (\language0) on input line 102.
+Package babel Info: \l@australian = using hyphenrules for ukenglish
+(babel)             (\language72) on input line 105.
+Package babel Info: \l@newzealand = using hyphenrules for ukenglish
+(babel)             (\language72) on input line 108.
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/biblatex\biblatex.
+sty"
+Package: biblatex 2019/12/01 v3.14 programmable bibliographies (PK/MW)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pdftexcmds\pdftexc
+mds.sty"
+Package: pdftexcmds 2019/11/24 v0.31 Utility functions of pdfTeX for LuaTeX (HO
+)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/infwarerr\infwar
+err.sty"
+Package: infwarerr 2019/12/03 v1.5 Providing info/warning/error messages (HO)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/iftex\iftex.sty"
+Package: iftex 2020/03/06 v1.0d TeX engine tests
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/ltxcmds\ltxcmds.
+sty"
+Package: ltxcmds 2020-05-10 v1.25 LaTeX kernel commands for general use (HO)
+)
+Package pdftexcmds Info: \pdf@primitive is available.
+Package pdftexcmds Info: \pdf@ifprimitive is available.
+Package pdftexcmds Info: \pdfdraftmode found.
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/etoolbox\etoolbox.
+sty"
+Package: etoolbox 2019/09/21 v2.5h e-TeX tools for LaTeX (JAW)
+\etb@tempcnta=\count180
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/kvoptions\kvoption
+s.sty"
+Package: kvoptions 2020-10-07 v3.14 Key value format for package options (HO)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/kvsetkeys\kvsetk
+eys.sty"
+Package: kvsetkeys 2019/12/15 v1.18 Key value parser (HO)
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/logreq\logreq.sty"
+Package: logreq 2010/08/04 v1.0 xml request logger
+\lrq@indent=\count181
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/logreq\logreq.def"
+File: logreq.def 2010/08/04 v1.0 logreq spec v1.0
+)) ("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/base\ifthen.sty
+"
+Package: ifthen 2014/09/29 v1.1c Standard LaTeX ifthen package (DPC)
+) ("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/url\url.sty"
+\Urlmuskip=\muskip16
+Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
+)
+\c@tabx@nest=\count182
+\c@listtotal=\count183
+\c@listcount=\count184
+\c@liststart=\count185
+\c@liststop=\count186
+\c@citecount=\count187
+\c@citetotal=\count188
+\c@multicitecount=\count189
+\c@multicitetotal=\count190
+\c@instcount=\count191
+\c@maxnames=\count192
+\c@minnames=\count193
+\c@maxitems=\count194
+\c@minitems=\count195
+\c@citecounter=\count196
+\c@maxcitecounter=\count197
+\c@savedcitecounter=\count198
+\c@uniquelist=\count199
+\c@uniquename=\count266
+\c@refsection=\count267
+\c@refsegment=\count268
+\c@maxextratitle=\count269
+\c@maxextratitleyear=\count270
+\c@maxextraname=\count271
+\c@maxextradate=\count272
+\c@maxextraalpha=\count273
+\c@abbrvpenalty=\count274
+\c@highnamepenalty=\count275
+\c@lownamepenalty=\count276
+\c@maxparens=\count277
+\c@parenlevel=\count278
+\blx@tempcnta=\count279
+\blx@tempcntb=\count280
+\blx@tempcntc=\count281
+\blx@maxsection=\count282
+\blx@maxsegment@0=\count283
+\blx@notetype=\count284
+\blx@parenlevel@text=\count285
+\blx@parenlevel@foot=\count286
+\blx@sectionciteorder@0=\count287
+\blx@entrysetcounter=\count288
+\labelnumberwidth=\skip85
+\labelalphawidth=\skip86
+\biblabelsep=\skip87
+\bibitemsep=\skip88
+\bibnamesep=\skip89
+\bibinitsep=\skip90
+\bibparsep=\skip91
+\bibhang=\skip92
+\blx@bcfin=\read3
+\blx@bcfout=\write3
+\blx@langwohyphens=\language79
+\c@mincomprange=\count289
+\c@maxcomprange=\count290
+\c@mincompwidth=\count291
+Package biblatex Info: Trying to load biblatex default data model...
+Package biblatex Info: ... file 'blx-dm.def' found.
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/biblatex\blx-dm.de
+f"
+File: blx-dm.def 2019/12/01 v3.14 biblatex localization (PK/MW)
+)
+Package biblatex Info: Trying to load biblatex custom data model...
+Package biblatex Info: ... file 'biblatex-dm.cfg' not found.
+\c@afterword=\count292
+\c@savedafterword=\count293
+\c@annotator=\count294
+\c@savedannotator=\count295
+\c@author=\count296
+\c@savedauthor=\count297
+\c@bookauthor=\count298
+\c@savedbookauthor=\count299
+\c@commentator=\count300
+\c@savedcommentator=\count301
+\c@editor=\count302
+\c@savededitor=\count303
+\c@editora=\count304
+\c@savededitora=\count305
+\c@editorb=\count306
+\c@savededitorb=\count307
+\c@editorc=\count308
+\c@savededitorc=\count309
+\c@foreword=\count310
+\c@savedforeword=\count311
+\c@holder=\count312
+\c@savedholder=\count313
+\c@introduction=\count314
+\c@savedintroduction=\count315
+\c@namea=\count316
+\c@savednamea=\count317
+\c@nameb=\count318
+\c@savednameb=\count319
+\c@namec=\count320
+\c@savednamec=\count321
+\c@translator=\count322
+\c@savedtranslator=\count323
+\c@shortauthor=\count324
+\c@savedshortauthor=\count325
+\c@shorteditor=\count326
+\c@savedshorteditor=\count327
+\c@labelname=\count328
+\c@savedlabelname=\count329
+\c@institution=\count330
+\c@savedinstitution=\count331
+\c@lista=\count332
+\c@savedlista=\count333
+\c@listb=\count334
+\c@savedlistb=\count335
+\c@listc=\count336
+\c@savedlistc=\count337
+\c@listd=\count338
+\c@savedlistd=\count339
+\c@liste=\count340
+\c@savedliste=\count341
+\c@listf=\count342
+\c@savedlistf=\count343
+\c@location=\count344
+\c@savedlocation=\count345
+\c@organization=\count346
+\c@savedorganization=\count347
+\c@origlocation=\count348
+\c@savedoriglocation=\count349
+\c@origpublisher=\count350
+\c@savedorigpublisher=\count351
+\c@publisher=\count352
+\c@savedpublisher=\count353
+\c@language=\count354
+\c@savedlanguage=\count355
+\c@origlanguage=\count356
+\c@savedoriglanguage=\count357
+\c@pageref=\count358
+\c@savedpageref=\count359
+\shorthandwidth=\skip93
+\shortjournalwidth=\skip94
+\shortserieswidth=\skip95
+\shorttitlewidth=\skip96
+\shortauthorwidth=\skip97
+\shorteditorwidth=\skip98
+\locallabelnumberwidth=\skip99
+\locallabelalphawidth=\skip100
+\localshorthandwidth=\skip101
+\localshortjournalwidth=\skip102
+\localshortserieswidth=\skip103
+\localshorttitlewidth=\skip104
+\localshortauthorwidth=\skip105
+\localshorteditorwidth=\skip106
+Package biblatex Info: Trying to load compatibility code...
+Package biblatex Info: ... file 'blx-compat.def' found.
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/biblatex\blx-compa
+t.def"
+File: blx-compat.def 2019/12/01 v3.14 biblatex compatibility (PK/MW)
+)
+Package biblatex Info: Trying to load generic definitions...
+Package biblatex Info: ... file 'biblatex.def' found.
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/biblatex\biblatex.
+def"
+File: biblatex.def 2019/12/01 v3.14 biblatex compatibility (PK/MW)
+\c@textcitecount=\count360
+\c@textcitetotal=\count361
+\c@textcitemaxnames=\count362
+\c@biburlbigbreakpenalty=\count363
+\c@biburlbreakpenalty=\count364
+\c@biburlnumpenalty=\count365
+\c@biburlucpenalty=\count366
+\c@biburllcpenalty=\count367
+\biburlbigskip=\muskip17
+\biburlnumskip=\muskip18
+\biburlucskip=\muskip19
+\biburllcskip=\muskip20
+\c@smartand=\count368
+)
+Package biblatex Info: Trying to load bibliography style 'numeric'...
+Package biblatex Info: ... file 'numeric.bbx' found.
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/biblatex/bbx\numer
+ic.bbx"
+File: numeric.bbx 2019/12/01 v3.14 biblatex bibliography style (PK/MW)
+Package biblatex Info: Trying to load bibliography style 'standard'...
+Package biblatex Info: ... file 'standard.bbx' found.
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/biblatex/bbx\stand
+ard.bbx"
+File: standard.bbx 2019/12/01 v3.14 biblatex bibliography style (PK/MW)
+\c@bbx:relatedcount=\count369
+\c@bbx:relatedtotal=\count370
+))
+Package biblatex Info: Trying to load citation style 'numeric'...
+Package biblatex Info: ... file 'numeric.cbx' found.
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/biblatex/cbx\numer
+ic.cbx"
+File: numeric.cbx 2019/12/01 v3.14 biblatex citation style (PK/MW)
+Package biblatex Info: Redefining '\cite'.
+Package biblatex Info: Redefining '\parencite'.
+Package biblatex Info: Redefining '\footcite'.
+Package biblatex Info: Redefining '\footcitetext'.
+Package biblatex Info: Redefining '\smartcite'.
+Package biblatex Info: Redefining '\supercite'.
+Package biblatex Info: Redefining '\textcite'.
+Package biblatex Info: Redefining '\textcites'.
+Package biblatex Info: Redefining '\cites'.
+Package biblatex Info: Redefining '\parencites'.
+Package biblatex Info: Redefining '\smartcites'.
+)
+Package biblatex Info: Trying to load configuration file...
+Package biblatex Info: ... file 'biblatex.cfg' found.
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/biblatex\biblatex.
+cfg"
+File: biblatex.cfg 
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/appendix\appendix.
+sty"
+Package: appendix 2020/02/08 v1.2c extra appendix facilities
+\c@@pps=\count371
+\c@@ppsavesec=\count372
+\c@@ppsaveapp=\count373
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/xpatch\xpatch.sty"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/l3kernel\expl3.sty
+"
+Package: expl3 2020-05-15 L3 programming layer (loader) 
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/l3backend\l3backen
+d-pdfmode.def"
+File: l3backend-pdfmode.def 2020-05-05 L3 backend support: PDF mode
+\l__kernel_color_stack_int=\count374
+\l__pdf_internal_box=\box46
+))
+Package: xpatch 2020/03/25 v0.3a Extending etoolbox patching commands
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/l3packages/xparse\
+xparse.sty"
+Package: xparse 2020-05-15 L3 Experimental document command parser
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/l3packages/xparse\
+xparse-generic.tex"
+\l__xparse_current_arg_int=\count375
+\g__xparse_grabber_int=\count376
+\l__xparse_m_args_int=\count377
+\l__xparse_v_nesting_int=\count378
+)))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/amsmath\amsmath.st
+y"
+Package: amsmath 2020/01/20 v2.17e AMS math features
+\@mathmargin=\skip107
+
+For additional information on amsmath, use the `?' option.
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/amsmath\amstext.st
+y"
+Package: amstext 2000/06/29 v2.01 AMS text
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/amsmath\amsgen.sty
+"
+File: amsgen.sty 1999/11/30 v2.0 generic functions
+\@emptytoks=\toks19
+\ex@=\dimen143
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/amsmath\amsbsy.sty
+"
+Package: amsbsy 1999/11/29 v1.2d Bold Symbols
+\pmbraise@=\dimen144
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/amsmath\amsopn.sty
+"
+Package: amsopn 2016/03/08 v2.02 operator names
+)
+\inf@bad=\count379
+LaTeX Info: Redefining \frac on input line 227.
+\uproot@=\count380
+\leftroot@=\count381
+LaTeX Info: Redefining \overline on input line 389.
+\classnum@=\count382
+\DOTSCASE@=\count383
+LaTeX Info: Redefining \ldots on input line 486.
+LaTeX Info: Redefining \dots on input line 489.
+LaTeX Info: Redefining \cdots on input line 610.
+\Mathstrutbox@=\box47
+\strutbox@=\box48
+\big@size=\dimen145
+LaTeX Font Info:    Redeclaring font encoding OML on input line 733.
+LaTeX Font Info:    Redeclaring font encoding OMS on input line 734.
+\macc@depth=\count384
+\c@MaxMatrixCols=\count385
+\dotsspace@=\muskip21
+\c@parentequation=\count386
+\dspbrk@lvl=\count387
+\tag@help=\toks20
+\row@=\count388
+\column@=\count389
+\maxfields@=\count390
+\andhelp@=\toks21
+\eqnshift@=\dimen146
+\alignsep@=\dimen147
+\tagshift@=\dimen148
+\tagwidth@=\dimen149
+\totwidth@=\dimen150
+\lineht@=\dimen151
+\@envbody=\toks22
+\multlinegap=\skip108
+\multlinetaggap=\skip109
+\mathdisplay@stack=\toks23
+LaTeX Info: Redefining \[ on input line 2859.
+LaTeX Info: Redefining \] on input line 2860.
+) ("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/float\float.sty"
+Package: float 2001/11/08 v1.3d Float enhancements (AL)
+\c@float@type=\count391
+\float@exts=\toks24
+\float@box=\box49
+\@float@everytoks=\toks25
+\@floatcapt=\box50
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/doublestroke\dsfon
+t.sty"
+Package: dsfont 1995/08/01 v0.1 Double stroke roman fonts
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/amsfonts\amsfonts.
+sty"
+Package: amsfonts 2013/01/14 v3.01 Basic AMSFonts support
+\symAMSa=\mathgroup4
+\symAMSb=\mathgroup5
+LaTeX Font Info:    Redeclaring math symbol \hbar on input line 98.
+LaTeX Font Info:    Overwriting math alphabet `\mathfrak' in version `bold'
+(Font)                  U/euf/m/n --> U/euf/b/n on input line 106.
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/base\fontenc.sty"
+Package: fontenc 2020/02/11 v2.0o Standard LaTeX package
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/todonotes\todonote
+s.sty"
+Package: todonotes 2020/08/18 v1.1.3 Todonotes source and documentation.
+Package: todonotes 2018/11/22
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/xkeyval\xkeyval.st
+y"
+Package: xkeyval 2014/12/03 v2.7a package option processing (HA)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/xkeyval\xkeyval.
+tex"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/xkeyval\xkvutils
+.tex"
+\XKV@toks=\toks26
+\XKV@tempa@toks=\toks27
+)
+\XKV@depth=\count392
+File: xkeyval.tex 2014/12/03 v2.7a key=value parser (HA)
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/xcolor\xcolor.sty"
+Package: xcolor 2016/05/11 v2.12 LaTeX color extensions (UK)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/graphics-cfg\color
+.cfg"
+File: color.cfg 2016/01/02 v1.6 sample color configuration
+)
+Package xcolor Info: Driver file: pdftex.def on input line 225.
+Package xcolor Info: Model `cmy' substituted by `cmy0' on input line 1348.
+Package xcolor Info: Model `hsb' substituted by `rgb' on input line 1352.
+Package xcolor Info: Model `RGB' extended on input line 1364.
+Package xcolor Info: Model `HTML' substituted by `rgb' on input line 1366.
+Package xcolor Info: Model `Hsb' substituted by `hsb' on input line 1367.
+Package xcolor Info: Model `tHsb' substituted by `hsb' on input line 1368.
+Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1369.
+Package xcolor Info: Model `Gray' substituted by `gray' on input line 1370.
+Package xcolor Info: Model `wave' substituted by `hsb' on input line 1371.
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/frontendlayer\
+tikz.sty"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/basiclayer\pgf
+.sty"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/utilities\pgfr
+cs.sty"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/utilities\pg
+futil-common.tex"
+\pgfutil@everybye=\toks28
+\pgfutil@tempdima=\dimen152
+\pgfutil@tempdimb=\dimen153
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/utilities\pg
+futil-common-lists.tex"))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/utilities\pg
+futil-latex.def"
+\pgfutil@abb=\box51
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/ms\everyshi.sty"
+Package: everyshi 2001/05/15 v3.00 EveryShipout Package (MS)
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/utilities\pg
+frcs.code.tex"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf\pgf.revision
+.tex")
+Package: pgfrcs 2020/01/08 v3.1.5b (3.1.5b)
+))
+Package: pgf 2020/01/08 v3.1.5b (3.1.5b)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/basiclayer\pgf
+core.sty"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/systemlayer\pg
+fsys.sty"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/systemlayer\
+pgfsys.code.tex"
+Package: pgfsys 2020/01/08 v3.1.5b (3.1.5b)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/utilities\pg
+fkeys.code.tex"
+\pgfkeys@pathtoks=\toks29
+\pgfkeys@temptoks=\toks30
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/utilities\pg
+fkeysfiltered.code.tex"
+\pgfkeys@tmptoks=\toks31
+))
+\pgf@x=\dimen154
+\pgf@y=\dimen155
+\pgf@xa=\dimen156
+\pgf@ya=\dimen157
+\pgf@xb=\dimen158
+\pgf@yb=\dimen159
+\pgf@xc=\dimen160
+\pgf@yc=\dimen161
+\pgf@xd=\dimen162
+\pgf@yd=\dimen163
+\w@pgf@writea=\write4
+\r@pgf@reada=\read4
+\c@pgf@counta=\count393
+\c@pgf@countb=\count394
+\c@pgf@countc=\count395
+\c@pgf@countd=\count396
+\t@pgf@toka=\toks32
+\t@pgf@tokb=\toks33
+\t@pgf@tokc=\toks34
+\pgf@sys@id@count=\count397
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/systemlayer\
+pgf.cfg"
+File: pgf.cfg 2020/01/08 v3.1.5b (3.1.5b)
+)
+Driver file for pgf: pgfsys-pdftex.def
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/systemlayer\
+pgfsys-pdftex.def"
+File: pgfsys-pdftex.def 2020/01/08 v3.1.5b (3.1.5b)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/systemlayer\
+pgfsys-common-pdf.def"
+File: pgfsys-common-pdf.def 2020/01/08 v3.1.5b (3.1.5b)
+)))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/systemlayer\
+pgfsyssoftpath.code.tex"
+File: pgfsyssoftpath.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgfsyssoftpath@smallbuffer@items=\count398
+\pgfsyssoftpath@bigbuffer@items=\count399
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/systemlayer\
+pgfsysprotocol.code.tex"
+File: pgfsysprotocol.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcore.code.tex"
+Package: pgfcore 2020/01/08 v3.1.5b (3.1.5b)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+.code.tex"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+calc.code.tex"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+util.code.tex")
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+parser.code.tex"
+\pgfmath@dimen=\dimen164
+\pgfmath@count=\count400
+\pgfmath@box=\box52
+\pgfmath@toks=\toks35
+\pgfmath@stack@operand=\toks36
+\pgfmath@stack@operation=\toks37
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+functions.code.tex"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+functions.basic.code.tex")
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+functions.trigonometric.code.tex")
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+functions.random.code.tex")
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+functions.comparison.code.tex")
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+functions.base.code.tex")
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+functions.round.code.tex")
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+functions.misc.code.tex")
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+functions.integerarithmetics.code.tex")))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+float.code.tex"
+\c@pgfmathroundto@lastzeros=\count401
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfint.
+code.tex")
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorepoints.code.tex"
+File: pgfcorepoints.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgf@picminx=\dimen165
+\pgf@picmaxx=\dimen166
+\pgf@picminy=\dimen167
+\pgf@picmaxy=\dimen168
+\pgf@pathminx=\dimen169
+\pgf@pathmaxx=\dimen170
+\pgf@pathminy=\dimen171
+\pgf@pathmaxy=\dimen172
+\pgf@xx=\dimen173
+\pgf@xy=\dimen174
+\pgf@yx=\dimen175
+\pgf@yy=\dimen176
+\pgf@zx=\dimen177
+\pgf@zy=\dimen178
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorepathconstruct.code.tex"
+File: pgfcorepathconstruct.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgf@path@lastx=\dimen179
+\pgf@path@lasty=\dimen180
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorepathusage.code.tex"
+File: pgfcorepathusage.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgf@shorten@end@additional=\dimen181
+\pgf@shorten@start@additional=\dimen182
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorescopes.code.tex"
+File: pgfcorescopes.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgfpic=\box53
+\pgf@hbox=\box54
+\pgf@layerbox@main=\box55
+\pgf@picture@serial@count=\count402
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcoregraphicstate.code.tex"
+File: pgfcoregraphicstate.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgflinewidth=\dimen183
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcoretransformations.code.tex"
+File: pgfcoretransformations.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgf@pt@x=\dimen184
+\pgf@pt@y=\dimen185
+\pgf@pt@temp=\dimen186
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorequick.code.tex"
+File: pgfcorequick.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcoreobjects.code.tex"
+File: pgfcoreobjects.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorepathprocessing.code.tex"
+File: pgfcorepathprocessing.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorearrows.code.tex"
+File: pgfcorearrows.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgfarrowsep=\dimen187
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcoreshade.code.tex"
+File: pgfcoreshade.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgf@max=\dimen188
+\pgf@sys@shading@range@num=\count403
+\pgf@shadingcount=\count404
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcoreimage.code.tex"
+File: pgfcoreimage.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcoreexternal.code.tex"
+File: pgfcoreexternal.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgfexternal@startupbox=\box56
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorelayers.code.tex"
+File: pgfcorelayers.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcoretransparency.code.tex"
+File: pgfcoretransparency.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorepatterns.code.tex"
+File: pgfcorepatterns.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/basiclayer\p
+gfcorerdf.code.tex"
+File: pgfcorerdf.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/modules\pgfm
+oduleshapes.code.tex"
+File: pgfmoduleshapes.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgfnodeparttextbox=\box57
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/modules\pgfm
+oduleplot.code.tex"
+File: pgfmoduleplot.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/compatibility\
+pgfcomp-version-0-65.sty"
+Package: pgfcomp-version-0-65 2020/01/08 v3.1.5b (3.1.5b)
+\pgf@nodesepstart=\dimen189
+\pgf@nodesepend=\dimen190
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/compatibility\
+pgfcomp-version-1-18.sty"
+Package: pgfcomp-version-1-18 2020/01/08 v3.1.5b (3.1.5b)
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/utilities\pgff
+or.sty"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/utilities\pgfk
+eys.sty"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/utilities\pg
+fkeys.code.tex"))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/latex/pgf/math\pgfmath.s
+ty"
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+.code.tex"))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/utilities\pg
+ffor.code.tex"
+Package: pgffor 2020/01/08 v3.1.5b (3.1.5b)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/math\pgfmath
+.code.tex")
+\pgffor@iter=\dimen191
+\pgffor@skip=\dimen192
+\pgffor@stack=\toks38
+\pgffor@toks=\toks39
+))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/frontendlaye
+r/tikz\tikz.code.tex"
+Package: tikz 2020/01/08 v3.1.5b (3.1.5b)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/libraries\pg
+flibraryplothandlers.code.tex"
+File: pgflibraryplothandlers.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgf@plot@mark@count=\count405
+\pgfplotmarksize=\dimen193
+)
+\tikz@lastx=\dimen194
+\tikz@lasty=\dimen195
+\tikz@lastxsaved=\dimen196
+\tikz@lastysaved=\dimen197
+\tikz@lastmovetox=\dimen198
+\tikz@lastmovetoy=\dimen199
+\tikzleveldistance=\dimen256
+\tikzsiblingdistance=\dimen257
+\tikz@figbox=\box58
+\tikz@figbox@bg=\box59
+\tikz@tempbox=\box60
+\tikz@tempbox@bg=\box61
+\tikztreelevel=\count406
+\tikznumberofchildren=\count407
+\tikznumberofcurrentchild=\count408
+\tikz@fig@count=\count409
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/modules\pgfm
+odulematrix.code.tex"
+File: pgfmodulematrix.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+\pgfmatrixcurrentrow=\count410
+\pgfmatrixcurrentcolumn=\count411
+\pgf@matrix@numberofcolumns=\count412
+)
+\tikz@expandcount=\count413
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/frontendlaye
+r/tikz/libraries\tikzlibrarytopaths.code.tex"
+File: tikzlibrarytopaths.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)))
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/frontendlaye
+r/tikz/libraries\tikzlibrarypositioning.code.tex"
+File: tikzlibrarypositioning.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+)
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/frontendlaye
+r/tikz/libraries\tikzlibraryshadows.code.tex"
+File: tikzlibraryshadows.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/frontendlaye
+r/tikz/libraries\tikzlibraryfadings.code.tex"
+File: tikzlibraryfadings.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+
+("C:\Users\annga\AppData\Local\Programs\MiKTeX 2.9\tex/generic/pgf/libraries\pg
+flibraryfadings.code.tex"
+File: pgflibraryfadings.code.tex 2020/01/08 v3.1.5b (3.1.5b)
+
+! I can't write on file `REPORT.pdf'.
+Please type another file name for output
+! Emergency stop.
+\pgfsys@horishading ...e] >> >>}\pgfutil@tempboxa 
+                                                  \xdef \pgfutil@tempa {\hbo...
+l.17 ...t!100); color(100bp)=(pgftransparent!100)}
+                                                  %
+*** (job aborted, file error in nonstop mode)
+
+ 
+Here is how much of TeX's memory you used:
+ 20541 strings out of 480799
+ 407101 string characters out of 2895784
+ 801426 words of memory out of 3000000
+ 36223 multiletter control sequences out of 15000+200000
+ 533400 words of font info for 26 fonts, out of 3000000 for 9000
+ 1141 hyphenation exceptions out of 8191
+ 68i,1n,83p,824b,196s stack positions out of 5000i,500n,10000p,200000b,50000s
+!  ==> Fatal error occurred, no output PDF file produced!
