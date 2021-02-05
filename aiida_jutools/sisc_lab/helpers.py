@@ -85,73 +85,73 @@ class StandardWorkflow():
         for workflow in workflows:
             del self.workflow_list[str(workflow)]
 
-class WorkflowProjects():
-    '''Standard projects for each workflow/parse version'''
+class WorkflowProjections():
+    '''Standard projections for each workflow/parse version'''
     def __init__(self, proj, workflow_version_name):
         '''
         Format  of self.proj: ["uuid", "attributes.workflow_version", "attrbutes.attr1","attrbutes.attr1_units"
         "attrbutes.attr2","attrbutes.attr2_units'",...]
         Have to have a pair of [attr, attr_units] for each atribute.      
         '''
-        self.projects = proj
+        self.projections = proj
         self.workflow_version_name = workflow_version_name
 
-    def set_projects(self, proj):
-        self.projects = proj
+    def set_projections(self, proj):
+        self.projections = proj
         
-    def add_projects(self, new_proj):
+    def add_projections(self, new_proj):
         if (isinstance(new_proj) & (len(new_proj)==22)):
-            self.projects = self.projects + new_proj
+            self.projections = self.projections + new_proj
 
-    def get_projects(self):
-        print(self.projects)
+    def get_projections(self):
+        print(self.projections)
 
 # Workflow
-wf_0_2_2 = WorkflowProjects(['uuid', 'attributes.workflow_version','attributes.force',
+wf_0_2_2 = WorkflowProjections(['uuid', 'attributes.workflow_version','attributes.force',
                             'attributes.force_units', 'attributes.energy', 'attributes.energy_units'],
                             'wf_0_2_2')
-wf_0_3_0 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.energy', 'attributes.energy_units',
+wf_0_3_0 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.energy', 'attributes.energy_units',
                              'attributes.total_magnetic_moment_cell', 'attributes.total_magnetic_moment_cell_units'],
                              'wf_0_3_0')
-wf_0_4_2 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.total_energy', 
+wf_0_4_2 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.total_energy', 
                             'attributes.total_energy_units', 'attributes.distance_charge',
                             'attributes.distance_charge_units', 'attributes.total_wall_time',
                             'attributes.total_wall_time_units'],
                             'wf_0_4_2')
-wf_0_8_0 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.number_of_rms_steps', 
+wf_0_8_0 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.number_of_rms_steps', 
                             'attributes.number_of_rms_steps_units', 'attributes.convergence_values_all_step',
                             'attributes.convergence_values_all_step_units'],
                             'wf_0_8_0')
-wf_0_9_4 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.loop_count', 
+wf_0_9_4 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.loop_count', 
                             'attributes.loop_count_units', 'attributes.convergence_values_all_step',
                             'attributes.convergence_values_all_step_units'],
                             'wf_0_9_4')
-wf_0_10_4 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.charge_neutrality', 
+wf_0_10_4 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.charge_neutrality', 
                              'attributes.charge_neutrality_unints','attributes.convergence_value',
                              'attributes.convergence_value_units'],
                              'wf_0_10_4')
-wf_0_12_0 = WorkflowProjects(['uuid', 'attributes.workflow_version', 'attributes.starting_fermi_energy',
+wf_0_12_0 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.starting_fermi_energy',
                                'attributes.starting_fermi_energy_units', 'attributes.last_rclustz',
                                'attributes.last_rclustz_units', 'attributes.max_wallclock_seconds',
                                'attributes.max_wallclock_seconds_units'],
                                'wf_0_12_0')
 # Parser
-ps_0_3_0 = WorkflowProjects(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
+ps_0_3_0 = WorkflowProjections(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
                             'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.energy_hartree',
                             'attributes.energy_hartree_units', 'attributes.bandgap', 'attributes.bandgap_units',
                             'attributes.walltime', 'attributes.walltime_units'],
                             'ps_0_3_0')
-ps_0_3_1 =  WorkflowProjects(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
+ps_0_3_1 =  WorkflowProjections(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
                             'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.energy_hartree',
                             'attributes.energy_hartree_units', 'attributes.bandgap', 'attributes.bandgap_units',
                             'attributes.walltime', 'attributes.walltime_units'],
                             'ps_0_3_1')
-ps_0_3_2 =  WorkflowProjects(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
+ps_0_3_2 =  WorkflowProjections(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
                             'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.energy_hartree',
                             'attributes.energy_hartree_units', 'attributes.bandgap', 'attributes.bandgap_units',
                             'attributes.walltime', 'attributes.walltime_units'],
                             'ps_0_3_2')
-ps_0_4_2 = WorkflowProjects(['uuid','attributes.parser_version', 'attributes.energy', 'attributes.energy_unit',
+ps_0_4_2 = WorkflowProjections(['uuid','attributes.parser_version', 'attributes.energy', 'attributes.energy_unit',
                               'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.total_energy_Ry',
                               'attributes.total_energy_Ry_unit', 'attributes.total_energies_atom',
                               'attributes.total_energy_energies_atom_unit', 'attributes.single_particle_energies', 
@@ -160,7 +160,7 @@ ps_0_4_2 = WorkflowProjects(['uuid','attributes.parser_version', 'attributes.ene
                               'attributes.charge_core_states_per_atom_unit','attributes.charge_valence_states_per_atom',
                               'attributes.charge_valence_states_per_atom', 'attributes.timings', 'attributes.timings_unit'],
                               'ps_0_4_2')
-ps_0_6_6 = WorkflowProjects(['uuid','attributes.parser_version', 'attributes.energy', 'attributes.energy_unit',
+ps_0_6_6 = WorkflowProjections(['uuid','attributes.parser_version', 'attributes.energy', 'attributes.energy_unit',
                               'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.total_energy_Ry',
                               'attributes.total_energy_Ry_unit', 'attributes.single_particle_energies', 
                               'attributes.single_particle_energies_unit', 'attributes.alat_internal',
