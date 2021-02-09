@@ -1,0 +1,23 @@
+# Timings of notebook/code 'D2' for AiiDA database 'wasmer_medium_size' in seconds
+
+{
+    "Workflows info": 1.3941655158996582,
+    "Preprocess structures single workflow version": 0.17425775527954102,
+    "Prepare Structure multiple workflow versions": 0.6971845626831055,
+    "Prepare Dict single workflow version": 0.24932408332824707,
+    "Prepare Dict multiple workflow versions": 1.0655887126922607,
+    "Join data single workflow version": 0.2721428871154785,
+    "Join data multiple workflow versions": 0.5114865303039551,
+    "Interactive plot": 0.3288838863372803
+}
+
+# Database info:
+# Size: 431 MB. Nodes: 50183. Process nodes: 15534. Data nodes: 34649.
+
+# Database description:
+# 800 Impurity (defect atoms) embeddings into different elemental host crystals with aiida-kkr.
+
+# Other remarks:
+# - autoreload True
+# - serialization from previous run True
+# - db grew while timings were performed. either adjust node numbers or present as a 'feature'.

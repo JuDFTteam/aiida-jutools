@@ -5,9 +5,10 @@
 /.idea/
 # ignore data/ folder (generated in- output files)
 data/
-# ignore json files generally
+# ignore json, xlsx serialization files generally
 # (if some config json files need to be committed, unignore them via specific full name)
-*.json
+# *.json
+# *.xlsx
 ############################################################
 # Custom gitignore commands FINISH
 ############################################################

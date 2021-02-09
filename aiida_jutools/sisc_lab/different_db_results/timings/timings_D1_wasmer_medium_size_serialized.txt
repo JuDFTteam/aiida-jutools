@@ -1,0 +1,24 @@
+# Timings of notebook/code 'D1' for AiiDA database 'wasmer_medium_size' in seconds
+
+{
+    "Database overview": 1.5057077407836914,
+    "User information": 0.041535139083862305,
+    "Node types": 209.98009634017944,
+    "Database evolution": 1.5979845523834229,
+    "Codes analysis": 0.9698443412780762,
+    "Groups analysis": 0.15008187294006348,
+    "Structures analysis": 0.6174185276031494,
+    "Processes info": 1.4370341300964355,
+    "Provenance analysis": 4.282720327377319
+}
+
+# Database info:
+# Size: 431 MB. Nodes: 48950. Process nodes: 15166. Data nodes: 33784.
+
+# Database description:
+# 800 Impurity (defect atoms) embeddings into different elemental host crystals with aiida-kkr.
+
+# Other remarks:
+# - autoreload True
+# - serialization from previous run True
+# - db grew while timings were performed. either adjust node numbers or present as a 'feature'.

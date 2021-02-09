@@ -6,41 +6,31 @@ you can import them via `from .helpers.import <function_namw>`
 helpers function for subtask d2.a
 '''
 
+import time
+from collections import Counter
+from math import pi
+
 # python imports
 import numpy as np
 import pandas as pd
-from collections import Counter
-from math import pi
-from pandas import DataFrame
-import time
-
-# D1 imports
-from bokeh.io import output_file, output_notebook, show
-from bokeh.layouts import column
-from bokeh.palettes import Category20, Category20c,Spectral11
-from bokeh.plotting import figure, ColumnDataSource
-from bokeh.transform import cumsum
-from bokeh.models import Legend, LegendItem, HoverTool,ColumnDataSource
-
+from aiida.orm import Dict, ProcessNode
+# aiida imports
+from aiida.orm import QueryBuilder
+from aiida.orm import WorkFunctionNode, WorkChainNode, StructureData
 # D2 interactive visualize by Bokeh imports
-from bokeh.io import output_file, show, curdoc
-from bokeh.layouts import gridplot, column, row
-from bokeh.models import ColumnDataSource, Select, Legend
-from bokeh.models.tools import HoverTool, BoxSelectTool
+from bokeh.io import output_file, curdoc
+from bokeh.layouts import gridplot
+from bokeh.models import ColumnDataSource, Legend
+from bokeh.models import LegendItem
+# D1 imports
+from bokeh.palettes import Category20, Spectral11
 from bokeh.plotting import figure, show
-
-
-# # aiida imports
-# from aiida.orm import QueryBuilder as QB
-# from aiida.orm import WorkFunctionNode, WorkChainNode
-# from aiida.orm import Dict, ProcessNode
-# from aiida.plugins import DataFactory  #, WorkflowFactory
-# StructureData = DataFactory('structure')
-
+from bokeh.transform import cumsum
 
 # 16:9
 FIGURE_HEIGHT = 540
 FIGURE_WIDTH = 960
+
 
 def print_bold(text: str):
     """Print text in bold.
@@ -51,19 +41,25 @@ def print_bold(text: str):
     print(bold_text)
 
 
-MAP = {'workflow_0.2.2':'wf_0_2_2', 
-      'workflow_0.3.0':'wf_0_3_0',
-      'workflow_0.4.2':'wf_0_4_2',
-      'workflow_0.8.0':'wf_0_8_0',
-      'workflow_0.9.4':'wf_0_9_4',
-      'workflow_0.10.4':'wf_0_10_4',
-      'workflow_0.12.0':'wf_0_12_0',
-      'parser_AiiDA Fleur Parser v0.3.0':'ps_0_3_0',
-      'parser_AiiDA Fleur Parser v0.3.1':'ps_0_3_1',
-      'parser_AiiDA Fleur Parser v0.3.2':'ps_0_3_2',
-      'parser_0.4.2':'ps_0_4_2',
-      'parser_0.6.6':'ps_0_6_6'}
-INVMAP = {value:key for key, value in MAP.items()}
+MAP = {
+    # aiida-fleur workflows
+    'workflow_0.2.2': 'wf_0_2_2',
+    'workflow_0.3.0': 'wf_0_3_0',
+    'workflow_0.4.2': 'wf_0_4_2',
+    'workflow_0.8.0': 'wf_0_8_0',
+    'workflow_0.9.4': 'wf_0_9_4',
+    'workflow_0.10.4': 'wf_0_10_4',
+    'parser_AiiDA Fleur Parser v0.3.0': 'ps_0_3_0',
+    'parser_AiiDA Fleur Parser v0.3.1': 'ps_0_3_1',
+    'parser_AiiDA Fleur Parser v0.3.2': 'ps_0_3_2',
+    # aiida-kkr workflows
+    'workflow_0.12.0': 'kkr_startpot_wf_0_12_0',  # TODO: check & update attributes
+    'workflow_0.12.1': 'kkr_startpot_wf_0_12_1',  # prefer parser_0.3.2. same attrs, but here they yield NaN
+    'parser_0.3.2': 'kkr_startpot_ps_0_3_2',
+    'parser_0.4.2': 'ps_0_4_2',  # TODO: find out which kkr workflow this belongs to, check attrs
+    'parser_0.6.6': 'ps_0_6_6',  # TODO: find out which kkr workflow this belongs to, check attrs
+}
+INVMAP = {value: key for key, value in MAP.items()}
 
 
 class StandardWorkflow():
@@ -80,13 +76,15 @@ class StandardWorkflow():
 
     def get_workflow(self, workflow_version_name):
         return self.workflow_list[workflow_version_name]
-    
+
     def del_workflow(self, *workflows):
         for workflow in workflows:
             del self.workflow_list[str(workflow)]
 
+
 class WorkflowProjections():
     '''Standard projections for each workflow/parse version'''
+
     def __init__(self, proj, workflow_version_name):
         '''
         Format  of self.proj: ["uuid", "attributes.workflow_version", "attrbutes.attr1","attrbutes.attr1_units"
@@ -98,84 +96,198 @@ class WorkflowProjections():
 
     def set_projections(self, proj):
         self.projections = proj
-        
+
     def add_projections(self, new_proj):
-        if (isinstance(new_proj) & (len(new_proj)==22)):
+        if isinstance(new_proj) & (len(new_proj) == 22):
             self.projections = self.projections + new_proj
 
     def get_projections(self):
         print(self.projections)
 
+
 # Workflow
-wf_0_2_2 = WorkflowProjections(['uuid', 'attributes.workflow_version','attributes.force',
-                            'attributes.force_units', 'attributes.energy', 'attributes.energy_units'],
-                            'wf_0_2_2')
-wf_0_3_0 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.energy', 'attributes.energy_units',
-                             'attributes.total_magnetic_moment_cell', 'attributes.total_magnetic_moment_cell_units'],
-                             'wf_0_3_0')
-wf_0_4_2 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.total_energy', 
-                            'attributes.total_energy_units', 'attributes.distance_charge',
-                            'attributes.distance_charge_units', 'attributes.total_wall_time',
-                            'attributes.total_wall_time_units'],
-                            'wf_0_4_2')
-wf_0_8_0 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.number_of_rms_steps', 
-                            'attributes.number_of_rms_steps_units', 'attributes.convergence_values_all_step',
-                            'attributes.convergence_values_all_step_units'],
-                            'wf_0_8_0')
-wf_0_9_4 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.loop_count', 
-                            'attributes.loop_count_units', 'attributes.convergence_values_all_step',
-                            'attributes.convergence_values_all_step_units'],
-                            'wf_0_9_4')
-wf_0_10_4 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.charge_neutrality', 
-                             'attributes.charge_neutrality_unints','attributes.convergence_value',
-                             'attributes.convergence_value_units'],
-                             'wf_0_10_4')
-wf_0_12_0 = WorkflowProjections(['uuid', 'attributes.workflow_version', 'attributes.starting_fermi_energy',
-                               'attributes.starting_fermi_energy_units', 'attributes.last_rclustz',
-                               'attributes.last_rclustz_units', 'attributes.max_wallclock_seconds',
-                               'attributes.max_wallclock_seconds_units'],
-                               'wf_0_12_0')
+wf_0_2_2 = WorkflowProjections(['uuid', 'attributes.workflow_version',
+                                'attributes.force',
+                                'attributes.force_units',
+                                'attributes.energy',
+                                'attributes.energy_units'],
+                               'wf_0_2_2')
+wf_0_3_0 = WorkflowProjections(['uuid', 'attributes.workflow_version',
+                                'attributes.energy',
+                                'attributes.energy_units',
+                                'attributes.total_magnetic_moment_cell',
+                                'attributes.total_magnetic_moment_cell_units'],
+                               'wf_0_3_0')
+wf_0_4_2 = WorkflowProjections(['uuid', 'attributes.workflow_version',
+                                'attributes.total_energy',
+                                'attributes.total_energy_units',
+                                'attributes.distance_charge',
+                                'attributes.distance_charge_units',
+                                'attributes.total_wall_time',
+                                'attributes.total_wall_time_units'],
+                               'wf_0_4_2')
+wf_0_8_0 = WorkflowProjections(['uuid', 'attributes.workflow_version',
+                                'attributes.number_of_rms_steps',
+                                'attributes.number_of_rms_steps_units',
+                                'attributes.convergence_values_all_step',
+                                'attributes.convergence_values_all_step_units'],
+                               'wf_0_8_0')
+wf_0_9_4 = WorkflowProjections(['uuid', 'attributes.workflow_version',
+                                'attributes.loop_count',
+                                'attributes.loop_count_units',
+                                'attributes.convergence_values_all_step',
+                                'attributes.convergence_values_all_step_units'],
+                               'wf_0_9_4')
+# some aiida-kkr workflow:
+wf_0_10_4 = WorkflowProjections(['uuid', 'attributes.workflow_version',
+                                 'attributes.charge_neutrality',
+                                 'attributes.charge_neutrality_units',
+                                 'attributes.convergence_value',
+                                 'attributes.convergence_value_units'],
+                                'wf_0_10_4')
 # Parser
-ps_0_3_0 = WorkflowProjections(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
-                            'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.energy_hartree',
-                            'attributes.energy_hartree_units', 'attributes.bandgap', 'attributes.bandgap_units',
-                            'attributes.walltime', 'attributes.walltime_units'],
-                            'ps_0_3_0')
-ps_0_3_1 =  WorkflowProjections(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
-                            'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.energy_hartree',
-                            'attributes.energy_hartree_units', 'attributes.bandgap', 'attributes.bandgap_units',
-                            'attributes.walltime', 'attributes.walltime_units'],
-                            'ps_0_3_1')
-ps_0_3_2 =  WorkflowProjections(['uuid','attributes.parser_info', 'attributes.energy', 'attributes.energy_units', 
-                            'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.energy_hartree',
-                            'attributes.energy_hartree_units', 'attributes.bandgap', 'attributes.bandgap_units',
-                            'attributes.walltime', 'attributes.walltime_units'],
-                            'ps_0_3_2')
-ps_0_4_2 = WorkflowProjections(['uuid','attributes.parser_version', 'attributes.energy', 'attributes.energy_unit',
-                              'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.total_energy_Ry',
-                              'attributes.total_energy_Ry_unit', 'attributes.total_energies_atom',
-                              'attributes.total_energy_energies_atom_unit', 'attributes.single_particle_energies', 
-                              'attributes.single_particle_energies_unit','attributes.total_charge_per_atom',
-                              'attributes.total_charge_per_atom_unit', 'attributes.charge_core_states_per_atom',
-                              'attributes.charge_core_states_per_atom_unit','attributes.charge_valence_states_per_atom',
-                              'attributes.charge_valence_states_per_atom', 'attributes.timings', 'attributes.timings_unit'],
-                              'ps_0_4_2')
-ps_0_6_6 = WorkflowProjections(['uuid','attributes.parser_version', 'attributes.energy', 'attributes.energy_unit',
-                              'attributes.fermi_energy', 'attributes.fermi_energy_units', 'attributes.total_energy_Ry',
-                              'attributes.total_energy_Ry_unit', 'attributes.single_particle_energies', 
-                              'attributes.single_particle_energies_unit', 'attributes.alat_internal',
-                              'attributes.alat_internal_unit', 'attributes.two_pi_over_alat_internal',
-                              'attributes.two_pi_over_alat_internal_unit', 'attributes.dos_at_fermi_energy',
-                              'attributes.dos_at_fermi_energy_units', 'attributes.total_charge_per_atom',
-                              'attributes.total_charge_per_atom_unit', 'attributes.charge_core_states_per_atom',
-                              'attributes.charge_core_states_per_atom_unit','attributes.charge_valence_states_per_atom',
-                              'attributes.charge_valence_states_per_atom', 'attributes.timings', 'attributes.timings_unit'],
-                              'ps_0_6_6')
+ps_0_3_0 = WorkflowProjections(['uuid', 'attributes.parser_info',
+                                'attributes.energy',
+                                'attributes.energy_units',
+                                'attributes.fermi_energy',
+                                'attributes.fermi_energy_units',
+                                'attributes.energy_hartree',
+                                'attributes.energy_hartree_units',
+                                'attributes.bandgap',
+                                'attributes.bandgap_units',
+                                'attributes.walltime',
+                                'attributes.walltime_units'],
+                               'ps_0_3_0')
+ps_0_3_1 = WorkflowProjections(['uuid', 'attributes.parser_info',
+                                'attributes.energy',
+                                'attributes.energy_units',
+                                'attributes.fermi_energy',
+                                'attributes.fermi_energy_units',
+                                'attributes.energy_hartree',
+                                'attributes.energy_hartree_units',
+                                'attributes.bandgap',
+                                'attributes.bandgap_units',
+                                'attributes.walltime',
+                                'attributes.walltime_units'],
+                               'ps_0_3_1')
+ps_0_3_2 = WorkflowProjections(['uuid', 'attributes.parser_info',
+                                'attributes.energy',
+                                'attributes.energy_units',
+                                'attributes.fermi_energy',
+                                'attributes.fermi_energy_units',
+                                'attributes.energy_hartree',
+                                'attributes.energy_hartree_units',
+                                'attributes.bandgap',
+                                'attributes.bandgap_units',
+                                'attributes.walltime',
+                                'attributes.walltime_units'],
+                               'ps_0_3_2')
+# some aiida-kkr workflow, probably kkr.startpot. note: probably wrong, compare wf_0_12_1.
+kkr_startpot_wf_0_12_0 = WorkflowProjections(['uuid', 'attributes.workflow_version',
+                                              'attributes.starting_fermi_energy',
+                                              'attributes.starting_fermi_energy_units',
+                                              'attributes.last_rclustz',
+                                              'attributes.last_rclustz_units',
+                                              'attributes.max_wallclock_seconds',
+                                              'attributes.max_wallclock_seconds_units'],
+                                             'kkr_startpot_wf_0_12_0')
+kkr_startpot_wf_0_12_1 = WorkflowProjections(['uuid', 'attributes.workflow_version',
+                                              # 'attributes.dos_params.emax',
+                                              # 'attributes.dos_params.emin',
+                                              # 'attributes.dos_params.nepts',
+                                              # 'attributes.dos_params.tempr',
+                                              # 'attributes.last_rclustz',
+                                              # 'attributes.max_iterations',
+                                              # 'attributes.factor_rcls_increase',
+                                              # 'attributes.max_wallclock_seconds',
+                                              # 'attributes.starting_fermi_energy',
+                                              # 'attributes.min_num_atoms_in_cluster',
+                                              'attributes.alat',
+                                              'attributes.alat_unit',
+                                              'attributes.emin',
+                                              'attributes.emin_units',
+                                              # 'attributes.volumes_group.volume_total',
+                                              'attributes.fpradius_atoms.0',
+                                              'attributes.fpradius_atoms.0_unit',
+                                              'attributes.emin_minus_efermi',
+                                              'attributes.emin_minus_efermi_units',
+                                              'attributes.emin_minus_efermi_Ry',
+                                              'attributes.emin_minus_efermi_Ry_units'],
+                                             'kkr_startpot_wf_0_12_1')
+kkr_startpot_ps_0_3_2 = WorkflowProjections(['uuid', 'attributes.parser_info',
+                                             # 'attributes.dos_params.emax',
+                                             # 'attributes.dos_params.emin',
+                                             # 'attributes.dos_params.nepts',
+                                             # 'attributes.dos_params.tempr',
+                                             # 'attributes.last_rclustz',
+                                             # 'attributes.max_iterations',
+                                             # 'attributes.factor_rcls_increase',
+                                             # 'attributes.max_wallclock_seconds',
+                                             # 'attributes.starting_fermi_energy',
+                                             # 'attributes.min_num_atoms_in_cluster',
+                                             'attributes.alat',
+                                             'attributes.alat_unit',
+                                             'attributes.emin',
+                                             'attributes.emin_units',
+                                             # 'attributes.volumes_group.volume_total',
+                                             'attributes.fpradius_atoms.0',
+                                             'attributes.fpradius_atoms.0_unit',
+                                             'attributes.emin_minus_efermi',
+                                             'attributes.emin_minus_efermi_units',
+                                             'attributes.emin_minus_efermi_Ry',
+                                             'attributes.emin_minus_efermi_Ry_units'],
+                                            'kkr_startpot_ps_0_3_2')
+# probably some aiida-kkr workflow paraser, perhaps kkr.gf_writeout (kkr_flex_wc)
+ps_0_4_2 = WorkflowProjections(['uuid', 'attributes.parser_version',
+                                'attributes.energy',
+                                'attributes.energy_unit',
+                                'attributes.fermi_energy',
+                                'attributes.fermi_energy_units',
+                                'attributes.total_energy_Ry',
+                                'attributes.total_energy_Ry_unit',
+                                'attributes.total_energies_atom',
+                                'attributes.total_energy_energies_atom_unit',
+                                'attributes.single_particle_energies',
+                                'attributes.single_particle_energies_unit',
+                                'attributes.total_charge_per_atom',
+                                'attributes.total_charge_per_atom_unit',
+                                'attributes.charge_core_states_per_atom',
+                                'attributes.charge_core_states_per_atom_unit',
+                                'attributes.charge_valence_states_per_atom',
+                                'attributes.charge_valence_states_per_atom',
+                                'attributes.timings',
+                                'attributes.timings_unit'],
+                               'ps_0_4_2')
+# parser of some aiida-kkr workflow parser, probably kkr.gf_writeout (kkr_flex_wc)
+ps_0_6_6 = WorkflowProjections(['uuid', 'attributes.parser_version',
+                                'attributes.energy',
+                                'attributes.energy_unit',
+                                'attributes.fermi_energy',
+                                'attributes.fermi_energy_units',
+                                'attributes.total_energy_Ry',
+                                'attributes.total_energy_Ry_unit',
+                                'attributes.single_particle_energies',
+                                'attributes.single_particle_energies_unit',
+                                'attributes.alat_internal',
+                                'attributes.alat_internal_unit',
+                                'attributes.two_pi_over_alat_internal',
+                                'attributes.two_pi_over_alat_internal_unit',
+                                'attributes.dos_at_fermi_energy',
+                                'attributes.dos_at_fermi_energy_units',
+                                'attributes.total_charge_per_atom',
+                                'attributes.total_charge_per_atom_unit',
+                                'attributes.charge_core_states_per_atom',
+                                'attributes.charge_core_states_per_atom_unit',
+                                'attributes.charge_valence_states_per_atom',
+                                'attributes.charge_valence_states_per_atom_unit',
+                                'attributes.timings',
+                                'attributes.timings_unit'],
+                               'ps_0_6_6')
 
 predifined_workflow = StandardWorkflow()
 predifined_workflow.add_workflow(
-            wf_0_2_2, wf_0_3_0, wf_0_4_2, wf_0_8_0, wf_0_9_4, wf_0_10_4, wf_0_12_0, 
-            ps_0_3_0, ps_0_3_1, ps_0_3_2, ps_0_4_2, ps_0_6_6)
+    wf_0_2_2, wf_0_3_0, wf_0_4_2, wf_0_8_0, wf_0_9_4, wf_0_10_4, kkr_startpot_wf_0_12_0, kkr_startpot_wf_0_12_1,
+    ps_0_3_0, ps_0_3_1, ps_0_3_2, kkr_startpot_ps_0_3_2, ps_0_4_2, ps_0_6_6)
 
 
 def set_structure_formula():
@@ -183,12 +295,12 @@ def set_structure_formula():
     Proprocessing.
     Set extras.formula attributes for structure nodes
     '''
-    qb = QB()
+    qb = QueryBuilder()
     qb.append(StructureData)
     strucs = qb.all()
     for struc in strucs:
         struc = struc[0]
-        if 'formula' in struc.extras: # Could be projected in the query
+        if 'formula' in struc.extras:  # Could be projected in the query
             continue
         formula = struc.get_formula()
         struc.set_extra('formula', formula)
@@ -217,7 +329,7 @@ def get_structure_workflow_dict(
     if timing:
         time_start = time.time()
 
-    qb_wfunc = QB()  # qb for WorkFunctionNode
+    qb_wfunc = QueryBuilder()  # qb for WorkFunctionNode
     qb_wfunc.append(StructureData,
                     project=structure_project,
                     filters=structure_filters,
@@ -233,7 +345,7 @@ def get_structure_workflow_dict(
                     tag='results',
                     with_incoming='work_function')
 
-    qb_wchain = QB()  # qb for WorkChainNode
+    qb_wchain = QueryBuilder()  # qb for WorkChainNode
     qb_wchain.append(StructureData,
                      project=structure_project,
                      filters=structure_filters,
@@ -257,7 +369,6 @@ def get_structure_workflow_dict(
         time_elapsed = time_end - time_start
         print("Elapsed time: ", time_elapsed, 's\n')
 
-
     stlen, wflen, dclen = len(structure_project), len(workflow_project), len(
         dict_project)
     workflowdictlst = [{
@@ -270,16 +381,16 @@ def get_structure_workflow_dict(
         idx1 = dict_project.index('attributes.workflow_version')
         idx2 = dict_project.index('attributes.parser_info')
         idx3 = dict_project.index('attributes.parser_version')
-        versions_wf = [item['dict'][idx1] for item in workflowdictlst] # Generate versions for workflow
+        versions_wf = [item['dict'][idx1] for item in workflowdictlst]  # Generate versions for workflow
         versions_ps = [[item['dict'][idx2], item['dict'][idx3]
-                       ] for item in workflowdictlst] # Generate versions for parser
+                        ] for item in workflowdictlst]  # Generate versions for parser
         filtered_wf = filter(None, versions_wf)
         flattened_ps = [val for version in versions_ps for val in version]
         flattened_ps = filter(None, flattened_ps)
         final_wf = ['workflow_' + vs for vs in filtered_wf]
         final_ps = ['parser_' + vs for vs in flattened_ps]
-        final_versions = Counter(final_wf + final_ps).most_common() # Count versions
-        print("Versions and frequency:\n", final_versions, '\n')   
+        final_versions = Counter(final_wf + final_ps).most_common()  # Count versions
+        print("Versions and frequency:\n", final_versions, '\n')
 
     if check_version:
         return workflowdictlst, final_versions
@@ -307,13 +418,13 @@ def generate_dict_property_pandas_source(workflow_name=None,
             dict_filters = {'attributes.workflow_version': {'==': version_name}}
         elif type_name == 'parser':
             dict_filters = {'or': [{'attributes.parser_info': {'==': version_name}},
-                                  {'attributes.parser_version': {'==': version_name}}]}
+                                   {'attributes.parser_version': {'==': version_name}}]}
         else:
             print("Invalid version!")
             dict_filters = None
     else:
         dict_filters = None
-        
+
     if workflow_name:
         workflow_filters = {'attributes.process_label': {'==': workflow_name}}
     else:
@@ -359,13 +470,13 @@ def generate_structure_property_pandas_source(
             dict_filters = {'attributes.workflow_version': {'==': version_name}}
         elif type_name == 'parser':
             dict_filters = {'or': [{'attributes.parser_info': {'==': version_name}},
-                                  {'attributes.parser_version': {'==': version_name}}]}
+                                   {'attributes.parser_version': {'==': version_name}}]}
         else:
             print("Invalid version!")
             dict_filters = None
     else:
         dict_filters = None
-        
+
     if workflow_name:
         workflow_filters = {'attributes.process_label': {'==': workflow_name}}
     else:
@@ -401,7 +512,7 @@ def generate_combined_property_pandas_source(
         structure_project=['uuid', 'extras.formula'],
         dict_project=[
             'attributes.energy',
-            'attributes.energy_units', 
+            'attributes.energy_units',
             'attributes.total_energy',
             'attributes.total_energy_units'],
         filename=None):
@@ -413,8 +524,8 @@ def generate_combined_property_pandas_source(
     dictpd = generate_dict_property_pandas_source(workflow_name=workflow_name,
                                                   version=version,
                                                   dict_project=dict_project)
-    structurepd = generate_structure_property_pandas_source(workflow_name=workflow_name, 
-                                                            version=version, 
+    structurepd = generate_structure_property_pandas_source(workflow_name=workflow_name,
+                                                            version=version,
                                                             structure_project=structure_project)
     combinepd = pd.concat([dictpd, structurepd], axis=1)
 
@@ -453,13 +564,13 @@ def filter_missing_value(df, xcol=None, ycol=None):
     try:  # Check if xcol exists
         filtered_df.dropna(axis=0, how='any', subset=[xcol], inplace=True)
     except KeyError:
-        if xcol!=None:
+        if xcol != None:
             print("Column '{}' not found.".format(xcol))
         xcol = None
     try:  # Check if ycol exists
         filtered_df.dropna(axis=0, how='any', subset=[ycol], inplace=True)
     except KeyError:
-        if ycol!=None:
+        if ycol != None:
             print("Column '{}' not found.".format(ycol))
         ycol = None
 
@@ -472,10 +583,10 @@ def filter_missing_value(df, xcol=None, ycol=None):
         ydata = filtered_df[ycol]
     else:
         ydata = None
- 
+
     # Deal with lists
     if xcol:
-        if not all([not isinstance(val, list) for val in xdata]):       
+        if not all([not isinstance(val, list) for val in xdata]):
             xdata = list(filtered_df[xcol])
             for i, data in enumerate(xdata):
                 if isinstance(data, list):
@@ -483,7 +594,7 @@ def filter_missing_value(df, xcol=None, ycol=None):
             xdata = pd.Series(xdata)
             filtered_df[xcol] = xdata
     if ycol:
-        if not all([not isinstance(val, list) for val in ydata]):    
+        if not all([not isinstance(val, list) for val in ydata]):
             ydata = list(filtered_df[ycol])
             for i, data in enumerate(ydata):
                 if isinstance(data, list):
@@ -509,8 +620,8 @@ def filter_unavailable_df(df, node_num_thres=20, attr_num_thres=2):
     # Number of attributess check
     if df.shape[1] < 4 + 2 * attr_num_thres:
         attr_num_flag = 1
-    
-    if (node_num_flag==0) and (attr_num_flag==0):
+
+    if (node_num_flag == 0) and (attr_num_flag == 0):
         # Values check
         attrs, _, units_cols = get_attrs_and_units(df, get_units_cols=True)
         for idx, attr in enumerate(attrs):
@@ -528,10 +639,10 @@ def filter_unavailable_df(df, node_num_thres=20, attr_num_thres=2):
     if (del_attr_flag == 1):
         # Number of attributess check
         if df.shape[1] < 4 + 2 * attr_num_thres:
-            attr_num_flag = 1  
+            attr_num_flag = 1
 
-    # set final df
-    if (node_num_flag==1) or (attr_num_flag==1):
+            # set final df
+    if (node_num_flag == 1) or (attr_num_flag == 1):
         df = pd.DataFrame()
 
     return df
@@ -547,7 +658,7 @@ def read_json_file(filename, chunksize=None):
     except ValueError:
         df = None
         print("Invalid file '{}'.".format(filename))
-        #raise  
+        # raise
 
     return df
 
@@ -557,11 +668,11 @@ def read_excel_file(filename):
     Read the dataset from the excel file and return a dict of DataFrame object.
     '''
     try:  # Check if the file could successfully opened
-        dfs = pd.read_excel(filename, sheet_name=None)
+        dfs = pd.read_excel(filename, sheet_name=None, engine='openpyxl')
     except FileNotFoundError:
         dfs = None
         print("Invalid file '{}'.".format(filename))
-        #raise  
+        # raise
 
     return dfs
 
@@ -573,25 +684,24 @@ def get_attrs_and_units(df, get_units_cols=False):
     '''
     cols = list(df.columns)
     cleaned_cols = cols[2:-2]
-    attrs = [col for idx, col in enumerate(cleaned_cols) if idx % 2 == 0 ]
-    units_cols = [col for idx, col in enumerate(cleaned_cols) if idx % 2 != 0 ]
+    attrs = [col for idx, col in enumerate(cleaned_cols) if idx % 2 == 0]
+    units_cols = [col for idx, col in enumerate(cleaned_cols) if idx % 2 != 0]
     units = list(df[units_cols].iloc[0])
-    
+
     if get_units_cols:
         return attrs, units, units_cols
     else:
         return attrs, units
 
 
-def bokeh_struc_prop_vis(input_filename,
+def bokeh_struc_prop_vis(dataframe,
                          xcol,
                          ycol,
-                         chunksize=None,
-                         output_filename='Interactive_visualization.html', 
+                         output_filename='Interactive_visualization.html',
                          nbins=20, axis_type=['linear', 'linear'], maker_size=10):
     '''
         Create a single Bokeh Interactive scatter-histogram graphs for the xcol and ycol data from 
-        the input json file.
+        the input dataframe.
         Hover tools included.
         The return plot file is saved in html format by default.
     '''
@@ -599,10 +709,10 @@ def bokeh_struc_prop_vis(input_filename,
     # TODO: choose auto axis scale
 
     # IO and other settings
-    original_df = read_json_file(input_filename, chunksize=chunksize)
-    df, xdata, ydata = filter_missing_value(original_df, xcol, ycol)
-    #print(list(xdata))
-    #print(list(ydata))
+    # dataframe = read_json_file(input_filename, chunksize=chunksize)
+    df, xdata, ydata = filter_missing_value(dataframe, xcol, ycol)
+    # print(list(xdata))
+    # print(list(ydata))
     OPTIONS, UNITS = get_attrs_and_units(df)
     output_file(output_filename)
     TOOLS = 'box_zoom, pan, wheel_zoom, box_select, reset, save'
@@ -615,8 +725,8 @@ def bokeh_struc_prop_vis(input_filename,
                 ('Value', '($x, $y)')]  # Hover tools
     source = ColumnDataSource(df)
     # Settings
-    p = figure(plot_width=FIGURE_HEIGHT+100,
-               plot_height=FIGURE_HEIGHT+100,
+    p = figure(plot_width=FIGURE_HEIGHT + 100,
+               plot_height=FIGURE_HEIGHT + 100,
                toolbar_location='above',
                x_axis_location=None,
                y_axis_location=None,
@@ -643,7 +753,7 @@ def bokeh_struc_prop_vis(input_filename,
         # assumes positive values
         minb = np.log10(abs(min(xdata)))
         maxb = np.log10(abs(max(xdata)))
-        bins = [10**i for i in np.linspace(minb, maxb, num=nbins)]
+        bins = [10 ** i for i in np.linspace(minb, maxb, num=nbins)]
     else:
         bins = np.linspace(min(xdata), max(xdata), num=nbins)
 
@@ -688,7 +798,7 @@ def bokeh_struc_prop_vis(input_filename,
         # assumes positive values
         minb = np.log10(abs(min(ydata)))
         maxb = np.log10(abs(max(ydata)))
-        bins = [10**i for i in np.linspace(minb, maxb, num=nbins)]
+        bins = [10 ** i for i in np.linspace(minb, maxb, num=nbins)]
     else:
         bins = np.linspace(min(ydata), max(ydata), num=nbins)
 
@@ -733,7 +843,7 @@ def bokeh_struc_prop_vis(input_filename,
     show(layout)
 
 
-#D1.b
+# D1.b
 
 
 def print_Count(types, res):
@@ -745,10 +855,10 @@ def print_Count(types, res):
         print('- {} created {} nodes'.format(name, count))
 
 
-#D1.c
+# D1.c
 
 
-#split data nodes and process nodes
+# split data nodes and process nodes
 def get_data_node_count(types, node_type):
     labelst, sizest = [], []
     for k, v in types.items():
@@ -756,12 +866,12 @@ def get_data_node_count(types, node_type):
             labelst.append(k.split('.')[-2])
             sizest.append(v)
     x = dict(zip(labelst, sizest))
-    nodes=sum(list(x.values()))
+    nodes = sum(list(x.values()))
     return x
 
 
 def get_process_node_count(types, node_type):
-    q = QB()
+    q = QueryBuilder()
     q.append(ProcessNode)
     pro = q.iterall()
     nodetypes = Counter(
@@ -786,7 +896,7 @@ def get_process_node_count(types, node_type):
             x1.update(**calculation)
         elif k.endswith('WorkFunction'):
             x1.pop('WorkfunctionNode', None)
-            x1.update(**workfuction)
+            x1.update(**workfunction)
     return x1
 
 
@@ -800,9 +910,9 @@ def draw_pie_chart(x, title):
     data['angle'] = data['value'] / sum(list(x.values())) * 2 * pi
     data['color'] = Category20[len(x)]
     data['percent'] = data['value'] / sum(x.values())
-    nodes=sum(list(x.values()))
-    p = figure(plot_height=FIGURE_HEIGHT,plot_width=FIGURE_WIDTH,
-               title=title%nodes,
+    nodes = sum(list(x.values()))
+    p = figure(plot_height=FIGURE_HEIGHT, plot_width=FIGURE_WIDTH,
+               title=title % nodes,
                toolbar_location=None,
                tools='hover',
                tooltips=[('Data', '@data_nodes'),
@@ -826,7 +936,7 @@ def draw_pie_chart(x, title):
 def get_dict_link_types():
     link_labels = {}
     xl = []
-    q = QB()
+    q = QueryBuilder()
     q.append(Dict)
     dicts = q.iterall()
 
@@ -839,64 +949,198 @@ def get_dict_link_types():
     return xl
 
 
-#D1.d
+# D1.d
 
 
 # line plot by ctime & mtime
-def draw_line_plot(users,res):
-    #ctime & mtime for total 
+def draw_line_plot(users, res):
+    # ctime & mtime for total
     ctimes = sorted(r[1] for r in res)
     mtimes = sorted(r[2] for r in res)
     num_nodes_integrated = range(len(ctimes))
-    df = pd.DataFrame({'A':ctimes,"B":mtimes})
+    df = pd.DataFrame({'A': ctimes, "B": mtimes})
 
-    #plot multiline
-    p = figure(x_axis_type='datetime',y_axis_type='log')
-    r=p.multi_line([df['A'], df['B']],  
-                   [df.index, df.index],   
-                   color=["blue", "red"],   
-                   alpha=[0.8, 0.6],     
-                   line_width=[2,2],     
-                   )
+    # plot multiline
+    p = figure(x_axis_type='datetime', y_axis_type='log')
+    r = p.multi_line([df['A'], df['B']],
+                     [df.index, df.index],
+                     color=["blue", "red"],
+                     alpha=[0.8, 0.6],
+                     line_width=[2, 2],
+                     )
 
-    legend=Legend(items=[
-        LegendItem(label="ctime",renderers=[r],index=0),
-        LegendItem(label="mtime",renderers=[r],index=1),
+    legend = Legend(items=[
+        LegendItem(label="ctime", renderers=[r], index=0),
+        LegendItem(label="mtime", renderers=[r], index=1),
     ])
-    #ctime & mtime for each user
+    # ctime & mtime for each user
     ctimes = sorted(r[1] for r in res)
     mtimes = sorted(r[2] for r in res)
     num_nodes_integrated = range(len(ctimes))
-    df = pd.DataFrame({'ctimes':ctimes,"mtimes":mtimes})
+    df = pd.DataFrame({'ctimes': ctimes, "mtimes": mtimes})
     userss = Counter([r[4] for r in res])
-    #p = figure(x_axis_type='datetime')
+    # p = figure(x_axis_type='datetime')
 
-    numlines=2*len(userss)
-    mypalettes=Spectral11[0:numlines]
+    numlines = 2 * len(userss)
+    mypalettes = Spectral11[0:numlines]
 
     for count, email in sorted((v, k) for k, v in userss.items())[::-1]:
         ctimes = sorted(r[1] for r in res if r[4] in email)
         mtimes = sorted(r[2] for r in res if r[4] in email)
         num_nodes_integrated = range(len(ctimes))
-        df_user = pd.DataFrame({email+':ctimes':ctimes,email+':mtimes':mtimes})
-        df = pd.concat([df,df_user],axis=1)
-    
-    
-    p = figure(plot_width=600,plot_height=800,x_axis_type='datetime',y_axis_type='log')
+        df_user = pd.DataFrame({email + ':ctimes': ctimes, email + ':mtimes': mtimes})
+        df = pd.concat([df, df_user], axis=1)
+
+    p = figure(plot_width=600, plot_height=800, x_axis_type='datetime', y_axis_type='log')
     df_list = df.columns
     for i in range(len(df_list)):
         source = ColumnDataSource(
-            data={'x':df[df_list[i]],
-                  'y':df.index})
+            data={'x': df[df_list[i]],
+                  'y': df.index})
         p.line(x='x',
                y='y',
                source=source,
-               legend_label = df_list[i],
-               color = (Category20[8])[i])#add tool tips
-    #show(p)
+               legend_label=df_list[i],
+               color=(Category20[8])[i])  # add tool tips
+    # show(p)
 
-    #p.add_layout(legend)
+    # p.add_layout(legend)
     p.xaxis.axis_label = 'Date'
     p.yaxis.axis_label = 'Number of nodes'
     p.yaxis.axis_label_text_font_size = "11pt"
     show(p)
+
+
+class Timer:
+    HEADER = [
+        "Timings of notebook/code '{NOTEBOOK_NAME}' for AiiDA database '{DATABASE_NAME}' in seconds",
+    ]
+    FILENAME_TEMPLATE = "timings_{NOTEBOOK_NAME}_{DATABASE_NAME}.txt"
+    DATABASE_INFO = [
+        "Size: {DATABASE_SIZE}. Nodes: {TOTAL_NODE_COUNT}. "
+        "Process nodes: {PROCESS_NODE_COUNT}. Data nodes: {DATA_NODE_COUNT}.",
+    ]
+    DATABASE_DESCRIPTION = [
+        "",
+    ]
+
+    def __init__(self, notebook_name: str, database_name: str, database_size: int):
+        """Simple timer for repeated time measurements of AiiDA database analysis notebooks or codes.
+
+        Surround cell/code to measure with statements timer.start(), timer.stop().
+
+        The class variables are used for saving the timings to file. See method save().
+
+        :param notebook_name: name of notebook or code tested.
+        :param database_name: name of database tested in notebook or code.
+        :param database_size: In MB.
+
+        To get database size:
+          1) in terminal, type 'verdi profile show'. note down aiidadb_name.
+          2) in terminal, type 'psql', then '\l+'. note down db size from table. exit with '\q'.
+        """
+        self.notebook_name = notebook_name
+        self.database_name = database_name
+        self.database_size = database_size
+        self.timings = {}
+
+        self._time_starts = {}
+        self._timings_taken = {}
+
+    def start(self, timing_name: str):
+        """Start clock. Resets previous start time."""
+        self._timings_taken[timing_name] = False
+        self.timings[timing_name] = 0
+        self._time_starts[timing_name] = time.time()
+
+    def stop(self, timing_name: str):
+        """Stop clock and save timing. Only works once."""
+        timing_taken = self._timings_taken.get(timing_name, None)
+        if not timing_taken:
+            self.timings[timing_name] = time.time() - self._time_starts[timing_name]
+            self._timings_taken[timing_name] = True
+
+    def reset(self):
+        """"""
+        self.timings = {}
+        self._time_starts = {}
+        self._timings_taken = {}
+
+    def save(self, silent: bool = False):
+        """Save timings to file.
+
+        The file format is:
+
+        | # HEADER
+        | timings # dict
+        | # DATABASE INFO
+        | # DATABASE DESCRIPTION (optional)
+
+        Use the class variables (uppercase) to change the standard file content. Do not change the
+        placeholders (substrings of style '{PLACEHOLDER}'). They are filled in automaticlly when this
+        method is called.
+
+        The order of timings is insertion order. If timings were started and stopped in nested fashion,
+        they are in insertion order of the start time.
+
+        :param silent: True: print nothing.
+        """
+        import json
+        from aiida.orm import Node, Data, ProcessNode
+
+        # get db counts
+        qb = QueryBuilder();
+        total_node_count = qb.append(Node).count()
+        qb = QueryBuilder();
+        process_node_count = qb.append(ProcessNode).count()
+        qb = QueryBuilder();
+        data_node_count = qb.append(Data).count()
+
+        # generate header, description
+        header = self.HEADER.copy()
+        database_info = self.DATABASE_INFO.copy()
+        database_description = self.DATABASE_DESCRIPTION.copy()
+
+        # replace placeholders
+        def _replace_placeholders(lines: list, placeholder_values: dict):
+            for placeholder, value in placeholder_values.items():
+                lines[:] = [line.replace(placeholder, f"{value}") for line in lines]
+            return lines
+
+        placeholder_values = {
+            "{NOTEBOOK_NAME}": self.notebook_name,
+            "{DATABASE_NAME}": self.database_name,
+            "{DATABASE_SIZE}": f"{self.database_size} MB" if self.database_size else "Unspecified",
+            "{TOTAL_NODE_COUNT}": total_node_count,
+            "{PROCESS_NODE_COUNT}": process_node_count,
+            "{DATA_NODE_COUNT}": data_node_count
+        }
+
+        _replace_placeholders(header, placeholder_values)
+        _replace_placeholders(database_info, placeholder_values)
+        _replace_placeholders(database_description, placeholder_values)
+        filename = _replace_placeholders([self.FILENAME_TEMPLATE], placeholder_values)[0]
+
+        # insert subheaders
+        database_info.insert(0, "Database info:")
+        database_description.insert(0, "Database description:")
+
+        # turn into comment lines
+        def _convert_to_comment(lines):
+            lines[:] = ["# " + line for line in lines]
+
+        _convert_to_comment(header)
+        _convert_to_comment(database_info)
+        _convert_to_comment(database_description)
+
+        with open(filename, 'w') as file:
+            file.write('\n'.join(header))
+            file.write('\n\n')
+            file.write(json.dumps(self.timings, indent=4))
+            file.write('\n\n')
+            file.write('\n'.join(database_info))
+            file.write('\n\n')
+            file.write('\n'.join(database_description))
+
+        if not silent:
+            print(f"Wrote timings to file '{filename}'.")
