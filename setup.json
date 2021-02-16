@@ -24,6 +24,15 @@
     "version": "0.0.1",
     "reentry_register": true,
     "install_requires": [
+        "aiida-core",
+        "masci_tools",
+        "aiida_kkr",
+        "numpy",
+        "scipy",
+        "pycifrw",
+        "spglib",
+        "pandas",
+        "humanfriendly"
     ],
     "extras_require": {
         "pre-commit": [
