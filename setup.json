@@ -23,9 +23,16 @@
     "version": "0.0.1",
     "reentry_register": true,
     "install_requires": [
-        "aiida-core~=1.1.1",
+        "aiida-core",
+        "masci-tools",
+        "aiida-kkr",
+        "numpy",
+        "scipy",
+        "pycifrw",
         "pymatgen",
-        "PyCifRW"
+        "spglib",
+        "pandas",
+        "humanfriendly"
     ],
     "extras_require": {
         "testing": [
