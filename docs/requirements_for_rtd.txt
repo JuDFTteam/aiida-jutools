@@ -1,4 +1,10 @@
-aiida-core~=1.0.0
-numpy~=1.17
+aiida-core
+masci-tools
+aiida-kkr
+numpy
+scipy
+pycifrw
 pymatgen
-PyCifRW
+spglib
+pandas
+humanfriendly
