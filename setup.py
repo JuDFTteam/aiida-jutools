@@ -24,7 +24,7 @@ if __name__ == '__main__':
         install_requires=[
             'aiida-core',
             'masci_tools',
-            'aiida_kkr',
+            'aiida-kkr',
             'numpy',
             'scipy',
             'pycifrw',
