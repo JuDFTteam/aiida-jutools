@@ -23,7 +23,7 @@ if __name__ == '__main__':
         long_description_content_type ='text/markdown',  # This is important to activate markdown!
         install_requires=[
             'aiida-core',
-            'masci_tools',
+            'masci-tools',
             'aiida-kkr',
             'numpy',
             'scipy',
