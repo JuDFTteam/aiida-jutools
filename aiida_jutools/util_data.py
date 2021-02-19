@@ -96,34 +96,37 @@ class CifImporter:
 
         return list(cifs)
 
-    def convert(self, cgroup_path: str, sgroup_label: str, as_subgroup: bool = True,
-                sgroup_description: str = None, assume_empty_group: bool = True, conversion_settings: Dict = None):
+    def convert(self, cifgroup_label: str, structure_group_label: str, as_subgroup: bool = True,
+                structure_group_description: str = None, assume_empty_group: bool = True,
+                conversion_settings: Dict = None, store_new_nodes: bool = False):
         """Load or create group in other format from group of CifData.
 
-        Note: Newly created nodes will not be stored yet, so label and description can be added still.
-        The conversion settings node will be added to the converted group.
+        Note: conversion_settings node will be selected by this priority: 1) existing conversion settings node in
+        new structure group, 2) conversion settings node supplied as argument, 3) default conversion settings (if None
+        for 1) and 2)).
 
-        :param cgroup_path: label = GroupPath of CifData group.
-        :param sgroup_label: label of converted group.
-        :param as_subgroup: load or create converted group as label/path "{cgroup_path}/{sgroup_label}"
-        :param sgroup_description: description for converted group. ignored if already exist and stored.
+        :param cifgroup_label: group label of CifData group.
+        :param structure_group_label: label of converted group.
+        :param as_subgroup: load or create converted group with label 'cif_group_label/structure_group_label'
+        :param structure_group_description: description for converted group. ignored if already exist and stored.
         :param assume_empty_group: if converted group not empty: True: do no conversion. False: add new nodes.
         :param conversion_settings: settings arguments supplied to the respective CifData.to_OtherFormat() method.
         :type conversion_settings: Dict
+        :param store_new_nodes: default False: don't store yet to allow adding label, description.
         :return: converted group
         :rtype: Group
         """
         # load or create structures group
-        self.cif_group = Group.get(label=cgroup_path)
+        self.cif_group = Group.get(label=cifgroup_label)
         if as_subgroup:
-            self.struc_grouppath = GroupPath(cgroup_path + "/" + sgroup_label)
+            self.struc_grouppath = GroupPath(cifgroup_label + "/" + structure_group_label)
         else:
-            self.struc_grouppath = sgroup_label
+            self.struc_grouppath = structure_group_label
         self.struc_group, created = self.struc_grouppath.get_or_create_group()
 
         if created and not self.struc_group.is_stored:
-            if sgroup_description:
-                self.struc_group.description = sgroup_description
+            if structure_group_description:
+                self.struc_group.description = structure_group_description
             self.struc_group.store()
 
         # load or add cif2structure conversion settings
@@ -136,7 +139,7 @@ class CifImporter:
         elif len(hits) == 1:
             if conversion_settings:
                 print(
-                    f"Warning: Found unique conversion settings node in group '{self.struc_group.label}', "
+                    f"Info: Found unique conversion settings node in group '{self.struc_group.label}', "
                     f"will ignore supplied settings.")
                 self.conversion_settings['aiida_structure'] = hits[0]
         else:
@@ -153,21 +156,32 @@ class CifImporter:
         # load or create structures
         def create():
             structures = [cif.get_structure(**conv_set) for cif in self.cif_group.nodes]
-            print(f"Created {len(structures)} structure nodes.")
             self.struc_group.add_nodes(structures)
+            if store_new_nodes:
+                for structure in structures:
+                    structure.store()
+            print(f"Created {len(structures)} structure nodes, added to group '{self.struc_group.label}', "
+                  f"nodes stored: {store_new_nodes}.")
 
         if assume_empty_group:
             if not any([type(node) == StructureData for node in self.struc_group.nodes]):
                 create()
             else:
                 structures = [node for node in self.struc_group.nodes if type(node) == StructureData]
-                print(f"Loaded {len(structures)} structure nodes.")
+                print(f"Loaded {len(structures)} structure nodes from group '{self.struc_group.label}'.")
         else:
             create()
 
         # check results
-        assert len(structures) == len(list(self.cif_group.nodes))
+        warning_msg = f"WARNING: Cif group '{self.cif_group.label}' has {len(list(self.cif_group.nodes))} CifData " \
+                      f"nodes, but structure group '{self.struc_group.label}' has {len(structures)} StructureData " \
+                      f"nodes."
+        if len(list(self.struc_group.nodes)) != len(structures):
+            print(warning_msg)
         if assume_empty_group:
-            assert len(list(self.struc_group.nodes)) == len(structures) + 1  # conv setting node
+            if len(list(self.struc_group.nodes)) != (len(structures) + 1):  # conv setting node
+                print(warning_msg + f" Since assumed empty group, structure group should have "
+                                    f"{len(list(self.cif_group.nodes))} + 1 nodes (plus one for conversion settings "
+                                    f"Dict).")
 
         return self.struc_group
