@@ -156,6 +156,9 @@ class CifImporter:
         # group.add_nodes([node]) works only if both group and node are stored. keep in mind when changing
         # the code logic order.
 
+        # first clear the cache
+        self._clear()
+
         # load or create structures group
         would_or_will = "would" if dry_run else "will"
 
