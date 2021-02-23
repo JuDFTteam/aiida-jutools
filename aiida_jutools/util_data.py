@@ -130,7 +130,7 @@ class CifImporter:
     def load_or_convert(self, cifgroup_label: str, structure_group_label: str, as_subgroup: bool = True,
                         structure_group_description: str = None, load_over_create: bool = True,
                         conversion_settings: Dict = None, dry_run: bool = True, silent: bool = False):
-        """Load or create group of nodes in other format from group of CifData nodes.
+        """Load or create group of StructureData nodes from group of CifData nodes.
 
         :param cifgroup_label: group label of CifData group.
         :param structure_group_label: label of converted group.
