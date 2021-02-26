@@ -21,15 +21,16 @@ from aiida.orm import List
 
 @calcfunction
 def itemize_list(a_list: List):
-    """Itemize an ORM List node of python / numpy type objects into a set of ORM Data nodes. Store provenance.
+    """Itemize an ORM List node of python type objects into a set of ORM Data nodes. Store provenance.
 
-    Currently supported data types: bool, numpy.bool, int, numpy.int, float, numpy.float, str, dict, numpy.ndarray.
+    Currently supported input data types: bool, numpy.bool, int, numpy.int, float, numpy.float, str, dict,
+    list (List of lists), numpy.ndarray (implicit conversion to list).
 
-    Currently supported Data types: Bool, Int, Float, Str, Dict.
+    Corresponding output Data node types: Bool, Int, Float, Str, Dict, List (list of Lists).
 
     :param a_list: a list node with items of python data types.
     :type a_list: List
-    :return: a dict with values = one ORM Data type item for each item in the input list
+    :return: a dict with values = one ORM Data type node for each item in the input list
     :rtype: dict
 
     Use cases / recipes:
