@@ -21,13 +21,9 @@ from aiida.orm import List
 
 @calcfunction
 def itemize_list(a_list: List):
-    """Itemize an ORM List of python types into a set of ORM Data types. Store provenance.
+    """Itemize an ORM List node of python / numpy type objects into a set of ORM Data nodes. Store provenance.
 
-    Use cases:
-    1) Rescaling structures by a set of different scaling factors. Store not only the provenance between
-    structure and scaling factors, but also between an individual scaling factor and the whole set. To realize
-    the latter, first store the set as List of floats. Then link the List with a set of Floats by itemizing it
-    with this method.
+    Currently supported data types: bool, numpy.bool, int, numpy.int, float, numpy.float, str, dict, numpy.ndarray.
 
     Currently supported Data types: Bool, Int, Float, Str, Dict.
 
@@ -35,16 +31,33 @@ def itemize_list(a_list: List):
     :type a_list: List
     :return: a dict with values = one ORM Data type item for each item in the input list
     :rtype: dict
+
+    Use cases / recipes:
+
+    1) Rescaling structures by a set of different scaling factors. Store not only the provenance between
+    structure and scaling factors, but also between an individual scaling factor and the whole set. To realize
+    the latter, first store the set as List of floats. Then link the List with a set of Floats by itemizing it
+    with this method.
+
+    2) The ORM List type converts numpy array items implicitly into lists or lists of lists. So itemization of
+    a List of numpy arrays into ArrayData nodes is not possible. For that, simply use an ArrayData object. Still,
+    numpy array itemization can be useful. For example, to itemize a 1D numpy array into a set of Float nodes,
+    call itemize_list(List(list=(list(numpy_array)))).
     """
-    from aiida.orm import Bool, Int, Float, Str, Dict
+    import numpy
+    from aiida.orm import Bool, Int, Float, Str, Dict, List
     from aiida.engine import ExitCode
 
     type_correspondence = {
         bool: Bool,
+        numpy.bool: Bool,
         int: Int,
+        numpy.int: Int,
         float: Float,
+        numpy.float: Float,
         str: Str,
-        dict: Dict
+        dict: Dict,
+        list : List
     }
 
     warning_messages = {
@@ -71,6 +84,8 @@ def itemize_list(a_list: List):
             key = keys[index]
             if issubclass(orm_cls, Dict):
                 value = orm_cls(dict=item)
+            if issubclass(orm_cls, List):
+                value = orm_cls(list=item)
             else:
                 value = orm_cls(item)
             a_dict[key] = value
