@@ -298,7 +298,8 @@ def delete_groups(group_labels: typing.List[str]):
                 print(f"Group '{label}' deleted.")
 
 
-def delete_groups_with_nodes(group_labels: typing.List[str], dry_run=True, verbosity=2, leave_groups: bool = False):
+def delete_groups_with_nodes(group_labels: typing.List[str], dry_run: bool = True,
+                             verbosity: int = 1, leave_groups: bool = False):
     """Delete all nodes in each group (including repo files), then delete the groups themselves.
 
     :param group_labels: list of group labels
