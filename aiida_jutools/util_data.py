@@ -346,7 +346,7 @@ class CifImporter:
 
 
 def load_or_rescale_structures(input_structure_group, output_structure_group_label: str, scale_factor,
-                               dry_run:bool = True, silent: bool = False):
+                               set_extra: bool = True, dry_run: bool = True, silent: bool = False):
     """Rescale a group of structures and put them in a new or existing group.
 
     Only input structures which do not already have a rescaled output structure in the output structure group
@@ -357,6 +357,7 @@ def load_or_rescale_structures(input_structure_group, output_structure_group_lab
     :param output_structure_group_label: name of group for rescaled structures. Create if not exist.
     :param scale_factor: scale factor with which to scale the lattice constant of the input structure
     :type scale_factor: Float
+    :param set_extra: True: set extra 'scale_factor' : scale_factor.value to structures rescaled in this run.
     :param dry_run: default True: perform a dry run and print what the method *would* do.
     :param silent: True: do not print info messages
     :return: output group of rescaled structures
@@ -402,6 +403,8 @@ def load_or_rescale_structures(input_structure_group, output_structure_group_lab
     if not dry_run:
         for inp_structure in inp_structures.values():
             out_structure = rescale_structure(input_structure=inp_structure, scale_factor=scale_factor)
+            if set_extra:
+                out_structure.set_extra("scale_factor", scale_factor.value)
             out_structure_group.add_nodes([out_structure])
     if not dry_run and not silent:
         print(
