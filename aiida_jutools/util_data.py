@@ -396,8 +396,8 @@ def load_or_rescale_structures(input_structure_group, output_structure_group_lab
     if dry_run or not silent:
         print(
             f"I {would_or_will} rescale {len(inp_structures.keys())} {StructureData.__name__} nodes from the input group. "
-            f" I would add the new nodes to output group '{output_structure_group_label}'. "
-            f" {len(already_rescaled.keys())} {StructureData.__name__} of the input nodes already have been rescaled and added "
+            f" I would add the new nodes to output group '{output_structure_group_label}'.\n"
+            f"{len(already_rescaled.keys())} {StructureData.__name__} of the input nodes already have been rescaled and added "
             f"to this output target previously.")
     if not dry_run:
         for inp_structure in inp_structures.values():
