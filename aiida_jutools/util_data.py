@@ -379,7 +379,7 @@ def load_or_rescale_structures(input_structure_group, output_structure_group_lab
     if dry_run or not silent:
         print(40 * '-')
         print(f"Task: Rescale {len(inp_structures.keys())} {StructureData.__name__} nodes in group "
-              f"{input_structure_group.label}' with scale factor {scale_factor.value}.\nPerform dry run: {dry_run}.")
+              f"'{input_structure_group.label}' with scale factor {scale_factor.value}.\nPerform dry run: {dry_run}.")
 
     # try load structures
     out_structures_existing = [node for node in out_structure_group.nodes if isinstance(node, StructureData)]
