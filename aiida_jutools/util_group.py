@@ -126,20 +126,30 @@ class GroupsFromDict:
             groups.append(group)
 
 
-def verdi_group_list(projection: typing.List[str] = ['label', 'id', 'type_string'], with_header: bool = True):
+def verdi_group_list(projection: typing.List[str] = ['label', 'id', 'type_string'],
+                     with_header: bool = True, label_filter: str = None):
     """Equivalent to CLI "verdi group list -a" (minus user mail address).
 
-    :param with_header: True: first list in return argument is the projection argument
     :param projection: query projection
+    :param with_header: True: first list in return argument is the projection argument
+    :param label_filter: optional: only include groups with this substring in their label
     :return: list of lists, one entry per projection value, for each group
     """
     qb = aiida.orm.QueryBuilder()
     group_list = qb.append(aiida.orm.Group, project=projection).all()
+
+    if 'label' in projection and label_filter:
+        index_of_label = projection.index('label')
+        group_list = [item for item in group_list if label_filter in item[index_of_label]]
+
     group_list.sort(key=lambda item: item[0].lower())
+
     if with_header:
         group_list.insert(0, projection)
+
     if len(projection) == 1:
         group_list = [singlelist[0] for singlelist in group_list]
+
     return group_list
 
 
