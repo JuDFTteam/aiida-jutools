@@ -127,7 +127,7 @@ class GroupsFromDict:
 
 
 def verdi_group_list(projection: typing.List[str] = ['label', 'id', 'type_string'],
-                     with_header: bool = True, label_filter: str = None):
+                     with_header: bool = True, label_filter: str = None) -> list:
     """Equivalent to CLI "verdi group list -a" (minus user mail address).
 
     :param projection: query projection
