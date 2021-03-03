@@ -175,6 +175,8 @@ def move_nodes(origin: aiida.orm.Group, destination: aiida.orm.Group):
 
     :param origin: origin group
     :param destination: destination group
+
+    Note: if the new group does not exit yet, prefer relabling the group with group.label = new_label.
     """
     destination.add_nodes(list(origin.nodes))
     origin.remove_nodes(list(origin.nodes))
