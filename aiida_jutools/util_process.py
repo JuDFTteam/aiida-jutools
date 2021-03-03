@@ -97,7 +97,7 @@ def query_processes(label: str = None, process_label: str = None, process_states
     """Get all process nodes with given specifications. All arguments are optional.
 
     Examples:
-    >>> from aiida_utils_by_wasmer.util_process import query_processes as qp, get_process_states as ps
+    >>> from aiida_jutools.util_process import query_processes as qp, get_process_states as ps
     >>> qb1 = qp(label="Au:Cu", process_label='kkr_imp_wc')
     >>> states = ps(terminated=False)
     >>> qb2 = qp(process_states=states)
@@ -216,11 +216,12 @@ class ProcessClassifier:
                     total += sum([len(v) for v in self.classified_processes[process_state].values()])
         return total
 
-    def print_statistitics(self):
+    def print_statistitics(self, with_legend:bool=True):
         import json
 
-        _, legend = get_process_states(with_legend=True)
-        print(legend)
+        if with_legend:
+            _, legend = get_process_states(with_legend=True)
+            print(legend)
 
         print("Process classification statistics:")
 
