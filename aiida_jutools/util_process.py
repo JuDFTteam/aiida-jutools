@@ -276,7 +276,7 @@ class ProcessClassifier:
                         count += len(processes)
                     if isinstance(process_state, dict):
                         for exit_status in process_state['finished']:
-                            processes = self.classified_processes['finished'][exit_status]
+                            processes = self.classified_processes['finished'].get(exit_status, [])
                             subgroup.add_nodes(processes)
                             count += len(processes)
                 if not silent:
