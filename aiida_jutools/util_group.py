@@ -290,24 +290,27 @@ def group_new_nodes(new_group_label: str, blacklist: typing.List[aiida.orm.Node]
         return new_group
 
 
-def delete_groups(group_labels: typing.List[str]):
-    """Delete a group. Aborts if group is non-empty. Use delete_groups_with_nodes() for that.
+def delete_groups(group_labels: typing.List[str], skip_nonempty_groups: bool = True, silent: bool = False):
+    """Delete group(s). Does not delete nodes in group(s). Use delete_groups_with_nodes() for that.
 
     :param group_labels: list of group labels
+    :param skip_nonempty_groups: True: skip them. False: don't skip. Nodes get removed from group, not deleted.
+    :param silent: True: do not print information.
     """
-
     for label in group_labels:
         try:
             group = aiida.orm.Group.get(label=label)
         except aiida.common.exceptions.NotExistent:
             print(f"Warning: group to delete '{label}' does not exist.")
         else:
-            if group.count() > 0:
-                print(f"Info: Skipping non-empty group<{label}>: contains {group.count()} nodes.")
+            if group.count() > 0 and skip_nonempty_groups:
+                if not silent:
+                    print(f"Info: Skipping non-empty group<{label}>: contains {group.count()} nodes.")
             else:
-                group.clear()
+                group.clear()  # remove nodes from group
                 aiida.orm.Group.objects.delete(group.pk)
-                print(f"Group '{label}' deleted.")
+                if not silent:
+                    print(f"Group '{label}' deleted.")
 
 
 def delete_groups_with_nodes(group_labels: typing.List[str], dry_run: bool = True,
