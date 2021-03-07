@@ -184,7 +184,8 @@ class ProcessClassifier:
         self.group = None
         self._temporary_groups = []
 
-    def classify_by_state(self, processes:list=None, process_label: str = None, group=None, types:list=None) -> dict:
+    def classify_by_state(self, processes: list = None, process_label: str = None, group=None,
+                          types: list = None) -> dict:
         """Classify processes / process nodes (here: interchangeable) by process state.
 
         Result stored as class variable. It is a dict process_state : processes. process_state 'finished' is further
@@ -262,7 +263,7 @@ class ProcessClassifier:
 
         return self.classified_processes
 
-    def count(self, process_states:list=None) -> int:
+    def count(self, process_states: list = None) -> int:
         """Count processes classified under specified process states.
 
         :param process_states: process states. keys of classified processes dict. If None, count all.
@@ -304,7 +305,7 @@ class ProcessClassifier:
                                       for exit_status, processes in self.classified_processes['finished'].items()}
         print(json.dumps(statistics, indent=4))
 
-    def subgroup_classified_results(self, dry_run:bool=True, silent:bool=False):
+    def subgroup_classified_results(self, dry_run: bool = True, silent: bool = False):
         """Subgroup classified processes.
 
         Adds subgroups to classification group and adds classified process nodes by state.
@@ -368,11 +369,9 @@ class ProcessClassifier:
         util_group.delete_groups(group_labels=[group.label for group in self._temporary_groups],
                                  skip_nonempty_groups=False,
                                  silent=False)
-            
-        
 
 
-def find_partially_excepted_processes(processes: list, to_depth:int=1) -> dict:
+def find_partially_excepted_processes(processes: list, to_depth: int = 1) -> dict:
     """Filter out processes with excepted descendants.
 
     Here, 'partially excepted' is defined as 'not itself excepted, but has excepted descendants'.
@@ -391,8 +390,8 @@ def find_partially_excepted_processes(processes: list, to_depth:int=1) -> dict:
     from aiida.engine.processes import ProcessState as PS
     from aiida.orm import ProcessNode
 
-    if to_depth>1:
-        raise NotImplementedError("Currently, to_depth > 1 not supported.") # TODO
+    if to_depth > 1:
+        raise NotImplementedError("Currently, to_depth > 1 not supported.")  # TODO
 
     processes_excepted = {}
     for process in processes:
@@ -657,8 +656,23 @@ class SubmissionSupervisor:
                                    for wc in workchains_terminated]
                     info += f", resubmit (previously failed: {info_failed})"
                     if s.resubmit_failed_as_restart:
+                        wc_failed_first = workchains_terminated[0]
                         _builder = workchains_terminated[0].get_builder_restart()
-                        info += f", restart from first previously failed"
+
+                        # some things are not copied from the original builder, such as
+                        # node label and description. so do that manually.
+                        _builder.metadata.label = builder.metadata.label
+                        _builder.metadata.description = builder.metadata.description
+
+                        info += f", restart from first found previously failed, pk={wc_failed_first.pk}"
+
+                        # check that supplied builder metadata correspond with found workchain
+                        if (builder.metadata.label != wc_failed_first.label) or (
+                                builder.metadata.description != wc_failed_first.description):
+                            info += f"(WARNING: label, description supplied via builder ('{builder.metadata.label}', " \
+                                    f"{builder.metadata.description}) do not correspond to label, description from " \
+                                    f"first found previously failed ('{wc_failed_first.label}', " \
+                                    f"{wc_failed_first.description}). Will use those supplied via builder.))"
                 info += " ..."
                 print(info)
 
