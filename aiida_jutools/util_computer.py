@@ -24,9 +24,7 @@ def get_computer(computer_name_pattern: str = ""):
     """Query computer.
 
     :param computer_name_pattern: (sub)string of computer name, case-insensitive, no regex. default = "": get all computers.
-    :return: aiida Computer if unique, computer list if not, None if no match
-
-    DEVNOTE: computer db schema uses 'name', while computer python class uses .label for the *same thing* (valid at least for aiida >=1.0<=1.5.2).
+    :return: aiida Computer if unique, list of Computers if not, empty list if no match
     """
     from aiida.orm import QueryBuilder
     # version compatibility check: old: computer.name, new: computer.label. else error.
@@ -41,55 +39,143 @@ def get_computer(computer_name_pattern: str = ""):
     return computers
 
 
-def get_computer_options(computer_name: str, as_Dict: bool = True, account_name: str = "jara0191", gpu: bool = None):
+def get_computer_options(computer_name_pattern: str, partition_name: str = None, account_name: str = None,
+                         with_mpi: bool = True, gpu: bool = None, as_Dict: bool = True, silent: bool = False):
     """Return builder metadata options for given aiida computer.
 
-    Implementations available for these computers:
+    Options available for these computers categories:
     - 'iffslurm': FZJ PGI-1 iffslurm cluster.
-    - 'claix18': RWTH claix18 cluster (should work for claix16 but untested).
+    - 'claix': RWTH claix18 cluster (should work for claix16 but untested).
     - 'localhost': FZJ PGI-1 desktop workstation.
+
+    Note: The argument computer_name_pattern serves a double purpose. Firstly, it selects the computer category.
+    For example, 'abc_iffslurm_def' will select category 'iffslurm'. Secondly, if no partition_name or account_name
+    is supplied to specify the computer partition, it will query a configured aiida computer with that name pattern,
+    connect to it and find the currently least occupied matching partition. So, if you have several iffslurm aiida
+    computers in your profile, you can specify exactly which one to use for that second part.
 
     Note: claix18: has 48 procs/node. But default here is set to 24 (std for kkrhost). change manually if desired.
 
-    :param computer_name: aiida computer
+    :param computer_name_pattern: must contain substring of one of the computer categories above.
+    :param partition_name: If no account_name given or supported, will select this partition.
+    :param account_name: If no partition_name given or supported, will set this account name for job submission.
     :param as_Dict: if True, return as aiida Dict, else normal dict.
-    :param account_name: account name. currently only for 'claix18'.
+    :param account_name: account name. Optional, default None. Currently only applied for computer type 'claix18'.
     :param gpu: False: exclude gpu partitions. True exclude non-gpu partitions. None: ignore this option. Currently only for 'iffslurm'.
+    :param with_mpi: True: tot_num_mpiprocs to reasonable max. of respective computer/partition. False: set it to 1.
+    :param silent: True: do not print out any info.
     :return: builder metadata options
     """
-    if computer_name == "localhost":
+    available_implementations = {"localhost", "iffslurm", "claix"}
+
+    if "localhost" in computer_name_pattern:
         # run a job on localhost: 1 pc, 4 cpus
-        options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 4},
-                   'withmpi': True}
+        options = Dict(dict={'resources': {'num_machines': 1, 'tot_num_mpiprocs': 4 if with_mpi else 1},
+                             'withmpi': with_mpi})
 
-    elif computer_name == "claix18":
-        # run a job on cluster: 1 node, xx processors on account jara0191
-        options = {'max_wallclock_seconds': 60 * 60,
-                   'resources': {'num_machines': 1, 'tot_num_mpiprocs': 24},
-                   'custom_scheduler_commands': f"#SBATCH --account={account_name}",
-                   'withmpi': True}
+    elif "claix" in computer_name_pattern:
+        # run a job on cluster: 1 node, xx processors on account
+        scheduler_commands = "#SBATCH"
+        if account_name:
+            scheduler_commands += f" --account={account_name}"
+        options = Dict(dict={'max_wallclock_seconds': 60 ** 2,
+                             'resources': {'num_machines': 1, 'tot_num_mpiprocs': 24 if with_mpi else 1},
+                             'custom_scheduler_commands': scheduler_commands,
+                             'withmpi': with_mpi})
 
-    elif computer_name == "iffslurm":
+    elif "iffslurm" in computer_name_pattern:
+        reference = "https://iffgit.fz-juelich.de/aiida/aiida_nodes/-/tree/master/data/groups"
+        iffslurm_options_should = [Dict(dict=a_dict) for a_dict in [
+            {"withmpi": True, "resources": {"num_machines": 1, "tot_num_mpiprocs": 12},
+             "queue_name": "th1", "max_wallclock_seconds": 60 ** 3},
+            {"withmpi": True, "resources": {"num_machines": 1, "tot_num_mpiprocs": 64},
+             "queue_name": "th1-2020-64", "max_wallclock_seconds": 60 ** 3},
+            {"withmpi": True, "resources": {"num_machines": 1, "tot_num_mpiprocs": 20},
+             "queue_name": "viti", "max_wallclock_seconds": 60 ** 3},
+            {"withmpi": False, "resources": {"num_machines": 1, "tot_num_mpiprocs": 1},
+             "queue_name": "oscar", "max_wallclock_seconds": 60 ** 2},
+            {"withmpi": False, "resources": {"num_machines": 1, "tot_num_mpiprocs": 1},
+             "queue_name": "th1", "max_wallclock_seconds": 60 ** 2},
+            {"withmpi": True, "resources": {"num_machines": 1, "tot_num_mpiprocs": 32},
+             "queue_name": "th1-2020-32", "max_wallclock_seconds": 60 ** 3},
+            {"withmpi": False, "resources": {"num_machines": 1, "tot_num_mpiprocs": 1},
+             "queue_name": "th1-2020-32", "max_wallclock_seconds": 60 ** 2},
+            {"withmpi": True, "resources": {"num_machines": 1, "tot_num_mpiprocs": 12},
+             "queue_name": "oscar", "max_wallclock_seconds": 60 ** 3},
+        ]]
+
         # for iffslurm cluster, got to select partition myself
-        computer = get_computer(computer_name_pattern=computer_name)
-        partition_name, idle_nodes_count = get_least_occupied_partition(computer=computer, gpu=gpu)
-        if not partition_name:
-            raise ValueError(f"No partitions found for computer {computer_name}")
-        options = {'max_wallclock_seconds': 36000,
-                   'resources': {'num_machines': 1, 'tot_num_mpiprocs': 24},
-                   # 'custom_scheduler_commands': f"#SBATCH --partition {partition_name}",
-                   'queue_name': partition_name,
-                   'withmpi': True}
-        print(f"WARNING: for computer {computer_name}, check which partitions are idle with 'sinfo'. "
-              f"Randomly default selected partition: {partition_name}.")
-    else:
-        raise NotImplementedError("Not implemented for this computer.")
+        computer = get_computer(computer_name_pattern=computer_name_pattern)
 
-    if as_Dict:
-        return Dict(dict=options)
+        if isinstance(computer, list):
+            if not computer:
+                from aiida.common.exceptions import NotExistent
+                raise NotExistent(f"Found no configured aiida computer matching the pattern '{computer_name_pattern}'.")
+            else:
+                print(f"WARNING: {get_computer_options.__name__}(): Found more than one matching computers: "
+                      f"{computer}. I will select the first one.")
+                computer = computer[0]
+
+        if not partition_name:
+            partition_name, idle_nodes_count = get_least_occupied_partition(computer=computer, gpu=gpu, silent=silent)
+        if not partition_name:
+            raise ValueError(f"No partitions found for computer name pattern '{computer_name_pattern}'.")
+
+        # Now, try get aiida_nodes group iffslurm_options
+        from aiida.orm import Group
+        from aiida.tools.groups import GroupPath
+
+        iffslurm_options_grouppath = GroupPath(path='iffslurm_options')
+        iffslurm_options_group, created = iffslurm_options_grouppath.get_or_create_group()
+        if created or (len(iffslurm_options_group.nodes) < len(iffslurm_options_should)):
+            # here we populate the newly created group with options as defined in aiida_nodes
+            # group iffslurm_options.
+            iffslurm_options_group.description = "Collection of Dict nodes that contain default options " \
+                                                 "(queue_names etc.) for the different nodes of iffslurm."
+            iffslurm_options_group.store()
+            for option in iffslurm_options_should:
+                option.store()
+            iffslurm_options_group.add_nodes(iffslurm_options_should)
+
+            if created and not silent:
+                print(f"Info: {get_computer_options.__name__}():I created group '{iffslurm_options_group}' and "
+                      f"added iffslurm option nodes to it as defined in aiida_nodes, reference: {reference}.")
+
+        # now get the respective option
+        from aiida.orm import QueryBuilder
+        qb = QueryBuilder()
+        qb.append(Group, filters={'label': iffslurm_options_group.label}, tag='group')
+        opt_dicts = qb.append(Dict, with_group='group', filters={'and': [{"attributes.queue_name": partition_name},
+                                                                         {"attributes.withmpi": with_mpi}]}).first()
+        if len(opt_dicts) > 1:
+            options = opt_dicts
+            print(f"WARNING: {get_computer_options.__name__}(): found several matching computer options for given "
+                  f"input computer '{computer_name_pattern}', partition '{partition_name}', with_mpi {with_mpi}. Will "
+                  f"return all of them instead of one.")
+        elif len(opt_dicts) == 1:
+            options = opt_dicts[0]
+        else:
+            if not silent:
+                print(
+                    f"Info: {get_computer_options.__name__}(): For computer '{computer_name_pattern}' selected partition "
+                    f"'{partition_name}', but could not find an preexisting options Dict. So creating a new one with "
+                    f"default conservative values.")
+            options = Dict(dict={'max_wallclock_seconds': 60 ** 2,
+                                 'resources': {'num_machines': 1, 'tot_num_mpiprocs': 12 if with_mpi else 1},
+                                 # 'custom_scheduler_commands': f"#SBATCH --partition {partition_name}",
+                                 'queue_name': partition_name,
+                                 'withmpi': with_mpi})
     else:
-        import copy
-        return copy.deepcopy(options)
+        raise NotImplementedError(f"No options available for computers of type '{computer_name_pattern}'. Available "
+                                  f"implementations: {available_implementations}.")
+
+    # DEVNOTE: we're not using deepcopy() here to return dicts only because this is a *stateless* function.
+    if isinstance(options, Dict):
+        return options if as_Dict else options.attributes
+    elif isinstance(options, list):
+        return options if as_Dict else [opt.attributes for opt in options]
+    else:
+        raise ValueError(f"{get_computer_options.__name__}(): something went wrong. Unknown return value.")
 
 
 def shell_command(computer: Computer, command: str) -> Tuple[AnyStr, AnyStr, AnyStr]:
