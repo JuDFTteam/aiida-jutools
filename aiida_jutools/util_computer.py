@@ -726,9 +726,9 @@ class _OptionsConfig:
                                                 pass
                                         tot_num_mpiprocs = min(node_totmpi) if node_totmpi else 1
                                         mpiprocs_per_mac = min(node_mpiper) if node_mpiper else 1
-                                    if tot_num_mpiprocs > 1:
+                                    if tot_num_mpiprocs and tot_num_mpiprocs > 1:
                                         value["tot_num_mpiprocs"] = tot_num_mpiprocs
-                                    elif mpiprocs_per_mac > 1:
+                                    elif mpiprocs_per_mac and mpiprocs_per_mac > 1:
                                         value["num_mpiprocs_per_machine"] = mpiprocs_per_mac
                                     else:
                                         value["tot_num_mpiprocs"] = tot_num_mpiprocs
