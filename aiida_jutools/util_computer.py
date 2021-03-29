@@ -594,7 +594,13 @@ class _OptionsConfig:
         if queue_name:
             filters["and"].append({"attributes.queue_name": queue_name})
         if account:
-            filters["and"].append({"attributes.custom_scheduler_commands": {"ilike": f"%{account}%"}})
+            filters["and"].append({"attributes.account": account})
+            # DEVNOTE: as with most other options fields, should also query for equivalent alternative
+            # {"attributes.custom_scheduler_commands": {"ilike": f"%{account}%"}}. But aiida translates
+            # fields into such #SBATCH flags internally. So formulating options with the appropriate
+            # Dict fields only is more consistent, and the flag-formulation should be discouraged.
+            # So such options will not be found, and a new one with the field-formulation will be created
+            # instead and found the next time it is queried.
         if withmpi:
             filters["and"].append({"attributes.withmpi": withmpi})
         # now add user-specified other option attributes to query
@@ -702,14 +708,6 @@ class _OptionsConfig:
                                             tot_num_mpiprocs = max(node_totmpi) if node_totmpi else None
                                             mpiprocs_per_mac = max(node_mpiper) if node_mpiper else None
 
-                                    # if that failed, try via computer
-                                    if not tot_num_mpiprocs and not mpiprocs_per_mac:
-                                        computers = self.computers
-                                        idx_computer = 0
-                                        while (not mpiprocs_per_mac) and (idx_computer < len(computers)):
-                                            mpiprocs_per_mac = computers[
-                                                idx_computer].get_default_mpiprocs_per_machine()
-
                                     # if that failed (ie if no computers): go through existing option nodes and take the minimum.
                                     # if none exist, choose value 1.
                                     if not tot_num_mpiprocs and not mpiprocs_per_mac:
@@ -726,6 +724,15 @@ class _OptionsConfig:
                                                 pass
                                         tot_num_mpiprocs = min(node_totmpi) if node_totmpi else 1
                                         mpiprocs_per_mac = min(node_mpiper) if node_mpiper else 1
+
+                                    # if that failed, try via computer
+                                    if not tot_num_mpiprocs and not mpiprocs_per_mac:
+                                        computers = self.computers
+                                        idx_computer = 0
+                                        while (not mpiprocs_per_mac) and (idx_computer < len(computers)):
+                                            mpiprocs_per_mac = computers[
+                                                idx_computer].get_default_mpiprocs_per_machine()
+
                                     if tot_num_mpiprocs and tot_num_mpiprocs > 1:
                                         value["tot_num_mpiprocs"] = tot_num_mpiprocs
                                     elif mpiprocs_per_mac and mpiprocs_per_mac > 1:
