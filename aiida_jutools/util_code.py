@@ -13,12 +13,12 @@
 """Tools for working with aiida Code nodes."""
 
 
-def get_code_for_computer_partition(computer_name: str, partition_name: str, code_name_pattern: str):
-    """Get the appropriate code for computer based on given computer partition and code name.
+def get_code_for_computer_queue(computer_name: str, queue_name: str, code_name_pattern: str):
+    """Get the appropriate code for computer based on given computer queue (slurm: partition) and code name.
 
-    This will choose the appropriate code under the assumption that different partitions of the respective
+    This will choose the appropriate code under the assumption that different queues (partitions) of the respective
     computer require the code to be compiled with different architecture. It is assumed that the code labels
-    either have a substring which specifies the which specifies the computer partition name, or a substring
+    either have a substring which specifies the which specifies the computer queue name, or a substring
     which specifies the architecture.
 
     All performed substring matches are case-insensitive.
@@ -31,121 +31,147 @@ def get_code_for_computer_partition(computer_name: str, partition_name: str, cod
     - 'AMD'
 
     :param computer_name: exact computer label
-    :param partition_name: name of the computer partition
+    :param queue_name: name of the computer queue (slurm: partition)
     :param code_name_pattern: code label substring identifying a subset of codes (eg a 'kkrimp', 'fleur', ...)
-    :return: the appropriate code for the specified partition
+    :return: the appropriate code for the specified queue
     :rtype: Code
     """
     from aiida_jutools import util_computer
     from aiida.orm import Code
 
-    computer = util_computer.get_computer(computer_name)
-    # convert to codestrings needed for Code.get_from_string(), and
-    # filter to desired codes on desired computers
-    _codestrings = [f"{code.label}@{code.computer.label}" for code in Code.objects.all() if
-                    computer_name.lower() in code.computer.label.lower()
-                    and code_name_pattern.lower() in code.label.lower()]
-
-    def get_computer_partition_architectures():
-        """hardcoded knowledge about architecture of computer partitions"""
-        # for computer 'ifflsurm':
-        iffslurm_architecture_partitions = {
+    def _hardcoded_queue_architectures() -> dict:
+        """hardcoded knowledge about architecture of computer queues (slurm: partitions).
+        :return: dict of {computer_name : {queue name : architecture name} }
+        """
+        iffslurm_architecture_queues = {
             'AMD': ['th1-2020-32', 'th1-2020-64', 'th1-2020-gpu'],
             'intel': ['oscar', 'th1', 'th2-gpu', 'viti']
         }
-        # invert dict
-        iffslurm_partition_architecture = {}
-        for a, ps in iffslurm_architecture_partitions.items():
-            for p in ps:
-                iffslurm_partition_architecture[p] = a
+
+        def _invert(dict_architecture_queues):
+            """{architecture : [queue names]} --> {queue_name : architecture}"""
+            dict_queue_architecture = {}
+            for arch, queues in dict_architecture_queues.items():
+                for queue in queues:
+                    dict_queue_architecture[queue] = arch
+            return dict_queue_architecture
 
         # gather knowledge for all computers
-        partition_architectures = {
-            'iffslurm': iffslurm_partition_architecture
+        queue_architectures = {
+            'iffslurm': _invert(iffslurm_architecture_queues)
         }
-        return partition_architectures
+        return queue_architectures
 
-    computer_partition_architectures = get_computer_partition_architectures()
-
-    def _select_codestring_from_filtered(codestrings: list, msg_suffix: str = ""):
-        msg_middle = f"for specified computer '{computer_name}', computer partition '{partition_name}', code " \
+    def _select_codestring_from_filtered(codestrings_by_computer_code: list, filtered_codestrings: list,
+                                         msg_suffix: str = "") -> tuple:
+        """Selects first codestring from filtered if more than one, prints warning/error messages.
+        :return: tuple (selected codestring, error_msg). error_msg None if success, else None.
+        """
+        msg_middle_queue = "" if not queue_name else f", computer queue '{queue_name}'"
+        msg_middle = f"for specified computer '{computer_name}'{msg_middle_queue}, code " \
                      f"name pattern '{code_name_pattern}'{msg_suffix}."
-        warning_msg = f"WARNING: Ambiguous codestrings result {codestrings} while determining appropriate code " \
-                      f"{msg_middle} Will choose first one."
 
+        warning_msg = f"WARNING: '{get_code_for_computer_queue.__name__}()': Ambiguous codestrings result " \
+                      f"{filtered_codestrings} while determining appropriate code {msg_middle} Will choose first " \
+                      f"one. Resolve ambiguity by more precise code name pattern."
+        all_codestrings = [f"{code.label}@{code.computer.label}" for code in Code.objects.all()]
         error_msg = f"Could not determine appropriate code " \
-                    f"{msg_middle} No match found among all codes with matching codename pattern: {_codestrings}. " \
-                    f"Reason: codes do not have a substring specifying either matching partition or architecture."
+                    f"{msg_middle} No match found among all codes with matching computer name / code name pattern: " \
+                    f"{codestrings_by_computer_code}. Possible causes: a) Wrong computer-code combination; b) codes do " \
+                    f"not have a substring specifying either matching queue (partition) or architecture. " \
+                    f"All available codes: {all_codestrings}"
+
         codestring = None
-
-        if len(codestrings) >= 1:
-            if len(codestrings) > 1:
+        if len(filtered_codestrings) >= 1:
+            if len(filtered_codestrings) > 1:
                 print(warning_msg)
-
-            codestring = codestrings[0]
+            codestring = filtered_codestrings[0]
             error_msg = None
 
         return codestring, error_msg
 
-    def _codestring_for_computer_iffslurm(computer_name: str, partition_name: str, code_name_pattern: str):
-        # first assume A) that code labels contain partition name for which they were compiled.
-        # if that fails, assume B) that code labels contain architecture for which they were compiled,
-        # and determine the code from hardcoded knowledge about the computer partitions' architecture.
+    computers = util_computer.get_computers(computer_name)
+    if not computers:
+        from aiida.common.exceptions import NotExistent
+        raise NotExistent(f"No computer '{computer_name}' found.")
+    else:
+        computer = computers[0]
+        if len(computers) > 1:
+            print(f"WARNING: For computer name {computer_name}, found several computers {[c.label for c in computers]}. "
+                  f"Will choose first one.")
 
-        # ------------------------------------
-        # assume A): code labeled by partition
+    # get cs = codestrings needed for Code.get_from_string(), filter to desired codes on desired computers
+    cs_by_computer_code = [f"{code.label}@{code.computer.label}" for code in Code.objects.all() if
+                    computer_name.lower() in code.computer.label.lower()
+                    and code_name_pattern.lower() in code.label.lower()]
 
-        codestrings_by_partition = [cs for cs in _codestrings if partition_name.lower() in cs.lower()]
-        codestring, error_msg = _select_codestring_from_filtered(codestrings=codestrings_by_partition)
-        if error_msg:
-            pass  # assume B) instead
-        else:
-            return codestring
-
-        # ---------------------------------------
-        # assume B): code labeled by architecture
-
-        # check that hardcoded-partitions list still corresponds to dynamical one
-        partitions_hardcoded = list(computer_partition_architectures[computer_name].keys())
-        idle_nodes = util_computer.get_partitions(computer, gpu=None)
-        partitions_queried = [pn[0] for pn in idle_nodes]
-        if not set(partitions_hardcoded) == set(partitions_queried):
-            raise ValueError(
-                f"computer '{computer.label}' hardcoded partitions {partitions_hardcoded} do not "
-                f"correspond anymore to queried partitions {partitions_queried}. Update code.")
-
-        # now find the appropriate code for the given partition
-        # assume that the codestring (code.label) has info about the architecture
-        # (ie, architecture as a substring)
-        architecture = computer_partition_architectures[computer_name].get(partition_name, None)
-        if not architecture:
-            # since have just that hardcoded partitions match actual partitions, can conclude
-            # that user has specified non-existant partition
-            import inspect
-            module_name = inspect.getmodulename(inspect.getfile(util_computer.get_partitions))
-            raise KeyError(f"Computer '{computer_name}' has no partition '{partition_name}'. Use "
-                           f"'{module_name}.{util_computer.get_partitions.__name__}()' to get list of partitions.")
-
-        codestrings_by_architecture = [cs for cs in _codestrings if architecture in cs]
-
-        # now codestring should be unique
-        msg_suffix = f"and determined partition architecture '{architecture}'"
-        codestring, error_msg = _select_codestring_from_filtered(codestrings=codestrings_by_architecture,
-                                                                 msg_suffix=msg_suffix)
+    if not queue_name:
+        # Case A): if no queue_name is supplied, only determine by computer_name and code_name_pattern
+        codestring, error_msg = _select_codestring_from_filtered(codestrings_by_computer_code=cs_by_computer_code,
+                                                                 filtered_codestrings=cs_by_computer_code)
         if error_msg:
             raise ValueError(error_msg)
-        else:
-            return codestring
-
-    # switch-case for different computers
-    codestring = None
-    if 'iffslurm' in computer.label:
-        codestring = _codestring_for_computer_iffslurm(computer_name=computer_name,
-                                                       partition_name=partition_name,
-                                                       code_name_pattern=code_name_pattern)
     else:
+        # first assume B) that code labels contain queue name for which they were compiled.
+        # if that fails, assume C) that code labels contain architecture for which they were compiled,
+        # and determine the code from hardcoded knowledge about the computer queues' architecture.
 
-        error_msg = f"{get_code_for_computer_partition.__name__} not implemented for computer '{computer.label}'."
-        raise NotImplementedError(error_msg)
+        # ------------------------------------
+        # assume B): code labeled by queue
+
+        cs_by_computer_code_queue = [cs for cs in cs_by_computer_code if queue_name.lower() in cs.lower()]
+        codestring, error_msg = _select_codestring_from_filtered(codestrings_by_computer_code=cs_by_computer_code,
+                                                                 filtered_codestrings=cs_by_computer_code_queue)
+        if error_msg:
+            # ---------------------------------------
+            # assume C): code labeled by architecture
+
+            # check that hardcoded-queues list still corresponds to dynamical one
+            computer_queue_architectures = _hardcoded_queue_architectures()
+            # The argument computer_name is exact, in order to find the desired Computer. But it might not match
+            # the computer label used for hardcoded queue architectures. So first find out which of the
+            # computer labels in there is the closest match to computer_name.
+            all_computer_labels = list(computer_queue_architectures.keys())
+            matching_computer_labels = [label for label in all_computer_labels
+                                        if computer_name.lower() in label.lower()]
+            if not matching_computer_labels:
+                raise KeyError(f"For computer '{computer_name}', I have no hardcoded knowledge about "
+                               f"queue architectures, only for computers {all_computer_labels}.")
+            else:
+                matching_computer_label = matching_computer_labels[0]
+                computer_queue_architectures = computer_queue_architectures[matching_computer_label]
+                if len(matching_computer_labels) > 1:
+                    print(f"WARNING: '{get_code_for_computer_queue.__name__}()': For computer {computer_name}, "
+                          f"found more than one harcoded queue-architecture entry: {matching_computer_labels}. "
+                          f"Will choose first one. If this is a problem, contact developer.")
+
+            queues_harcoded = list(computer_queue_architectures.keys())
+            queues_queried = util_computer.get_queues(computer=computer, gpu=None, with_node_count=False)
+            if not set(queues_harcoded) == set(queues_queried):
+                raise ValueError(
+                    f"Computer '{computer_name}' hardcoded queues {queues_harcoded} do not "
+                    f"correspond anymore to queried queues {queues_queried}. Update code.")
+
+            # now find the appropriate code for the given queue
+            # assume that the codestring (code.label) has info about the architecture
+            # (ie, architecture as a substring)
+            architecture = computer_queue_architectures.get(queue_name, None)
+            if not architecture:
+                # since have just that hardcoded queues match actual queues, can conclude
+                # that user has specified non-existant queue
+                import inspect
+                module_name = inspect.getmodulename(inspect.getfile(util_computer.get_queues))
+                raise KeyError(f"Computer '{computer_name}' has no queue '{queue_name}'. Use "
+                               f"'{module_name}.{util_computer.get_queues.__name__}()' to get list of queues.")
+
+            cs_by_computer_code_arch = [cs for cs in cs_by_computer_code if architecture in cs]
+
+            # now codestring should be unique
+            msg_suffix = f"and determined queue architecture '{architecture}'"
+            codestring, error_msg = _select_codestring_from_filtered(codestrings_by_computer_code=cs_by_computer_code,
+                                                                     filtered_codestrings=cs_by_computer_code_arch,
+                                                                     msg_suffix=msg_suffix)
+            if error_msg:
+                raise ValueError(error_msg)
 
     return Code.get_from_string(code_string=codestring)
