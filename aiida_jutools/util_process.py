@@ -62,13 +62,14 @@ AiiDA process state hierarchy:
         return states, legend
 
 
-def validate_process_states(process_states: list = []) -> bool:
+def validate_process_states(process_states: list = [], as_string:bool=True) -> bool:
     """Check if list contains any non-defined process state.
 
     :param process_states: list of items 'created' 'running' 'waiting' 'finished' 'excepted' 'killed'.
+    :param as_string: True: states as string representations. False: states as ProcessState Enum values.
     :return: True if all items are one of the above, False otherwise.
     """
-    allowed_process_states = get_process_states(terminated=None, with_legend=False)
+    allowed_process_states = get_process_states(terminated=None, with_legend=False, as_string=as_string)
     return all([ps in allowed_process_states for ps in process_states])
 
 
