@@ -110,12 +110,20 @@ def get_code(computer_name_pattern: str = "", code_name_pattern: str = "", queue
                            and code_name_pattern.lower() in code.label.lower()]
 
     if not queue_name:
-        # Case A): if no queue_name is supplied, only determine by computer_name and code_name_pattern
-        codestring, error_msg = _select_codestring_from_filtered(codestrings_by_computer_code=cs_by_computer_code,
-                                                                 filtered_codestrings=cs_by_computer_code)
-        if error_msg:
-            raise ValueError(error_msg)
-    else:
+        # Case A): if no queue_name is supplied,
+
+        # first try to get queue_name from computer
+        try:
+            queue_name = util_computer.get_least_occupied_queue(computer=computer, gpu=None,
+                                                                with_node_count=False, silent=True)
+        except NotImplementedError as err:
+            # if that failed, only determine by computer_name and code_name_pattern, select first found
+            codestring, error_msg = _select_codestring_from_filtered(codestrings_by_computer_code=cs_by_computer_code,
+                                                                     filtered_codestrings=cs_by_computer_code)
+            if error_msg:
+                raise ValueError(error_msg)
+
+    if queue_name:
         # first assume B) that code labels contain queue name for which they were compiled.
         # if that fails, assume C) that code labels contain architecture for which they were compiled,
         # and determine the code from hardcoded knowledge about the computer queues' architecture.

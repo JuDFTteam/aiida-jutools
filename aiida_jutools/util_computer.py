@@ -76,6 +76,7 @@ def get_queues(computer: Computer, gpu: bool = None, with_node_count: bool = Tru
     :param with_node_count: True: return queue names with resp. idle nodes count, False: just queue names.
     :param silent: True: do not print out any info.
     :return: list of [queue/partition name, idle nodes count] or of queue names
+    :raise: NotImplementedError if get queues not implemented for that type (by label substring) of computer.
 
     DEVNOTES: TODO: replace filter by shell command with sinfo -> pandas.Dataframe -> apply filters.
     """
@@ -123,11 +124,12 @@ def get_least_occupied_queue(computer: Computer, gpu: bool = None,
     :param with_node_count: True: queue name with idle nodes count, False: just queue name.
     :param silent: True: do not print out any info.
     :return: tuple of queue name, idle nodes count, or just queue name
+    :raise: NotImplementedError if get queues not implemented for that type (by label substring) of computer.
     """
     idle_nodes = get_queues(computer=computer, gpu=gpu, with_node_count=True, silent=silent)
     # if anything is left, get the first queue (ie the one with most idle nodes)
     queue_name, idle_nodes_count = idle_nodes[0] if idle_nodes else (None, None)
-    return queue_name, idle_nodes_count if with_node_count else queue_name
+    return (queue_name, idle_nodes_count) if with_node_count else queue_name
 
 
 @dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
@@ -521,7 +523,7 @@ class _OptionsConfig:
                     except NotImplementedError as err:
                         self._log('Warning', self.get_options,
                                   f"Config's computer {computer.label} is not compatible with this config. "
-                                  f"Reason: {get_least_occupied_queue.__name__} not implemented for this type "
+                                  f"Reason: {get_queues.__name__} not implemented for this type "
                                   f"of computer). I will remove it from the config.")
                         idx_remove_computer.append(idx_computer)
                     idx_computer += 1
