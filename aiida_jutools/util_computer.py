@@ -410,6 +410,9 @@ class _OptionsConfig:
                     group_options = [node for node in list(group.nodes) if (isinstance(node, Dict) and node.is_stored)]
                     for group_option in group_options:
                         if option.attributes == group_option.attributes:
+                            # before overwrite, preserve labels if any
+                            if self._options[i] and not group_option.label:
+                                group_option.label = self._options[i].label
                             self._options[i] = group_option
                             found = True
                             break
@@ -630,7 +633,7 @@ class _OptionsConfig:
         res = qb.all(flat=True)
 
         # if no results, create a temporary options node (ie without storing).
-        # storing only if create_if_not_exist True.
+        # storing only if store_if_not_exist True.
         if not res:
             loaded, stored = False, False
             if not silent:
@@ -638,13 +641,18 @@ class _OptionsConfig:
                 print(f"Did not find specified computer options in config. Create options node and {store_or_dont}.")
 
             opt_dict = {}
+            opt_label = f"options_{self.name}"
             # fill in user-specified argument:value pairs
             if withmpi:
                 opt_dict["withmpi"] = withmpi
             if queue_name:
                 opt_dict["queue_name"] = queue_name
+                opt_label += f"_{queue_name}"
             if account:
                 opt_dict["account"] = account
+                opt_label += f"_{account}"
+            if not withmpi:
+                opt_label += f"_serial"
 
             # # # # #
             # DEVNOTE:
@@ -756,6 +764,7 @@ class _OptionsConfig:
 
             # now turn opt_dict into a option node and store in group, if so specified.
             opt_Dict = Dict(label="", dict=opt_dict)
+            opt_Dict.label = opt_label
             if store_if_not_exist:
                 stored = True
                 opt_Dict.store()
@@ -980,11 +989,11 @@ class ComputerOptionsManager:
         name="localhost",
         _groups=[Group(label="computer_options/localhost",
                        description="Default computer options (Dict nodes) for the a generic local computer.")],
-        _options=[Dict(label="localhost_options_serial",
+        _options=[Dict(label="options_localhost_serial",
                        dict={'max_wallclock_seconds': (60 ** 2),
                              'withmpi': False,
                              'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}}),
-                  Dict(label="localhost_options_mpi",
+                  Dict(label="options_localhost",
                        dict={'max_wallclock_seconds': (60 ** 2),
                              'withmpi': False,
                              'resources': {'num_machines': 1, 'tot_num_mpiprocs': 4}})],
@@ -1042,7 +1051,8 @@ class ComputerOptionsManager:
         _groups=[Group(label="computer_options/claix18",
                        description="Default computer options (Dict nodes) for the RWTH claix 2018 computer.")],
         _options=[
-            Dict(dict={'max_wallclock_seconds': (60 ** 2),
+            Dict(label="options_claix18",
+                 dict={'max_wallclock_seconds': (60 ** 2),
                        'withmpi': True,
                        'resources': {'num_machines': 1, 'tot_num_mpiprocs': 48},
                        'custom_scheduler_commands': ""})
@@ -1058,7 +1068,8 @@ class ComputerOptionsManager:
         _groups=[Group(label="computer_options/claix16",
                        description="Default computer options (Dict nodes) for the RWTH claix 2016 computer.")],
         _options=[
-            Dict(dict={'max_wallclock_seconds': (60 ** 2),
+            Dict(label="options_claix16",
+                 dict={'max_wallclock_seconds': (60 ** 2),
                        'withmpi': True,
                        'resources': {'num_machines': 1, 'tot_num_mpiprocs': 24},
                        'custom_scheduler_commands': ""})
