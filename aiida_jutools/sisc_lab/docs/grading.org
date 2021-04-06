@@ -135,7 +135,7 @@ D1/D2 subtasks. work effort: section 3 > section 2 > section 1.
 | time evolution     | medium     | miao    |     1 | yes   | yes       | ok     | no         | ok    | yes         | no  | no              |
 | codes              | easy       | miao    |     1 | yes   | yes       | ok     | no         | good  | no          | no  | no              |
 |--------------------+------------+---------+-------+-------+-----------+--------+------------+-------+-------------+-----+-----------------|
-| groups             | medium     | zhipeng |     1 | yes   | yes       | ok     | yes        | bad   | partially   | yes | cmp. git issues |
+| groups             | easy       | zhipeng |     1 | yes   | yes       | ok     | yes        | bad   | partially   | yes | cmp. git issues |
 | structure analysis | medium     | zhipeng |     1 | yes   | yes       | ok     | yes        | ok    | yes         | yes | cmp. git issues |
 | processes analysis | medium     | zhipeng |     2 | yes   | probably  | ok     | yes        | ok    | yes         | yes | cmp. git issues |
 | provenance health  | hard       | zhipeng |     2 | yes   | probably  | bad    | yes        | ok    | yes         | yes | cmp. git issues |
