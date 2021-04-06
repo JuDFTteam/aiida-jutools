@@ -179,7 +179,7 @@ References:
 | clear and easy to read                    |  10 |     8 |
 | layout and graphics                       |  10 |    10 |
 |-------------------------------------------+-----+-------|
-| total score                               | 100 |   93  |
+| total score                               | 100 |   90  |
 |-------------------------------------------+-----+-------|
 - here, we will assign chapter correspondences:
   - analysis = implementation = methods
@@ -202,7 +202,7 @@ Grading key:
 |   49-0 | 5,0   |
 |--------+-------|
 
-Report grade: (10+15+27+5)+(5+3)+(7+8+10) = 93 = 1,3.
+Report grade: (10+15+27+5)+(5+3)+(7+8+10) = 90 = 1,3.
 
 Product plus report grading: (1,35 + 1,3) / 2 = 1,3.
 
