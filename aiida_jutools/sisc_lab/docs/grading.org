@@ -62,25 +62,42 @@
 In German for Prof. Naumann.
 
 Sehr geehrter Prof. Naumann,
-hier unsere Einschätzung zu SiScLab 2020 Projekt 10 "Analysis Tool for a Materials Design Database", Bewertung des Gesamtprojekts und den schriftlichen Report.Studierende: Sijie Luo, Zhipeng Tan, Miao Wang. Studentin Anna Garoufali stieg leider, im gegenseitigen Einvernehmen, vorzeitig aus dem Projekt aus, Begründung Zeitmangel.Notenvorschlag: 1,3.
+
+hier unsere Einschätzung zu SiScLab 2020 Projekt 10 "Analysis Tool for a Materials Design Database", Bewertung des Gesamtprojekts und den schriftlichen Report.Studierende: Sijie Luo, Zhipeng Tan, Miao Wang. Studentin Anna Garoufali stieg leider, im gegenseitigen Einvernehmen, vorzeitig aus dem Projekt aus, Begründung Zeitmangel.
+
+Notenvorschlag: 1,3.
 
 Begründung (1-2 Paragraphen):
-Produktbewertung: 1,3.Report-Bewertung: 1,3.
 
-Allgemeine Anmerkungen: - Die Studierenden (das Team) erfüllten alle gestellten Anforderungen (requirements).- Selbstorganisation: Das Team war zuverlässig in Bezug auf Meetings und gesetzte Fristen. Referenzen, Vorschläge und Anmerkungen nahm es bis auf kleine Ausnahmen zuverlässig und zeitnah in Entwicklung und Dokumentation mit auf. Das Wegfallen eines Team-Mitglieds mitten in der Projektlaufzeit und die daraus resultierende Mehrarbeit kommunizierte und kompensierte das Team ohne Einbußen.- In Produkt wie Report lassen sich Qualitätsunterschiede der Beiträge verschiedener Studierender bzw. Nicht-Uniformität (bspw. Produkt Code Design, Report logische Strukturierung) erkennen.- Im Report kleinere Formfehler (
+Produktbewertung: 1,3.
+Report-Bewertung: 1,3.
+
+Detaillierte Bewertung: https://github.com/JuDFTteam/aiida-jutools/blob/SiscLab2020/aiida_jutools/sisc_lab/docs/grading.org.
+
+
+Allgemeine Anmerkungen:
+- Die Studierenden (das Team) erfüllten alle gestellten Anforderungen (requirements).
+- Selbstorganisation: Das Team war zuverlässig in Bezug auf Meetings und gesetzte Fristen. Referenzen, Vorschläge und Anmerkungen nahm es bis auf kleine Ausnahmen zuverlässig und zeitnah in Entwicklung und Dokumentation mit auf. Das Wegfallen eines Team-Mitglieds mitten in der Projektlaufzeit und die daraus resultierende Mehrarbeit kommunizierte und kompensierte das Team ohne Einbußen.
+- In Produkt wie Report lassen sich Qualitätsunterschiede der Beiträge verschiedener Studierender bzw. Nicht-Uniformität (bspw. Produkt Code Design, Report logische Strukturierung) erkennen.
 - Im Folgenden bezeichnet "x/y" Prozentanteile, bspw. 1/2 = Hälfte.
 
-Produkt / Code:
-- Die Mindestanforderungen wurden fast vollständig erfüllt. Alle gestellten Subtasks liefern zumindest für kleinere bereitgestellte Beispieldatenbanken die richtigen Ergebnisse.  
-- Requirement serialization: (Englisch) requirement was serialization with global switching option (read from db or serialized). implemented was partial (4/5 of total) serialization without switching option.- Requirement scalability: erfüllt für alle bis auf wenige subtasks (zB graph query für provenance health).
-- Requirement visualization: sehr gut erfüllt. Bonus für widget-based visualization für structure-property visualizer mit datenselektion.- Requirement extendability: ist erfüllt (bspw. structure property visualizer, katalog verschiedener von workflow typen für verschiedene plugins).
+Produktbewertung Zusammenfassung:
+- Die Mindestanforderungen wurden fast vollständig erfüllt. Alle gestellten Subtasks liefern zumindest für kleinere bereitgestellte Beispieldatenbanken die richtigen Ergebnisse.
+- Requirement serialization: (Englisch) requirement was serialization with global switching option (read from db or serialized). implemented was partial (4/5 of total) serialization without switching option.
+- Requirement scalability: erfüllt für alle bis auf wenige subtasks (zB graph query für provenance health).
+- Requirement visualization: sehr gut erfüllt. Bonus für widget-based visualization für structure-property visualizer mit datenselektion.
+- Requirement extendability: ist erfüllt (bspw. structure property visualizer, katalog verschiedener von workflow typen für verschiedene plugins).
 - Code:
-  - Dokumentation, Style: 3/4 gut.
-  - Modularisierung: 4/5 vorhanden, 2/3 gut gelöst.- Bonus points / eigene Ideen (aus git issue 'project integration'): 1/2 erfüllt.
-Schriftlicher Report (Bewertung orientiert an hier, hier und hier):
-- Introduction: Einführung, Liste der Anforderungen und Arbeitsschritte sind vollständig.- Theoretical Background: Die nötigen Konzepte wurden verstanden und gut erklärt.
+ - Dokumentation, Style: 3/4 gut.
+ - Modularisierung: 4/5 vorhanden, 2/3 gut gelöst.
+- Bonus points / eigene Ideen (aus git issue 'project integration'): 1/2 erfüllt.
+
+Report-Bewertung:
+- Introduction: Einführung, Liste der Anforderungen und Arbeitsschritte sind vollständig.
+- Theoretical Background: Die nötigen Konzepte wurden verstanden und gut erklärt.
 - Implementation: Allgemein gut verständlich und vollständig. 1) Fehlt: list, labeling, description of used (of provided) data(bases). 2) Reihenfolge der Paragraphen ist etwas "uneben" (siehe oben).
-- Applications: Fähigkeiten des Tools sind vollständig dargestellt und es wird auf Details eingegangen.- Conclusions & Outlook: Ist angemessen.
+- Applications: Fähigkeiten des Tools sind vollständig dargestellt und es wird auf Details eingegangen.
+- Conclusion & Outlook: Ist angemessen.
 - Form: Format für Abbildungen ist okay, Quellenverzeichnis und dessen Verwendung ist angemessen.
 
 * Product grading
