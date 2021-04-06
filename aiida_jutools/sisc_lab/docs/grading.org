@@ -165,7 +165,7 @@ References:
 |-------------------------------------------+-----+-------|
 | clear abstract                            |  10 |    10 |
 | intro shows subject mastery               |  15 |    15 |
-| analysis, discussion show subject mastery |  27 |    30 |
+| analysis, discussion show subject mastery |  30 |    27 |
 | summary appropriate and complete          |   5 |     5 |
 |-------------------------------------------+-----+-------|
 | organization 10%                          |     |       |
