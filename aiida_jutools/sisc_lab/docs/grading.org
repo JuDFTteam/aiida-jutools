@@ -1,0 +1,208 @@
+
+
+
+* Summary
+In German for Prof. Naumann.
+
+Sehr geehrter Prof. Naumann,
+hier unsere Einschätzung zu SiScLab 2020 Projekt 10 "Analysis Tool for a Materials Design Database", Bewertung des Gesamtprojekts und den schriftlichen Report.Studierende: Sijie Luo, Zhipeng Tan, Miao Wang. Studentin Anna Garoufali stieg leider, im gegenseitigen Einvernehmen, vorzeitig aus dem Projekt aus, Begründung Zeitmangel.Notenvorschlag: 1,3.
+
+Begründung (1-2 Paragraphen):
+Produktbewertung: 1,3.Report-Bewertung: 1,3.
+
+Allgemeine Anmerkungen: - Die Studierenden (das Team) erfüllten alle gestellten Anforderungen (requirements).- Selbstorganisation: Das Team war zuverlässig in Bezug auf Meetings und gesetzte Fristen. Referenzen, Vorschläge und Anmerkungen nahm es bis auf kleine Ausnahmen zuverlässig und zeitnah in Entwicklung und Dokumentation mit auf. Das Wegfallen eines Team-Mitglieds mitten in der Projektlaufzeit und die daraus resultierende Mehrarbeit kommunizierte und kompensierte das Team ohne Einbußen.- In Produkt wie Report lassen sich Qualitätsunterschiede der Beiträge verschiedener Studierender bzw. Nicht-Uniformität (bspw. Produkt Code Design, Report logische Strukturierung) erkennen.- Im Report kleinere Formfehler (
+- Im Folgenden bezeichnet "x/y" Prozentanteile, bspw. 1/2 = Hälfte.
+
+Produkt / Code:
+- Die Mindestanforderungen wurden fast vollständig erfüllt. Alle gestellten Subtasks liefern zumindest für kleinere bereitgestellte Beispieldatenbanken die richtigen Ergebnisse.  
+- Requirement serialization: (Englisch) requirement was serialization with global switching option (read from db or serialized). implemented was partial (4/5 of total) serialization without switching option.- Requirement scalability: erfüllt für alle bis auf wenige subtasks (zB graph query für provenance health).
+- Requirement visualization: sehr gut erfüllt. Bonus für widget-based visualization für structure-property visualizer mit datenselektion.- Requirement extendability: ist erfüllt (bspw. structure property visualizer, katalog verschiedener von workflow typen für verschiedene plugins).
+- Code:
+  - Dokumentation, Style: 3/4 gut.
+  - Modularisierung: 4/5 vorhanden, 2/3 gut gelöst.- Bonus points / eigene Ideen (aus git issue 'project integration'): 1/2 erfüllt.
+Schriftlicher Report (Bewertung orientiert an hier, hier und hier):
+- Introduction: Einführung, Liste der Anforderungen und Arbeitsschritte sind vollständig.- Theoretical Background: Die nötigen Konzepte wurden verstanden und gut erklärt.
+- Implementation: Allgemein gut verständlich und vollständig. 1) Fehlt: list, labeling, description of used (of provided) data(bases). 2) Reihenfolge der Paragraphen ist etwas "uneben" (siehe oben).
+- Applications: Fähigkeiten des Tools sind vollständig dargestellt und es wird auf Details eingegangen.- Conclusions & Outlook: Ist angemessen.
+- Form: Format für Abbildungen ist okay, Quellenverzeichnis und dessen Verwendung ist angemessen.
+
+* Product grading
+
+values
+| column      | range                     |
+|-------------+---------------------------|
+| difficulty  | easy/medium/hard          |
+| student     | name                      |
+| grade       | 1-5                       |
+| works       | yes/no                    |
+| correct     | yes/probably/partially/no |
+| scales      | good/ok/bad               |
+| serialized  | yes/partially/no          |
+| style       | good/ok/bad               |
+| modularized | yes/partially/no          |
+| doc         | yes/no                    |
+| did more    | WHAT/no                   |
+- grade: relative grade w.r.t. other subtasks
+- correct: means subtask code returns correct & complete result for a given database input
+- scales: good = better than expected, ok = as expected, bad = worse than easily possible.
+- serialized: only local serialization and switching. global serialization and
+  switching requirement was not implemented. partially = yes but no switching
+  option to utilize it.
+- style: pep8 conformity, overall coding style (comments with explanations, code cleanup)
+- did more: yes = discussed optional improvements/extensions and partially implemented.
+
+
+D1/D2 subtasks. work effort: section 3 > section 2 > section 1.
+| subtask            | difficulty | student | grade | works | correct   | scales | serialized | style | modularized | doc | did more        |
+|--------------------+------------+---------+-------+-------+-----------+--------+------------+-------+-------------+-----+-----------------|
+| db overview        | easy       | miao    |     3 | yes   | yes       | ok     | no         | bad   | no          | no  | no              |
+| user info          | easy       | miao    |     2 | yes   | yes       | ok     | no         | good  | yes         | no  | no              |
+| node types         | easy       | miao    |     1 | yes   | yes       | ok     | no         | ok    | partially   | no  | #nodes in title |
+| time evolution     | medium     | miao    |     1 | yes   | yes       | ok     | no         | ok    | yes         | no  | no              |
+| codes              | easy       | miao    |     1 | yes   | yes       | ok     | no         | good  | no          | no  | no              |
+|--------------------+------------+---------+-------+-------+-----------+--------+------------+-------+-------------+-----+-----------------|
+| groups             | medium     | zhipeng |     1 | yes   | yes       | ok     | yes        | bad   | partially   | yes | cmp. git issues |
+| structure analysis | medium     | zhipeng |     1 | yes   | yes       | ok     | yes        | ok    | yes         | yes | cmp. git issues |
+| processes analysis | medium     | zhipeng |     2 | yes   | probably  | ok     | yes        | ok    | yes         | yes | cmp. git issues |
+| provenance health  | hard       | zhipeng |     2 | yes   | probably  | bad    | yes        | ok    | yes         | yes | cmp. git issues |
+|--------------------+------------+---------+-------+-------+-----------+--------+------------+-------+-------------+-----+-----------------|
+| struc-prop preproc | hard       | sijie   |     1 | yes   | partially | good   | yes        | good  | yes         | yes | multi-workflow  |
+| struc-prop viz     | hard       | sijie   |     1 | yes   | partially | good   | yes        | good  | yes         | yes | widget-based    |
+Remarks:
+- zhipeng serialization: has a switch, but has no checks if new analysis job
+  works on a different database -> visualizes wrong data if user not careful.
+- provenance scaling: queries all nodes, then iterates over them (each incoming,
+  outgoing). this could have been done more efficiently.
+
+Product grade: 0.15*(3+2+1+1+1)/5 + 0.35*(2+1+2+2)/4 + 0.5*(1+1)/2 = 1,35.
+
+* Report grading
+
+** Report grading
+
+References:
+- https://www.researchgate.net/publication/294682787_Hard_assessment_of_soft_skills/figures?lo=1
+- https://www.cbe.ncsu.edu/bullard/senior-design/grading-rubric-for-written-reports/
+- http://www.mi.uni-koeln.de/algebra/teaching/ws1112_algebra/notenschluessel.pdf
+
+|                                           | max | score |
+|-------------------------------------------+-----+-------|
+| technical content 60%                     |     |       |
+|-------------------------------------------+-----+-------|
+| clear abstract                            |  10 |    10 |
+| intro shows subject mastery               |  15 |    15 |
+| analysis, discussion show subject mastery |  27 |    30 |
+| summary appropriate and complete          |   5 |     5 |
+|-------------------------------------------+-----+-------|
+| organization 10%                          |     |       |
+|-------------------------------------------+-----+-------|
+| distinct intro, body, conclusions         |   5 |     5 |
+| content clearly & logically organized     |   5 |     3 |
+|-------------------------------------------+-----+-------|
+| presentation 20%                          |     |       |
+|-------------------------------------------+-----+-------|
+| correct spelling, grammar, syntax         |  10 |     7 |
+| clear and easy to read                    |  10 |     8 |
+| layout and graphics                       |  10 |    10 |
+|-------------------------------------------+-----+-------|
+| total score                               | 100 |   93  |
+|-------------------------------------------+-----+-------|
+- here, we will assign chapter correspondences:
+  - analysis = implementation = methods
+  - discussion = applications = results
+
+Grading key:
+
+|  score | grade |
+|--------+-------|
+| 100-95 | 1,0   |
+|  94-90 | 1,3   |
+|  89-85 | 1,7   |
+|  84-80 | 2,0   |
+|  79-75 | 2,3   |
+|  74-70 | 2,7   |
+|  69-65 | 3,0   |
+|  64-60 | 3,3   |
+|  59-55 | 3,7   |
+|  54-50 | 4,0   |
+|   49-0 | 5,0   |
+|--------+-------|
+
+Report grade: (10+15+27+5)+(5+3)+(7+8+10) = 93 = 1,3.
+
+Product plus report grading: (1,35 + 1,3) / 2 = 1,3.
+
+
+** Report grading remarks
+
+*** miscellaneous
+
+- ch3._implementation
+- ch3._implementation/intro
+- ch3._implementation/D1/performance_plots: did show and discuss timings for
+  different databases, but didn't list, label and optionally explain used (of
+  provided) those databases.
+- ch3._implementation/D1/db_overview: partially ignored error correction suggestion ('attach it to the graph').
+
+*** good
+
+- used simple but effective flowchart visualizations in implementations chapter
+
+*** bad
+
+- performance discussion should be in results (=applications), not in methods (implementation).
+
+
+*** Report structure
+ - Front matter
+   - Title
+   - Abstract
+   - Acknowledgments
+   - Contents
+ - 1 Introduction
+   - Problem Statement
+   - Motivation and Requirements
+   - Project Steps
+ - 2 Theoretical Background
+   - AiiDA
+   - AiiDA Plugins
+   - Data Provenance
+   - Data and Process
+     - Data
+     - Process
+     - Materials science specific data types
+ - 3 Implementation
+   - D1
+     - Performance Plots
+     - Database Overview
+     - User Information
+     - Node types distribution
+     - Database time evolution
+     - Codes
+     - Performance
+     - Interactive Plots
+     - Process of the tasks
+   - D2
+     - Data acquisition
+     - Data structure & Data source
+     - Performance
+     - Interactive Plot
+ - 4 Applications
+   - D1
+     - Database Overview
+     - User Information
+     - Node types distribution
+     - Database time evolution
+     - Group Analysis
+     - Structure Analysis
+     - Process Analysis
+     - Provenance Analysis
+   - D2
+     - User interface
+     - Interactive visualization by Bokeh Server
+     - Overview
+     - Tooltips and Hover tools
+     - Other plotting examples
+ - 5 Conclusion & Outlook
+ - Back matter
+   - Bibliography
