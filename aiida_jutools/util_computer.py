@@ -433,7 +433,8 @@ class _OptionsConfig:
         if not silent:
             print(f"OptionsConfig '{self.name}':\n"
                   f"{loaded_or_created} computer options groups: {[group.label for group in self._groups]}.\n"
-                  f"Loaded {num_loaded}, created {num_created} computer option nodes.")
+                  f"Loaded {num_loaded}, created {num_created} default computer options nodes. "
+                  f"Use {self.get_options.__name__}() to load or create options nodes.")
 
     def get_options(self, store_if_not_exist: bool = True, as_Dict: bool = True, silent: bool = False,
                     computer_name: str = None, gpu: bool = None, withmpi: bool = True, queue_name: str = None,
@@ -599,13 +600,15 @@ class _OptionsConfig:
         if queue_name:
             filters["and"].append({"attributes.queue_name": queue_name})
         if account:
-            filters["and"].append({"attributes.account": account})
-            # DEVNOTE: as with most other options fields, should also query for equivalent alternative
-            # {"attributes.custom_scheduler_commands": {"ilike": f"%{account}%"}}. But aiida translates
-            # fields into such #SBATCH flags internally. So formulating options with the appropriate
-            # Dict fields only is more consistent, and the flag-formulation should be discouraged.
-            # So such options will not be found, and a new one with the field-formulation will be created
-            # instead and found the next time it is queried.
+            filters["and"].append({"attributes.custom_scheduler_commands": {"ilike": f"%--account={account}%"}})
+            # DEVNOTE: in theory, we should instead require ...
+            # filters["and"].append({"attributes.account": account})
+            # ... but the latter does not work on all systems (case in point: claix18, slurm scheduler),
+            # whereas the former works on at least one system (case in point: claix18, slurm scheduler).
+            # With 'does not work' meaning, that the generated _aiidasubmit.sh slurm batch job script
+            # does not contain the account when the latter is used.
+            # Based on this, we adopt the former (custom_scheduler_commands) approach for ALL systems,
+            # at least for now.
         if withmpi:
             filters["and"].append({"attributes.withmpi": withmpi})
         # now add user-specified other option attributes to query
@@ -649,7 +652,17 @@ class _OptionsConfig:
                 opt_dict["queue_name"] = queue_name
                 opt_label += f"_{queue_name}"
             if account:
-                opt_dict["account"] = account
+                if not opt_dict.get("custom_scheduler_commands", None):
+                    opt_dict["custom_scheduler_commands"] = "#SBATCH"
+                opt_dict["custom_scheduler_commands"] += f" --account={account}"
+                # DEVNOTE: in theory, we should instead require ...
+                # opt_dict["account"] = account
+                # ... but the latter does not work on all systems (case in point: claix18, slurm scheduler),
+                # whereas the former works on at least one system (case in point: claix18, slurm scheduler).
+                # With 'does not work' meaning, that the generated _aiidasubmit.sh slurm batch job script
+                # does not contain the account when the latter is used.
+                # Based on this, we adopt the former (custom_scheduler_commands) approach for ALL systems,
+                # at least for now.
                 opt_label += f"_{account}"
             if not withmpi:
                 opt_label += f"_serial"
@@ -1052,7 +1065,7 @@ class ComputerOptionsManager:
                        description="Default computer options (Dict nodes) for the RWTH claix 2018 computer.")],
         _options=[
             Dict(label="options_claix18",
-                 dict={'max_wallclock_seconds': (60 ** 2),
+                 dict={'max_wallclock_seconds': (60 ** 2) * 24,
                        'withmpi': True,
                        'resources': {'num_machines': 1, 'tot_num_mpiprocs': 48},
                        'custom_scheduler_commands': ""})
@@ -1069,7 +1082,7 @@ class ComputerOptionsManager:
                        description="Default computer options (Dict nodes) for the RWTH claix 2016 computer.")],
         _options=[
             Dict(label="options_claix16",
-                 dict={'max_wallclock_seconds': (60 ** 2),
+                 dict={'max_wallclock_seconds': (60 ** 2) * 24,
                        'withmpi': True,
                        'resources': {'num_machines': 1, 'tot_num_mpiprocs': 24},
                        'custom_scheduler_commands': ""})
