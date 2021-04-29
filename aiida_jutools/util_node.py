@@ -31,14 +31,21 @@ attribute_string_lists: typing.Dict[str, typing.List[str]] = {
 }
 
 
-def is_same_node(node: Node, other: Node, comparator: str = "pk"):
+def is_same_node(node: Node, other: Node, comparator: str = "uuid"):
     """Basic node comparator.
 
-    Reference: https://www.nature.com/articles/s41597-020-00638-4
+    Note: since aiida-core v.1.6.0, the base Node class now evaluates equality based on the node's UUID. Yet,
+    class specific, equality relationships will still override the base class behaviour, for example:
+    Int(99) == Int(99). In case of doubt, prefer this method.
+
+    References:
+
+    - v1.6.0 https://github.com/aiidateam/aiida-core/blob/develop/CHANGELOG.md#v160---2021-03-15
+    - v1.5.2- https://www.nature.com/articles/s41597-020-00638-4
 
     :param node: a node.
     :param other: another node.
-    :param comparator: "uuid", "pk" (default), or "hash" (warning: slow)
+    :param comparator: "uuid" (default), "pk", or "hash" (warning: slow)
     :return: True if same node, False otherwise.
     :rtype: bool
     """
