@@ -62,7 +62,7 @@ AiiDA process state hierarchy:
         return states, legend
 
 
-def validate_process_states(process_states: list = [], as_string:bool=True) -> bool:
+def validate_process_states(process_states: list = [], as_string: bool = True) -> bool:
     """Check if list contains any non-defined process state.
 
     :param process_states: list of items 'created' 'running' 'waiting' 'finished' 'excepted' 'killed'.
@@ -105,14 +105,17 @@ def validate_exit_statuses(process_cls, exit_statuses: list = []) -> bool:
 
 def query_processes(label: str = None, process_label: str = None, process_states: list = None,
                     exit_statuses: list = None, failed: bool = False, paused: bool = False, node_types: list = None,
-                    group=None):
+                    group=None, timedelta=None):
     """Get all process nodes with given specifications. All arguments are optional.
 
     Examples:
     >>> from aiida_jutools.util_process import query_processes as qp, get_process_states as ps
-    >>> qb1 = qp(label="Au:Cu", process_label='kkr_imp_wc')
+    >>> from aiida.orm import WorkChainNode
+    >>> import datetime
+    >>> process_nodes = qp(label="Au:Cu", process_label='kkr_imp_wc').all(flat=True)
     >>> states = ps(terminated=False)
-    >>> qb2 = qp(process_states=states)
+    >>> num_processes = qp(process_states=states).count()
+    >>> process_nodes = qp(node_types=[WorkChainNode], timedelta=datetime.timedelta(days=1)).all(flat=True)
 
     :param label: node label
     :param process_label: process label. for workflows of plugins, short name of workflow class.
@@ -123,6 +126,8 @@ def query_processes(label: str = None, process_label: str = None, process_states
     :param node_types: list of subclasses of ProcessNode or Process.
     :param group: restrict search to this group.
     :type group: Group
+    :param timedelta: if None, ignore. Else, include only recently created up to timedelta.
+    :type timedelta: datetime.timedelta
     :return: query builder
     :rtype: QueryBuilder
 
@@ -168,6 +173,9 @@ def query_processes(label: str = None, process_label: str = None, process_states
         filters['attributes.exit_status'] = {'in': exit_statuses}
     if label:
         filters['label'] = {'==': label}
+    if timedelta:
+        from aiida.common import timezone
+        filters['ctime'] = {'>': timezone.now() - timedelta}
 
     qb = QueryBuilder()
     if not group:
@@ -178,91 +186,90 @@ def query_processes(label: str = None, process_label: str = None, process_states
 
 
 class ProcessClassifier:
-    def __init__(self):
-        """Classifies processes by process_state and exit_status.
-        """
-        self.classified_processes = {}
-        self.group = None
-        self._temporary_groups = []
+    _TMP_GROUP_LABEL_PREFIX = "process_classification"
 
-    def classify_by_state(self, processes: list = None, process_label: str = None, group=None,
-                          types: list = None) -> dict:
+    def __init__(self, processes: list = None):
+        """Classifies processes by process_state and exit_status.
+
+        Use e.g. :py:meth:`~aiida_jutools.util_process.query_processes` to get a list of processes to classify.
+
+        :param processes: list of processes or process nodes to classify.
+        """
+        from aiida.orm import Group
+        from aiida_jutools import util_group
+
+        self._unclassified_processes = processes
+
+        self.classified_by_state = {}
+
+        # check if temporary groups from previous instances have not been cleaned up.
+        # if so, delete them.
+        qb = QueryBuilder()
+        temporary_groups = qb.append(Group,
+                                     filters={"label": {"like": ProcessClassifier._TMP_GROUP_LABEL_PREFIX + "%"}}).all(
+            flat=True)
+        if temporary_groups:
+            print(f"Info: Found temporary classification groups, most likely not cleaned up from a previous "
+                  f"{ProcessClassifier.__name__} instance. I will delete them now.")
+            util_group.delete_groups(group_labels=[group.label for group in temporary_groups],
+                                     skip_nonempty_groups=False,
+                                     silent=False)
+
+    def classify_by_state(self) -> None:
         """Classify processes / process nodes (here: interchangeable) by process state.
 
         Result stored as class variable. It is a dict process_state : processes. process_state 'finished' is further
         subdivided into exit_status : processes.
-
-        :param processes: list of processes. If None, will find matching processes by query from other arguments supplied.
-        :param process_label: process label. for workflows of plugins, short name of workflow class.
-        :param group: restrict search to this group. Default None.
-        :type group: Group
-        :param types: List of subclasses of ProcessNode. If None, choose [ProcessNode].
-        :return class attribute classified_processes.
         """
-        from aiida.orm import ProcessNode
-
-        if not processes and not group:
-            raise ValueError("Error: must either specify a list of processes or a group with process nodes.")
-
-        if not processes:
-            self.group = group
-        else:
-            # create a temporary group and work with that. delete afterwards.
-            # (reason1: need some way to memorize processses across instance methods.
-            # (reason2: can use same group-based code for both cases processes=list and processes=None.)
-            # However, if group already exists (from previous call), use that one.
-            create_group = False
-            if self.group:
-                # check that group contains exactly the specified processes.
-                group_ids = set([node.uuid for node in self.group.nodes if isinstance(node, ProcessNode)])
-                create_group = set([node.uuid for node in processes]) != group_ids
-
-            if not self.group or create_group:
-                from aiida.tools.groups import GroupPath
-                from masci_tools.util import python_util
-                from datetime import datetime
-
-                created = False
-                while not created:
-                    group_label = "_".join(["process_classification",
-                                            datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-                                            python_util.random_string(length=16)])
-                    group_path = GroupPath(path=group_label)
-                    self.group, created = group_path.get_or_create_group()
-                self._temporary_groups.append(self.group)
-                print(f"Info: {ProcessClassifier.__name__}.{ProcessClassifier.classify_by_state.__name__}(): "
-                      f"created temporary classification group {self.group}. To delete, call "
-                      f"{ProcessClassifier.__name__}.{ProcessClassifier.cleanup.__name__}().")
-                self.group.add_nodes(nodes=processes)
-
-        _types = types if types else []
-
-        def get_processes(state):
-            return query_processes(group=self.group, process_label=process_label,
-                                   process_states=[state], node_types=types).all(flat=True)
-
-        self.classified_processes = {}
-
+        from datetime import datetime
+        from masci_tools.util import python_util
+        from aiida.orm import Group
         from aiida.engine.processes import ProcessState as PS
-        states = get_process_states(terminated=None)
+        from aiida.common.exceptions import NotExistent
+        from aiida_jutools import util_group
+
+        # create a temporary group to help in classification. delete group after all classified.
+        exists_already = True
+        while exists_already:
+            group_label = "_".join([ProcessClassifier._TMP_GROUP_LABEL_PREFIX,
+                                    datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+                                    python_util.random_string(length=16)])
+            try:
+                Group.get(label=group_label)
+            except NotExistent as err:
+                tmp_classification_group = Group(label=group_label)
+                tmp_classification_group.store()
+                exists_already = False
+
+        tmp_classification_group.add_nodes(nodes=self._unclassified_processes)
+
+        def _get_processes(state):
+            return query_processes(group=tmp_classification_group, process_states=[state]).all(flat=True)
+
+        self.classified_by_state = {}
+
+        states = get_process_states(terminated=None, as_string=True, with_legend=False)
         finished = PS.FINISHED.value
         states.pop(states.index(finished))
 
         for state in states:
-            processes_of_state = get_processes(state)
-            self.classified_processes[state] = processes_of_state if processes_of_state else []
+            processes_of_state = _get_processes(state)
+            self.classified_by_state[state] = processes_of_state if processes_of_state else []
 
-        self.classified_processes[finished] = {}
-        finished_processes = get_processes(finished)
+        self.classified_by_state[finished] = {}
+        finished_processes = _get_processes(finished)
         if finished_processes:
             for process in finished_processes:
                 exit_status = process.exit_status
-                if not self.classified_processes[finished].get(exit_status, None):
-                    self.classified_processes[finished][exit_status] = [process]
-                else:
-                    self.classified_processes[finished][exit_status].append(process)
+                if not self.classified_by_state[finished].get(exit_status, None):
+                    self.classified_by_state[finished][exit_status] = []
+                self.classified_by_state[finished][exit_status].append(process)
 
-        return self.classified_processes
+        # classification done.
+        # cleanup:
+        util_group.delete_groups(group_labels=[tmp_classification_group.label],
+                                 skip_nonempty_groups=False,
+                                 silent=True)
 
     def count(self, process_states: list = None) -> int:
         """Count processes classified under specified process states.
@@ -270,16 +277,19 @@ class ProcessClassifier:
         :param process_states: process states. keys of classified processes dict. If None, count all.
         :return: sum of counts of processes of specified process states.
         """
+        from aiida.engine.processes import ProcessState as PS
+
         _process_states = process_states if process_states \
             else get_process_states(terminated=None, as_string=True, with_legend=False)
 
         total = 0
+        finished = PS.FINISHED.value
         for process_state in _process_states:
-            if not process_state == 'finished':
-                total += len(self.classified_processes.get(process_state, []))
+            if not process_state == finished:
+                total += len(self.classified_by_state.get(process_state, []))
             else:
-                if self.classified_processes.get(process_state, None):
-                    total += sum([len(v) for v in self.classified_processes[process_state].values()])
+                if self.classified_by_state.get(process_state, None):
+                    total += sum([len(v) for v in self.classified_by_state[process_state].values()])
         return total
 
     def print_statistitics(self, with_legend: bool = True):
@@ -288,43 +298,56 @@ class ProcessClassifier:
         :param with_legend: True: with process states legend.
         """
         import json
+        from aiida.engine.processes import ProcessState as PS
 
         if with_legend:
             _, legend = get_process_states(with_legend=True)
             print(legend)
 
         print("Process classification statistics:")
-
-        print(f"\nTotal terminated: {self.count(['excepted', 'killed', 'finished'])}.")
-        print(f"Total not terminated: {self.count(['created', 'waiting', 'running'])}.")
+        states = get_process_states(terminated=True, as_string=True, with_legend=False)
+        print(f"\nTotal terminated: {self.count(states)}.")
+        states = get_process_states(terminated=False, as_string=True, with_legend=False)
+        print(f"Total not terminated: {self.count(states)}.")
 
         print(f"\nFull classification:")
-        statistics = {process_state: len(processes) for process_state, processes in self.classified_processes.items()
-                      if process_state != 'finished'}
-        if self.classified_processes.get('finished', None):
-            statistics['finished'] = {exit_status: len(processes)
-                                      for exit_status, processes in self.classified_processes['finished'].items()}
+        finished = PS.FINISHED.value
+        statistics = {process_state: len(processes) for process_state, processes in self.classified_by_state.items()
+                      if process_state != finished}
+        if self.classified_by_state.get(finished, None):
+            statistics[finished] = {exit_status: len(processes)
+                                    for exit_status, processes in self.classified_by_state[finished].items()}
         print(json.dumps(statistics, indent=4))
 
-    def subgroup_classified_results(self, dry_run: bool = True, silent: bool = False):
+    def subgroup_classified_results(self, group, dry_run: bool = True, silent: bool = False):
         """Subgroup classified processes.
 
-        Adds subgroups to classification group and adds classified process nodes by state.
+        Adds subgroups to group of classified processes (if it exists) and adds classified process nodes by state.
         Current subgroup classification distinguishes 'finished_ok' ('finished' and exit_status 0)
         and 'failed' (all others).
 
+        :param group: Group of which the passed-in unclassified processes are part of.
         :param dry_run: True: Perform dry run, show what I *would* do.
         :param silent: True: Do not print any information.
         """
-        if not self.classified_processes:
+        from aiida.engine.processes import ProcessState as PS
+
+        # check if all unclassified processes are really part of passed-in group.
+        proc_ids = set([proc.uuid for proc in self._unclassified_processes])
+        group_ids = set([node.uuid for node in group.nodes])
+        if not proc_ids.issubset(group_ids):
+            print(f"Warning: The classified process nodes are not a subset of the specified group '{group.label}'.")
+
+        if not self.classified_by_state:
             print("INFO: No classification performed. Nothing to subgroup.")
-        failed_exit_states = []
-        if self.classified_processes.get('finished', None):
-            failed_exit_states = [exit_status for exit_status in self.classified_processes['finished'] if exit_status]
+        failed_exit_statuses = []
+        finished = PS.FINISHED.value
+        if self.classified_by_state.get(finished, None):
+            failed_exit_statuses = [exit_status for exit_status in self.classified_by_state[finished] if exit_status]
 
         subgroups_classification = {
-            'finished_ok': [{'finished': [0]}],
-            'failed': ['excepted', 'killed', {'finished': failed_exit_states}]
+            'finished_ok': [{finished: [0]}],
+            'failed': [PS.EXCEPTED.value, PS.KILLED.value, {finished: failed_exit_statuses}]
         }
 
         if dry_run:
@@ -334,7 +357,7 @@ class ProcessClassifier:
                 subgroups_classification[subgroup_name] = [NoIndent(process_state) for process_state in process_states
                                                            if isinstance(process_state, dict)]
 
-            group_info = f"subgroups of group {self.group.label}" if self.group else "groups"
+            group_info = f"subgroups of group {group.label}" if group else "groups"
             print(f"INFO: I will try to group classified states into subgroups as follows. In the displayed dict, the "
                   f"keys are the names of the '{group_info}' which I will load or create, while the values depict "
                   f"which sets of classified processes will be added to that group.")
@@ -343,33 +366,23 @@ class ProcessClassifier:
             print("This was a dry run. I will exit now.")
         else:
             from aiida.tools.groups import GroupPath
-            group_path_prefix = self.group.label + "/" if self.group else ""
+            group_path_prefix = group.label + "/" if group else ""
             for subgroup_name, process_states in subgroups_classification.items():
                 count = 0
                 group_path = GroupPath(group_path_prefix + subgroup_name)
                 subgroup, created = group_path.get_or_create_group()
                 for process_state in process_states:
                     if isinstance(process_state, str):
-                        processes = self.classified_processes[process_state]
+                        processes = self.classified_by_state[process_state]
                         subgroup.add_nodes(processes)
                         count += len(processes)
                     if isinstance(process_state, dict):
-                        for exit_status in process_state['finished']:
-                            processes = self.classified_processes['finished'].get(exit_status, [])
+                        for exit_status in process_state[finished]:
+                            processes = self.classified_by_state[finished].get(exit_status, [])
                             subgroup.add_nodes(processes)
                             count += len(processes)
                 if not silent:
                     print(f"Added {count} processes to subgroup '{subgroup.label}'")
-
-    def cleanup(self):
-        """Perform cleanup.
-
-        - If temporary groups were created during classification, delete them (nodes remain).
-        """
-        from aiida_jutools import util_group
-        util_group.delete_groups(group_labels=[group.label for group in self._temporary_groups],
-                                 skip_nonempty_groups=False,
-                                 silent=False)
 
 
 def find_partially_excepted_processes(processes: list, to_depth: int = 1) -> dict:
