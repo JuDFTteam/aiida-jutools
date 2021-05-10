@@ -73,18 +73,19 @@ def validate_process_states(process_states: list = [], as_string: bool = True) -
     return all([ps in allowed_process_states for ps in process_states])
 
 
-def get_exit_codes(process_cls) -> list:
-    """Get list of all exit codes for this process class.
+def get_exit_codes(process_cls, as_dict: bool = False) -> object:
+    """Get collection of all exit codes for this process class.
 
     An ExitCode is a NamedTuple of exit_status, exit_message and some other things.
 
     :param process_cls: Process class. Must be subclass of aiida Process
-    :return: list of all exit statuses and exit messages of this process class
-    :rtype: list of ExitCode objects
+    :param as_dict: return as dict {status : message} instead of as list of ExitCodes.
+    :return: list of ExitCodes or dict.
     """
     from aiida.engine import Process
     assert issubclass(process_cls, Process)
-    return list(process_cls.spec().exit_codes.values())
+    exit_codes = list(process_cls.spec().exit_codes.values())
+    return exit_codes if not as_dict else {ec.status: ec.message for ec in exit_codes}
 
 
 def validate_exit_statuses(process_cls, exit_statuses: list = []) -> bool:
@@ -202,6 +203,13 @@ class ProcessClassifier:
 
         self.classified_by_state = {}
 
+        self.classified_by_type = {
+            'type': {},
+            'process_class': {},
+            'process_label': {},
+            'process_type': {}
+        }
+
         # check if temporary groups from previous instances have not been cleaned up.
         # if so, delete them.
         qb = QueryBuilder()
@@ -215,20 +223,14 @@ class ProcessClassifier:
                                      skip_nonempty_groups=False,
                                      silent=False)
 
-    def classify_by_state(self) -> None:
-        """Classify processes / process nodes (here: interchangeable) by process state.
-
-        Result stored as class variable. It is a dict process_state : processes. process_state 'finished' is further
-        subdivided into exit_status : processes.
+    def _group_for_classification(self) -> object:
+        """Create a temporary group to help in classification. delete group after all classified.
         """
         from datetime import datetime
         from masci_tools.util import python_util
         from aiida.orm import Group
-        from aiida.engine.processes import ProcessState as PS
         from aiida.common.exceptions import NotExistent
-        from aiida_jutools import util_group
 
-        # create a temporary group to help in classification. delete group after all classified.
         exists_already = True
         while exists_already:
             group_label = "_".join([ProcessClassifier._TMP_GROUP_LABEL_PREFIX,
@@ -242,6 +244,23 @@ class ProcessClassifier:
                 exists_already = False
 
         tmp_classification_group.add_nodes(nodes=self._unclassified_processes)
+        return tmp_classification_group
+
+    def classify(self):
+        """Call all classify methods."""
+        self.classify_by_type()
+        self.classify_by_state()
+
+    def classify_by_state(self) -> None:
+        """Classify processes / process nodes (here: interchangeable) by process state.
+
+        Result stored as class attribute. It is a dict process_state : processes. process_state 'finished' is further
+        subdivided into exit_status : processes.
+        """
+        from aiida.engine.processes import ProcessState as PS
+        from aiida_jutools import util_group
+
+        tmp_classification_group = self._group_for_classification()
 
         def _get_processes(state):
             return query_processes(group=tmp_classification_group, process_states=[state]).all(flat=True)
@@ -271,6 +290,38 @@ class ProcessClassifier:
                                  skip_nonempty_groups=False,
                                  silent=True)
 
+    def classify_by_type(self) -> None:
+        """Classify processes / process nodes (here: interchangeable) by various type indicators.
+
+        Classifies by type, process_class, process_label, process_type.
+
+        Result stored as class attributes. They are dict type/label/... : processes.
+        """
+        d = {
+            'type': {},
+            'process_class': {},
+            'process_label': {},
+            'process_type': {}
+        }
+        for process in self._unclassified_processes:
+            typ = type(process)
+            pcls = process.process_class
+            plabel = process.process_label
+            ptype = process.process_type
+            if not typ in d['type']:
+                d['type'][typ] = []
+            if not pcls in d['process_class']:
+                d['process_class'][pcls] = []
+            if not plabel in d['process_label']:
+                d['process_label'][plabel] = []
+            if not ptype in d['process_type']:
+                d['process_type'][ptype] = []
+            d['type'][typ].append(process)
+            d['process_class'][pcls].append(process)
+            d['process_label'][plabel].append(process)
+            d['process_type'][ptype].append(process)
+        self.classified_by_type = d
+
     def count(self, process_states: list = None) -> int:
         """Count processes classified under specified process states.
 
@@ -292,25 +343,39 @@ class ProcessClassifier:
                     total += sum([len(v) for v in self.classified_by_state[process_state].values()])
         return total
 
-    def print_statistitics(self, with_legend: bool = True):
+    def print_statistitics(self, title:str="", with_legend: bool = True, type_classification: str = 'process_label'):
         """Pretty-print classification statistics.
 
+        :param title: A title.
         :param with_legend: True: with process states legend.
+        :param type_classification: One of 'type', 'process_class', 'process_label', 'process_type'.
         """
         import json
         from aiida.engine.processes import ProcessState as PS
 
+        _title = "" if not title else "\n" + title
+        print(f"Process classification statistics{_title}:")
+
+        print(40*'-' + "\nClassification by type:")
+        type_clfctn = type_classification if type_classification in self.classified_by_type.keys() else "process_label"
+        if type_classification not in self.classified_by_type.keys():
+            print(f"Warning: selected type classifiction '{type_classification}' is invalid. Valid choices are: "
+                  f"{list(self.classified_by_type.keys())}. Choosing '{type_clfctn}' instead.")
+
+        statistics = {ptyp: len(processes) for ptyp, processes in self.classified_by_type[type_clfctn].items()}
+        print(json.dumps(statistics, indent=4))
+
+
+        print(40*'-' + "\nClassfication by process state:")
         if with_legend:
             _, legend = get_process_states(with_legend=True)
             print(legend)
-
-        print("Process classification statistics:")
         states = get_process_states(terminated=True, as_string=True, with_legend=False)
         print(f"\nTotal terminated: {self.count(states)}.")
         states = get_process_states(terminated=False, as_string=True, with_legend=False)
         print(f"Total not terminated: {self.count(states)}.")
 
-        print(f"\nFull classification:")
+        print(f"\nFull classification by process state:")
         finished = PS.FINISHED.value
         statistics = {process_state: len(processes) for process_state, processes in self.classified_by_state.items()
                       if process_state != finished}
