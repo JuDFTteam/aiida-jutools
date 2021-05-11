@@ -21,17 +21,6 @@ if __name__ == '__main__':
         # add long_description from readme.md:
         long_description = long_description, # add contents of README.md
         long_description_content_type ='text/markdown',  # This is important to activate markdown!
-        install_requires=[
-            'aiida-core',
-            'masci-tools',
-            'aiida-kkr',
-            'numpy',
-            'scipy',
-            'pycifrw',
-            'spglib',
-            'pandas',
-            'humanfriendly',
-        ],
         # add rest of the things defined in setup.json
         **kwargs
     )
