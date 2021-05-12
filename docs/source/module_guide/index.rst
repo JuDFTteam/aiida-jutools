@@ -1,5 +1,5 @@
-Modules provided with aiida-kkr (API reference)
-===============================================
+Modules provided with aiida-jutools (API reference)
+===================================================
 
 .. toctree::
     :maxdepth: 3
