@@ -6,9 +6,9 @@ Tools
 
 Here the tools provided by ``aiida_kkr`` are described.
 
-Common (work)functions that need aiida
+Utilities for working with AiiDA processes and process nodes
 --------------------------------------
-.. automodule:: aiida_kkr.tools.common_workfunctions
+.. automodule:: aiida_jutools.util_process
    :members:
    :private-members:
    :special-members:
