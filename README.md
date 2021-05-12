@@ -7,16 +7,26 @@
 
 # aiida-jutools
 
-Utilities that are commonly used by the aiida plugins developed at FZ Jülich
+This package is dual-purpose.
 
-[AiiDA](https://aiida.net) helpers for the Jülich aiida-plugins:
-* aiida-kkr
-* aiida-fleur
-* aiida-spex
+Purpose 1: provide utilities for the daily [AiiDA](https://aiida.net) Python API user. 
+These utilities can be found in the modules prefixed with `util_`, like `util_process` 
+for working with AiiDA processes and process nodes.
+
+Purpose 2: Utilities which are commonly used by the AiiDA plugins developed at FZ Jülich:
+* [aiida-kkr](https://github.com/JuDFTteam/aiida-fleur)
+* [aiida-fleur](https://github.com/JuDFTteam/aiida-kkr/)
+* [aiida-spirit](https://github.com/JuDFTteam/aiida-spirit)
+* [aiida-spex](https://github.com/JuDFTteam/aiida-spex)
 
 ## Installation
 
-under construction
+Until further notice, install either by cloning the repository and use locally, 
+or by doing an editable install via `pip.`
+
+```bash
+pip install -e git+https://github.com/JuDFTteam/aiida-jutools@develop#egg=aiida-jutools
+```
 
 ## Usage and Documentation
 
