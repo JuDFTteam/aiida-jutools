@@ -84,7 +84,7 @@ copyright = u'{}, {}. All rights reserved'.format(copyright_year_string, copyrig
 # built documents.
 #
 # The full version, including alpha/beta/rc tags.
-release = aiida_kkr.__version__
+release = aiida_jutools.__version__
 # The short X.Y version.
 version = '.'.join(release.split('.')[:2])
 

@@ -21,7 +21,7 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "0.0.1",
+    "version": "0.1.0",
     "reentry_register": true,
     "install_requires": [
         "aiida-core",
