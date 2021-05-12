@@ -14,11 +14,10 @@ These utilities can be found in the modules prefixed with `util_`, like `util_pr
 for working with AiiDA processes and process nodes.
 
 Purpose 2: Utilities which are commonly used by the AiiDA plugins developed at FZ Jülich:
-* [aiida-kkr](https://github.com/JuDFTteam/aiida-fleur)
 * [aiida-fleur](https://github.com/JuDFTteam/aiida-kkr/)
+* [aiida-kkr](https://github.com/JuDFTteam/aiida-fleur)
+* [aiida-spex](https://iffgit.fz-juelich.de/chand/aiida-spex)
 * [aiida-spirit](https://github.com/JuDFTteam/aiida-spirit)
-* [aiida-spex](https://github.com/JuDFTteam/aiida-spex)
-
 ## Installation
 
 Until further notice, install either by cloning the repository and use locally, 
