@@ -1,6 +1,6 @@
-#######################################################################
-`AiiDA`_ helper tools used byt the aiida-plugins for the `juDFT`_ codes
-#######################################################################
+######################################################################
+`AiiDA`_ helper tools used by the aiida-plugins for the `juDFT`_ codes
+######################################################################
 
 .. image:: images/AiiDA_transparent_logo.png
     :width: 40%

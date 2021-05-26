@@ -11,7 +11,7 @@
 #                                                                             #
 ###############################################################################
 """Tools for working with aiida Group entities."""
-
+import logging
 import sys
 import typing
 from datetime import datetime
@@ -126,20 +126,30 @@ class GroupsFromDict:
             groups.append(group)
 
 
-def verdi_group_list(projection: typing.List[str] = ['label', 'id', 'type_string'], with_header: bool = True):
+def verdi_group_list(projection: typing.List[str] = ['label', 'id', 'type_string'],
+                     with_header: bool = True, label_filter: str = None) -> list:
     """Equivalent to CLI "verdi group list -a" (minus user mail address).
 
-    :param with_header: True: first list in return argument is the projection argument
     :param projection: query projection
+    :param with_header: True: first list in return argument is the projection argument
+    :param label_filter: optional: only include groups with this substring in their label
     :return: list of lists, one entry per projection value, for each group
     """
     qb = aiida.orm.QueryBuilder()
     group_list = qb.append(aiida.orm.Group, project=projection).all()
+
+    if 'label' in projection and label_filter:
+        index_of_label = projection.index('label')
+        group_list = [item for item in group_list if label_filter in item[index_of_label]]
+
     group_list.sort(key=lambda item: item[0].lower())
+
     if with_header:
         group_list.insert(0, projection)
+
     if len(projection) == 1:
         group_list = [singlelist[0] for singlelist in group_list]
+
     return group_list
 
 
@@ -165,6 +175,8 @@ def move_nodes(origin: aiida.orm.Group, destination: aiida.orm.Group):
 
     :param origin: origin group
     :param destination: destination group
+
+    Note: if the new group does not exit yet, prefer relabling the group with group.label = new_label.
     """
     destination.add_nodes(list(origin.nodes))
     origin.remove_nodes(list(origin.nodes))
@@ -278,36 +290,57 @@ def group_new_nodes(new_group_label: str, blacklist: typing.List[aiida.orm.Node]
         return new_group
 
 
-def delete_groups(group_labels: typing.List[str]):
-    """Delete a group. Aborts if group is non-empty. Use delete_groups_with_nodes() for that.
+def delete_groups(group_labels: typing.List[str], skip_nonempty_groups: bool = True, silent: bool = False):
+    """Delete group(s). Does not delete nodes in group(s). Use delete_groups_with_nodes() for that.
 
     :param group_labels: list of group labels
+    :param skip_nonempty_groups: True: skip them. False: don't skip. Nodes get removed from group, not deleted.
+    :param silent: True: do not print information.
     """
-
     for label in group_labels:
         try:
             group = aiida.orm.Group.get(label=label)
         except aiida.common.exceptions.NotExistent:
             print(f"Warning: group to delete '{label}' does not exist.")
         else:
-            if group.count() > 0:
-                print(f"Info: Skipping non-empty group<{label}>: contains {group.count()} nodes.")
+            if group.count() > 0 and skip_nonempty_groups:
+                if not silent:
+                    print(f"Info: Skipping non-empty group<{label}>: contains {group.count()} nodes.")
             else:
-                group.clear()
+                group.clear()  # remove nodes from group
                 aiida.orm.Group.objects.delete(group.pk)
-                print(f"Group '{label}' deleted.")
+                if not silent:
+                    print(f"Group '{label}' deleted.")
 
 
-def delete_groups_with_nodes(group_labels: typing.List[str], dry_run=True, verbosity=2, leave_groups: bool = False):
+def delete_groups_with_nodes(group_labels: typing.List[str], dry_run: bool = True,
+                             verbosity: int = logging.INFO, leave_groups: bool = False):
     """Delete all nodes in each group (including repo files), then delete the groups themselves.
 
     :param group_labels: list of group labels
     :param dry_run: perform test run. if output looks good, set to false and repeat.
-    :param verbosity: 0, 1 or 2, 2=max=default.
+    :param verbosity: 20 = logging.INFO (show node count) (default), 10 = DEBUG (show all uuids), all other: silent.
     :param leave_groups: True: Leave empty groups as is after deleting all nodes in them.
     """
     # get the node delete function used by 'verdi node delete -v -n/-f'
-    from aiida.manage.database.delete.nodes import delete_nodes
+    # DEVNOTE: deprecation warning: aiida-core v1.6.0: replaced aiida.manage.database.delete.nodes.delete_nodes
+    # aiida.tools.delete_nodes
+    # (reference: https://github.com/aiidateam/aiida-core/blob/develop/CHANGELOG.md#v160---2021-03-15).
+
+    # get full periodic table pandas dataframe from mendeleev
+    # DEVNOTE: breaking change in mendeleev v0.7.0: replaced get_table with fetch.fetch_table.
+    version = aiida.__version__
+    version_info = tuple([int(num) for num in version.split(".")])
+    is_aiida_v160_plus = version_info >= (1, 6, 0)
+
+    if is_aiida_v160_plus:
+        from aiida.tools import delete_nodes
+        # deprecation warning: verbosity argument replaced with setting logger
+        from aiida.common.log import AIIDA_LOGGER
+        DELETE_LOGGER = AIIDA_LOGGER.getChild('delete')
+        DELETE_LOGGER.setLevel(verbosity)
+    else:
+        from aiida.manage.database.delete.nodes import delete_nodes
 
     print("Deleting nodes in groups...")
 
@@ -320,7 +353,10 @@ def delete_groups_with_nodes(group_labels: typing.List[str], dry_run=True, verbo
         pks += [node.pk for node in group.nodes]
 
     # delete nodes
-    delete_nodes(pks=pks, dry_run=dry_run, force=True, verbosity=verbosity)
+    if is_aiida_v160_plus:
+        delete_nodes(pks=pks, dry_run=dry_run)
+    else:
+        delete_nodes(pks=pks, dry_run=dry_run, force=True, verbosity=verbosity)
 
     # now delete groups
     print(f"Deleting groups: {not leave_groups}...")
