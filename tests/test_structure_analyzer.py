@@ -16,15 +16,11 @@ Testing script, change '/path/to/cif/file.cif' in last line to existing cif file
 - apart from aiida, pymatgen and PyCifRW packages are needed to use > analyze_symmetry <
 """
 
-import sys
-
-# aiida imports
-from aiida import load_profile
-load_profile()
-
-from structure_analyzer import analyze_symmetry
-from terminal_colors import *
+from aiida.manage.tests.pytest_fixtures import aiida_profile
+from aiida_jutools.structure_analyzer import analyze_symmetry
+from aiida_jutools.terminal_colors import *
 from pprint import pprint
+import pathlib
 
 __copyright__ = (u"Copyright (c), 2019-2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -56,4 +52,15 @@ def cif2astr(cifpath):
         print('\n'+'extras:'+'\n')
         pprint(structure['aiida_structure_conventional'].extras, width=256)
 
-cif2astr('/path/to/cif/file.cif')
+
+def test_cif2astr(aiida_profile):
+    cifpath = pathlib.Path('files/Cu_mp-30_computed.cif')
+    cif_abspath = str(cifpath.absolute())
+    print(cif_abspath)
+    cif2astr(cif_abspath)
+
+
+if __name__=='__main__':
+    from aiida import load_profile
+    load_profile()
+    test_cif2astr(None)

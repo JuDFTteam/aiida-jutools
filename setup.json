@@ -1,6 +1,6 @@
 {
     "name": "aiida-jutools",
-    "author": "JuDFTteam, Philipp Rüßmann",
+    "author": "JuDFTteam",
     "author_email": "p.ruessmann@fz-juelich.de",
     "description": "AiiDA helper for Jülich AiiDA plugins",
     "url": "https://github.com/JuDFTteam/aiida-jutools",
@@ -8,12 +8,11 @@
     "license": "MIT",
     "classifiers": [
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Development Status :: 4 - Beta",
         "Environment :: Plugins",
         "Intended Audience :: Science/Research",
@@ -30,12 +29,19 @@
         "numpy",
         "scipy",
         "pycifrw",
+        "pymatgen",
         "spglib",
         "pandas",
         "humanfriendly"
     ],
     "extras_require": {
-        "pre-commit": [
+        "testing": [
+            "pytest-cov",
+            "pgtest"
+        ],
+        "docs": [
+            "Sphinx",
+            "sphinx-rtd-theme"
         ]
     },
     "entry_points": {
