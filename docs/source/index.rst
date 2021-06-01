@@ -1,44 +1,35 @@
-######################################################################
-`AiiDA`_ helper tools used by the aiida-plugins for the `juDFT`_ codes
-######################################################################
+.. figure:: images/AiiDA_transparent_logo.png
+    :width: 250px
+    :align: center
 
-.. image:: images/AiiDA_transparent_logo.png
-    :width: 40%
+The aiida-jutools plugin for `AiiDA`_
+=====================================================
 
-.. _AiiDA: http://www.aiida.net
-.. _juDFT: http://www.judft.de/pm/index.php
+``aiida-jutools`` is available at http://github.com/JuDFTteam/aiida-jutools
 
-
-
-Welcome to documentation of `aiida-jutools`_ 
-============================================
-
-The plugin is available at https://github.com/JuDFTteam/aiida-jutools
-
-.. _aiida-jutools: https://github.com/JuDFTteam/aiida-jutools
-
-
-Requirements
-------------
-
-- ...
-
-
-User's guide
-++++++++++++
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
 
    user_guide/index
+   developer_guide/index
+   API documentation <apidoc/aiida_jutools>
 
-Modules provided with aiida-jutools (API reference)
-+++++++++++++++++++++++++++++++++++++++++++++++++++
+If you use this plugin for your research, please cite the following work:
 
-.. toctree::
-   :maxdepth: 4
+.. highlights:: Author Name1, Author Name2, *Paper title*, Jornal Name XXX, YYYY (Year).
 
-   module_guide/index
+If you use AiiDA for your research, please cite the following work:
+
+.. highlights:: Giovanni Pizzi, Andrea Cepellotti, Riccardo Sabatini, Nicola Marzari,
+  and Boris Kozinsky, *AiiDA: automated interactive infrastructure and database
+  for computational science*, Comp. Mat. Sci 111, 218-230 (2016);
+  https://doi.org/10.1016/j.commatsci.2015.09.013; http://www.aiida.net.
+
+``aiida-jutools`` is released under the MIT license.
+
+Please contact p.ruessmann@fz-juelich.de for information concerning ``aiida-jutools`` and the `AiiDA mailing list <http://www.aiida.net/mailing-list/>`_ for questions concerning ``aiida``.
+
 
 Indices and tables
 ==================
@@ -47,3 +38,4 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+.. _AiiDA: http://www.aiida.net

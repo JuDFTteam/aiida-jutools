@@ -1,31 +1,28 @@
 {
     "name": "aiida-jutools",
-    "author": "JuDFTteam",
+    "author": "The JuDFT Team",
     "author_email": "p.ruessmann@fz-juelich.de",
-    "description": "AiiDA helper for Jülich AiiDA plugins",
+    "description": "Utilities for working with AiiDA as a user, and for JuDFTteam plugin developers",
     "url": "https://github.com/JuDFTteam/aiida-jutools",
-    "download_url": "https://github.com/JuDFTteam/aiida-jutools",
     "license": "MIT",
     "classifiers": [
-        "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Development Status :: 4 - Beta",
-        "Environment :: Plugins",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Physics",
+        "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
     "version": "0.1.0-dev1",
+    "entry_points": {
+    },
+    "include_package_data": true,
+    "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "aiida-core",
+        "aiida-core>=1.1.0,<2.0.0",
+        "sqlalchemy<1.4",
         "masci-tools",
-        "aiida-kkr",
         "numpy",
         "scipy",
         "pycifrw",
@@ -35,15 +32,29 @@
         "humanfriendly"
     ],
     "extras_require": {
-        "testing": [
-            "pytest-cov",
-            "pgtest"
+        "devtools": [
+            "bump2version >= 1.0.0"
         ],
         "docs": [
-            "Sphinx",
-            "sphinx-rtd-theme"
+            "sphinx",
+            "sphinx-rtd-theme",
+            "sphinx-autodoc-typehints",
+            "sphinxcontrib-contentui"
+        ],
+        "pre-commit": [
+            "astroid<2.5",
+            "pre-commit~=2.2",
+            "pylint~=2.5.0"
+        ],
+        "testing": [
+            "pgtest~=1.3.1",
+            "wheel~=0.31",
+            "coverage",
+            "pytest~=3.6,<5.0.0",
+            "pytest-cov",
+            "pytest-mpl",
+            "pytest-timeout",
+            "aiida-testing @ git+https://github.com/aiidateam/aiida-testing.git@40fbb3c564e250933653162ef5c56fda44348bd6"
         ]
-    },
-    "entry_points": {
     }
 }
