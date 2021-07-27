@@ -12,16 +12,17 @@
 ###############################################################################
 """Tools for working with aiida-kkr nodes."""
 
-from aiida.orm import CalcJobNode
+from aiida.orm import CalcJobNode as _CalcJobNode, WorkChainNode as _WorkChainNode
 
-from aiida.orm import Dict
-from aiida.orm import QueryBuilder, Group, RemoteData, StructureData
+from aiida.orm import Dict as _Dict
+from aiida.orm import QueryBuilder as _QueryBuilder, Group as _Group, RemoteData as _RemoteData, \
+    StructureData as _StructureData
 
-from aiida_kkr.workflows import kkr_imp_wc, kkr_scf_wc
-from masci_tools.util.chemical_elements import ChemicalElements
+from aiida_kkr.workflows import kkr_imp_wc as _kkr_imp_wc, kkr_scf_wc as _kkr_scf_wc
+from masci_tools.util.chemical_elements import ChemicalElements as _ChemicalElements
 
 
-def check_if_kkr_calc_converged(kkr_calc: CalcJobNode):
+def check_if_kkr_calc_converged(kkr_calc: _CalcJobNode):
     """Assert (fail if false) that kkr calculation has converged.
 
     DEVNOTE: used aiida base node type for argument type so it works with all kkr calc node types.
@@ -39,75 +40,78 @@ def check_if_kkr_calc_converged(kkr_calc: CalcJobNode):
         raise err
 
 
-def query_kkr_wc(cls=kkr_imp_wc, symbols: list = ['H', 'H'], group=None):
+def query_kkr_wc(cls=_kkr_imp_wc, symbols: list = ['H', 'H'], group=None) -> _QueryBuilder:
     """Query kkr workchains based on their input structures.
 
-    For general workchain queries, see util_process.query_processes.
+    Constraints:
+
+    - if kkr_scf_wc, and symbols given, queries with first symbol only (elemental crystal).
+    - if kkr_imp_wc, requires symbols, queries with first symbol = impurity, second symbol = host crystal.
+
+    For general workchain queries, use :py:func:`~aiida_jutools.util_process.query_processes` instead.
 
     :param cls: kkr workchain class
     :type cls: kkr_scf_wc or kkr_imp_wc
     :param group: given: search in group, not: search in database
     :type group: aiido.orm.Group
-    :param symbols: typically chemical element symbol. One for kkr_scf_wc, two for kkr_imp_wc (imp, host).
+    :param symbols: list of chemical element symbols.
     :type symbols: list of str
     :return: the built query for matching workchains
-    :rtype: QueryBuilder
     """
-    if not symbols:
-        raise KeyError("No symbols supplied.")
-
     if isinstance(symbols, str):
         symbols = [symbols]
 
-    qb = QueryBuilder()
+    qb = _QueryBuilder()
     if group:
-        qb.append(Group, filters={'label': group.label}, tag='group')
-    if issubclass(cls, kkr_scf_wc):
+        qb.append(_Group, filters={'label': group.label}, tag='group')
+    if issubclass(cls, _kkr_scf_wc):
         if group:
-            qb.append(kkr_scf_wc, with_group='group', tag='workchain', project='*')
+            qb.append(_kkr_scf_wc, with_group='group', tag='workchain', project='*')
         else:
-            qb.append(kkr_scf_wc, tag='workchain', project='*')
-        qb.append(StructureData, with_outgoing='workchain',
-                  filters={'attributes.kinds.0.name': symbols[0]})
-
-        # # alternative: require extras
-        # qb.append(StructureData, with_outgoing='workchain', filters={"extras.symbol": symbols[0]})
-    elif issubclass(cls, kkr_imp_wc):
+            qb.append(_kkr_scf_wc, tag='workchain', project='*')
+        if symbols:
+            qb.append(_StructureData, with_outgoing='workchain',
+                      filters={'attributes.kinds.0.name': symbols[0]})
+            # # alternative: require extras
+            # qb.append(_StructureData, with_outgoing='workchain', filters={"extras.symbol": symbols[0]})
+    elif issubclass(cls, _kkr_imp_wc):
+        if not symbols:
+            raise KeyError("No symbols supplied.")
         if len(symbols) == 2:
-            elmts = ChemicalElements()
+            elmts = _ChemicalElements()
             imp_number = elmts[symbols[0]]
             # wc.inputs.impurity_info.attributes['Zimp']
             if group:
-                qb.append(kkr_imp_wc, with_group='group', tag='imp_wc', project='*')
+                qb.append(_kkr_imp_wc, with_group='group', tag='imp_wc', project='*')
             else:
-                qb.append(kkr_imp_wc, tag='imp_wc', project='*')
-            qb.append(Dict, with_outgoing='imp_wc', filters={'attributes.Zimp': imp_number})
-            qb.append(RemoteData, with_outgoing='imp_wc', tag='remotedata')
-            qb.append(kkr_scf_wc, with_outgoing='remotedata', tag='scf_wc')
-            qb.append(StructureData, with_outgoing='scf_wc',
+                qb.append(_kkr_imp_wc, tag='imp_wc', project='*')
+            qb.append(_Dict, with_outgoing='imp_wc', filters={'attributes.Zimp': imp_number})
+            qb.append(_RemoteData, with_outgoing='imp_wc', tag='remotedata')
+            qb.append(_kkr_scf_wc, with_outgoing='remotedata', tag='scf_wc')
+            qb.append(_StructureData, with_outgoing='scf_wc',
                       filters={'attributes.kinds.0.name': symbols[1]})
             # # alternative: require extras
-            # qb.append(StructureData, with_outgoing='scf_wc', filters={"extras.symbol": symbols[1]})
+            # qb.append(_StructureData, with_outgoing='scf_wc', filters={"extras.symbol": symbols[1]})
 
             # # alternative: require extras
             # # note: don't set symbol in workchain extras anymore, so this is deprecated.
             # imp_symbol = ":".join(symbols)
             # if group:
-            #     qb.append(kkr_imp_wc, with_group='group', filters={"extras.embedding_symbol": imp_symbol})
+            #     qb.append(_kkr_imp_wc, with_group='group', filters={"extras.embedding_symbol": imp_symbol})
             # else:
-            #     qb.append(kkr_imp_wc, filters={"extras.embedding_symbol": imp_symbol})
+            #     qb.append(_kkr_imp_wc, filters={"extras.embedding_symbol": imp_symbol})
         else:
-            raise NotImplementedError(f"query not implemented for other than no. of symbols not in [1,2].")
+            raise NotImplementedError(f"query not implemented for kkr_imp_wc with no. of symbols other than 2.")
     else:
         raise NotImplementedError(f"workchain query not implemented for class {cls}.")
     return qb  # .all(flat=True)
 
 
-def query_structure_from(wc):
+def query_structure_from(wc: _WorkChainNode) -> _StructureData:
     """Get structure from kkr workchain.
 
     :param wc: workchain
-    :type wc: WorkChain or WorkChainNode of subtype kkr_scf_wc or kkr_imp_wc
+    :type wc: WorkChainNode of subtype kkr_scf_wc or kkr_imp_wc
     :return: structure if found else None
     :rtype: StructureData
     """
@@ -116,30 +120,36 @@ def query_structure_from(wc):
     assert isinstance(wc, WorkChain) or isinstance(wc, WorkChainNode)
 
     wc_cls_str = wc.attributes['process_label']
-    if wc_cls_str == 'kkr_scf_wc':
+    if wc_cls_str == '_kkr_scf_wc':
         # solution1: timing 7ms
         return wc.inputs.structure
         # # solution2: timing 27ms
         # return VoronoiCalculation.find_parent_structure(wc)
-    elif wc_cls_str == 'kkr_imp_wc':
+    elif wc_cls_str == '_kkr_imp_wc':
         # solution1: timing 18 ms
-        qb = QueryBuilder()
-        qb.append(StructureData, tag='struc', project='*')
-        qb.append(kkr_scf_wc, with_incoming='struc', tag='scf_wc')
-        qb.append(RemoteData, with_incoming='scf_wc', tag='remotedata')
-        qb.append(kkr_imp_wc, with_incoming='remotedata', filters={'uuid': wc.uuid})
+        qb = _QueryBuilder()
+        qb.append(_StructureData, tag='struc', project='*')
+        qb.append(_kkr_scf_wc, with_incoming='struc', tag='scf_wc')
+        qb.append(_RemoteData, with_incoming='scf_wc', tag='remotedata')
+        qb.append(_kkr_imp_wc, with_incoming='remotedata', filters={'uuid': wc.uuid})
         res = qb.all(flat=True)
         return res[0] if res else None
 
         # # solution2: timing 23ms
-        # scf = wci.inputs.remote_data_host.get_incoming(node_class=kkr_scf_wc).all_nodes()
+        # scf = wci.inputs.remote_data_host.get_incoming(node_class=_kkr_scf_wc).all_nodes()
         # return scf[0].inputs.structure if scf else None
     else:
         raise NotImplementedError(f"workchain query not implemented for class {wc_cls_str}.")
 
 
-def find_Rcut(structure, shell_count=2, rcut_init=7.0):
-    """For GF writeout / impurity workflows: find radius such that only the first two shells are included"""
+def find_Rcut(structure:_StructureData, shell_count:int=2, rcut_init:float=7.0) -> float:
+    """For GF writeout / impurity workflows: find radius such that only nearest-neighbor shells are included.
+
+    :param structure: structure.
+    :param shell_count: include this many nearest-neighbor shells around intended impurity site.
+    :param rcut_init: initial maximal rcut value, will be iteratively decreased until fit.
+    :return: rcut radius
+    """
     import numpy as np
 
     struc_pmg = structure.get_pymatgen()
