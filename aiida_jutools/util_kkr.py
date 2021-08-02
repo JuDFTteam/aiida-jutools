@@ -12,21 +12,27 @@
 ###############################################################################
 """Tools for working with aiida-kkr nodes."""
 
+from typing import Union as _Union, Dict as _Dict, Any as _Any
+from collections import OrderedDict as _OrderedDict
 import enum as _enum
 import os as _os
+import datetime as _datetime
+import pytz as _pytz
 
 import numpy as _np
 import pandas as _pd
+import aiida.orm
 from aiida.orm import CalcJobNode as _CalcJobNode, WorkChainNode as _WorkChainNode
-from aiida.orm import Dict as _Dict
 from aiida.orm import QueryBuilder as _QueryBuilder, Group as _Group, RemoteData as _RemoteData, \
     StructureData as _StructureData
 from aiida_kkr.calculations import VoronoiCalculation as _VoronoiCalculation
 from aiida_kkr.workflows import kkr_imp_wc as _kkr_imp_wc, kkr_scf_wc as _kkr_scf_wc, \
     kkr_startpot_wc as _kkr_startpot_wc
+
 from masci_tools.util import math_util as _math_util
 from masci_tools.util.chemical_elements import ChemicalElements as _ChemicalElements
 from masci_tools.util.constants import ANG_BOHR_KKR as _ANG_BOHR_KKR
+from masci_tools.util import python_util as _python_util
 
 
 def check_if_kkr_calc_converged(kkr_calc: _CalcJobNode):
@@ -92,7 +98,7 @@ def query_kkr_wc(cls=_kkr_imp_wc, symbols: list = ['H', 'H'], group=None) -> _Qu
                 qb.append(_kkr_imp_wc, with_group='group', tag='imp_wc', project='*')
             else:
                 qb.append(_kkr_imp_wc, tag='imp_wc', project='*')
-            qb.append(_Dict, with_outgoing='imp_wc', filters={'attributes.Zimp': imp_number})
+            qb.append(aiida.orm.Dict, with_outgoing='imp_wc', filters={'attributes.Zimp': imp_number})
             qb.append(_RemoteData, with_outgoing='imp_wc', tag='remotedata')
             qb.append(_kkr_scf_wc, with_outgoing='remotedata', tag='scf_wc')
             qb.append(_StructureData, with_outgoing='scf_wc',
@@ -127,12 +133,12 @@ def query_structure_from(wc: _WorkChainNode) -> _StructureData:
     assert isinstance(wc, WorkChain) or isinstance(wc, WorkChainNode)
 
     wc_cls_str = wc.attributes['process_label']
-    if wc_cls_str == '_kkr_scf_wc':
+    if wc_cls_str == 'kkr_scf_wc':
         # solution1: timing 7ms
         return wc.inputs.structure
         # # solution2: timing 27ms
         # return VoronoiCalculation.find_parent_structure(wc)
-    elif wc_cls_str == '_kkr_imp_wc':
+    elif wc_cls_str == 'kkr_imp_wc':
         # solution1: timing 18 ms
         qb = _QueryBuilder()
         qb.append(_StructureData, tag='struc', project='*')
@@ -178,51 +184,153 @@ def find_Rcut(structure: _StructureData, shell_count: int = 2, rcut_init: float 
     return rcut
 
 
-class KkrConstantType(_enum.Enum):
-    """Used by :py:class:`~aiida_jutools.util_kkr.KkrConstantsChecker`."""
-    OLD = 0
-    NEW = 1
-    NEITHER = 2
-    UNDECISIVE = 3
+class KkrConstantsVersion(_enum.Enum):
+    """Enum for labeling different KKR constants version.
+
+    Used by :py:class:`~aiida_jutools.util_kkr.KkrConstantsChecker`.
+
+    The enum values represent the respective constants values from different time spans
+
+    - :py:func:`~masci_tools.io.common_functions.get_Ang2aBohr`
+    - :py:func:`~masci_tools.io.common_functions.get_aBohr2Ang`
+    - :py:func:`~masci_tools.io.common_functions.get_Ry2eV`
+    - :py:data:`~masci_tools.util.constants.ANG_BOHR_KKR`
+    - :py:data:`~masci_tools.util.constants.RY_TO_EV_KKR`
+
+    Here is an overview of their values from the commit history timespan when the values underwent change.
+
+    ==========  ===========  =====  ===================  ====================  ==================
+    date        commit hash  type   ang 2 bohr constant  bohr to ang constant  ry to ev constant
+    ==========  ===========  =====  ===================  ====================  ==================
+    2018-10-26  04d55ea             1.8897261254578281   0.5291772106700000    13.605693009000000
+    2021-02-16  c171563             1.8897261249935897   0.5291772108000000    13.605693122994000
+    2021-04-28  66953f8      'old'  1.8897261254578281   0.5291772106700000    13.605693009000000
+    2021-04-28  66953f8      'new'  1.8897261246257702   0.5291772109030000    13.605693122994000
+    ==========  ===========  =====  ===================  ====================  ==================
+
+    Use :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersion.OLD.description` (or on any other enum) to get a
+    machine-readable version of this table.
+
+    So we have the following correspondence for ang 2 bohr constant / bohr to ang constant:
+
+    - OLD: [2018-10-26, 2021-02-16] and [2021-04-28,] (type 'old')
+    - INTERIM: [2021-02-16, 2021-04-28]
+    - NEW: [2021-04-28,] (type 'new')
+
+    For ry to ev constant, we have:
+
+    - OLD: as above
+    - INTERIM: same as NEW.
+    - NEW: [2021-02-16, 2021-04-28] and [2021-04-28,] (type 'new')
+
+    For constants values reverse-calculated from finished workchain for classification, we have the additional enums:
+
+    - NEITHER: for constants values recalculated from workchains which fit neither of the above by a wide margin
+    - UNDECISIVE: for constants values recalculated from workchains which fit neither of the above but are in range
+
+    Note: The order here reflects the importance. NEW should be preferred, OLD be used for old workchains performed
+    with these values, INTERIM should be avoided since masci-tools versions 2021-04-28 do not know these values,
+    NEITHER and UNDECISIVE are for workchain, not constants, reverse classification purposes only.
+    """
+    NEW = 0
+    OLD = 1
+    INTERIM = 2
+    NEITHER = 3
+    UNDECISIVE = 4
+
+    @property
+    def description(self) -> _Union[_Dict[str, _Union[str, _datetime.datetime]], str]:
+        """Describe constants versions.
+
+        Returns either a dictionary or a string, depending on the enum.
+
+        The returned dictionary describes from when to when the respective KKR constants
+        version was defined in the respective masci-tools version, here denoted by
+        commit hashes, as they are more accurate than the librarie's version numbers.
+        The left and right time limits are denoted by datetime objects of year one, and now.
+
+        This can be taken as a machine-readable indicator for comparison against classification results of
+        :py:class:`~aiida_jutools.util_kkr.KkrConstantsChecker` to validate whether the constants versions
+        there found for a workchain fit within the respective constants version's timefame described here.
+
+        Keep in mind though that the respective inspected workchain might have been run with an older masci-tools
+        version at creation time. So any constants version older than the workchain's creation time are legit,
+        only newer ones are impossible.
+        """
+        if self.name == KkrConstantsVersion.NEW.name:
+            return {'commit': "66953f8",
+                    'valid_from': _datetime.datetime(year=2021, month=4, day=28,
+                                                     hour=14, minute=2, second=0,
+                                                     microsecond=0, tzinfo=_pytz.UTC),
+                    'valid_until': _python_util.now()
+                    }
+        elif self.name == KkrConstantsVersion.INTERIM.name:
+            return {'commit': "c171563",
+                    'valid_from': _datetime.datetime(year=2021, month=2, day=16,
+                                                     hour=19, minute=40, second=0,
+                                                     microsecond=0, tzinfo=_pytz.UTC),
+                    'valid_until': _datetime.datetime(year=2021, month=4, day=28,
+                                                      hour=14, minute=2, second=0,
+                                                      microsecond=0, tzinfo=_pytz.UTC)
+                    }
+        elif self.name == KkrConstantsVersion.OLD.name:
+            return {'commit': "04d55ea",
+                    'valid_from': _datetime.datetime(year=1, month=1, day=1,
+                                                     hour=0, minute=0, second=0,
+                                                     microsecond=0, tzinfo=_pytz.UTC),
+                    'valid_until': _datetime.datetime(year=2021, month=2, day=16,
+                                                      hour=19, minute=40, second=0,
+                                                      microsecond=0, tzinfo=_pytz.UTC)
+                    }
+        elif self.name in [KkrConstantsVersion.NEITHER.name, KkrConstantsVersion.UNDECISIVE.name]:
+            return f"For classification of aiida-kkr workchains by class {KkrConstantsVersionChecker.__name__}."
+        else:
+            raise NotImplementedError("Enum with undefined behavior. Contact developer.")
 
 
-class KkrConstantsChecker:
-    """Find out with which version of constants ``ANG_BOHR_KKR``, ``RY_TO_EV_KKR`` the finished workchain used.
-    
-    In 2021-05, the values of the conversion constants ``ANG_BOHR_KKR`` and  ``RY_TO_EV_KKR`` in
-    :py:mod:`~masci_tools.util.constants` were changed from previous values to their NIST values.
-    As a result, calculations with the old values cannot be reused in new calculations, otherwise
+class KkrConstantsVersionChecker:
+    """Find out with which version of constants ``ANG_BOHR_KKR``, ``RY_TO_EV_KKR`` finished aiida-kkr workchain were run.
+
+    Between 2021-02-16 and 2021-04-28, the the values of the conversion constants ``ANG_BOHR_KKR`` and
+    ``RY_TO_EV_KKR`` in :py:mod:`~masci_tools.util.constants` were changed from previous values to a set of
+    intermediate values, and then finally to NIST values. See :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersion`
+    docstring for a complete list. The ``constants`` module mentioned above offers an option to switch
+    back to the older constants versions, see its documentation.
+
+    As a result, calculations with the old constants versions cannot be reused in new calculations, otherwise
     the calculation fails with the error ``[read_potential] error ALAT value in potential is does not match``
-    in the ``_scheduler-stderr.txt`` output. (The ``constants`` module above offers an option to switch
-    back to the old constants values, see its documentation.)
+    in the ``_scheduler-stderr.txt`` output.
+
+    This class checks aiida-kkr workchains for the constants version it likely was performed with. The result
+    is a DataFrame with one row for each checked workchain.
+
+    Currently, this class only reverse-calculates the ``ANG_BOHR_KKR`` constant from a workchain for version checking.
+    The ``RY_TO_EV_KKR`` constant is not used.
     """
 
     def __init__(self):
-        """Initialization reads the constants' runtime values and compares with environment settings."""
-        # from masci_tools.io.constants
-        # used by masci_tools.io.common_functions > get_Ang2aBohr()
-        # old: before 2021-05
-        # new: since 2021-05, NIST value
-        # switch to old with os.environ['MASCI_TOOLS_USE_OLD_CONSTANTS']='True'
+        """Initialization reads the constants' runtime versions and cross-checks with environment settings."""
 
         # problem is that masci_tools.util.constants constants ANG_BOHR_KKR, RY_TO_EV_KKR definitions (values) depend on
         # the value of the env var os.environ['MASCI_TOOLS_USE_OLD_CONSTANTS'] at module initialization. After that,
         # the definition stays fixed, and changing the value of the env var does not alter it anymore.
-        # So, only way is to redefine the constants values here (using the same values as there) in order to have both
-        # available at runtime.
+        # So, only way to have access to all versions at runtime is to redefine the constants values here
+        # (using the same values as there).
         # This also means that we could just query the current constants value to decide whether current env loaded
         # the old or new values. But we will still check the env var in order to cross-check findings. If they don't
         # agree, the implementation logic has likely changed, and this code may be out of order.
 
         #######################
         # 1) init internal data structures
-        self._ANG_BOHR_KKR = {
-            KkrConstantType.OLD: 1.8897261254578281,
-            KkrConstantType.NEW: 1.8897261246257702
+        self._ANG_BOHR_KKR = {  # order importance (not by value): NEW > OLD > INTERIM
+            KkrConstantsVersion.NEW: 1.8897261246257702,
+            KkrConstantsVersion.INTERIM: 1.8897261249935897,
+            KkrConstantsVersion.OLD: 1.8897261254578281,
         }
-        self._RY_TO_EV_KKR = {
-            KkrConstantType.OLD: 13.605693009,
-            KkrConstantType.NEW: 13.605693122994
+        self._RY_TO_EV_KKR = {  # order importance (not by value): NEW > OLD
+            KkrConstantsVersion.NEW: 13.605693122994,
+            KkrConstantsVersion.INTERIM: 13.605693122994,
+            KkrConstantsVersion.OLD: 13.605693009,
         }
         self._runtime_const_type = {
             'ANG_BOHR_KKR': None,
@@ -232,11 +340,12 @@ class KkrConstantsChecker:
         self._df_index_name = 'workchain_uuid'
         self._df_schema = {
             'ctime': object,  # workchain ctime
-            'group': str, # group label, if specified
+            'group': str,  # group label, if specified
             'ANG_BOHR_KKR': _np.float64,  # recalculated from alat, bravais
-            'constant_type': object,  # type of recalculated ANG_BOHR_KKR (old, new, neither) based on abs_tol
+            'constants_version': object,  # type of recalculated ANG_BOHR_KKR (old, new, neither) based on abs_tol
+            'diff_new': _np.float64,  # abs. difference recalculated - new ANG_BOHR_KKR value
             'diff_old': _np.float64,  # abs. difference recalculated - old ANG_BOHR_KKR value
-            'diff_new': _np.float64  # abs. difference recalculated - new ANG_BOHR_KKR value
+            'diff_interim': _np.float64,  # abs. difference recalculated - interim ANG_BOHR_KKR value
         }
         self._df = _pd.DataFrame(columns=self._df_schema.keys()).astype(self._df_schema)
         self._df.index.name = self._df_index_name
@@ -248,32 +357,44 @@ class KkrConstantsChecker:
         # note: aiida-kkr uses masci_tools.io.common_functions get_Ang2aBohr (=ANG_BOHR_KKR),
         #       get_aBohr2Ang() (=1/ANG_BOHR_KKR), get_Ry2eV (=RY_TO_EV_KKR) instead, but this is redundant.
         #       Here we import the constants directly.
+        # note:
         msg_suffix = "This could indicate an implementation change. " \
                      "As a result, this function might not work correctly anymore."
 
-        if _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantType.NEW]:
-            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantType.NEW
-        if _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantType.OLD]:
-            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantType.OLD
+        if _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.NEW]:
+            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantsVersion.NEW
+        elif _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.INTERIM]:
+            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantsVersion.INTERIM
+        elif _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.OLD]:
+            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantsVersion.OLD
         else:
-            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantType.NEITHER
+            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantsVersion.NEITHER
             print(f"Warning: The runtime value of constant ANG_BOHR_KKR matches no expected value. {msg_suffix}")
 
-        # env var cases: 3: None, 'True', not {None, 'True'}.
-        # const type cases: 3: NEW, OLD, NEITHER.
-        # cross-product: 3 x 3 = 9.
+        # env var cases: 4: None, 'Interim', 'True', not {None, 'True', 'Interim'}.
+        # const type cases: 4: NEW, OLD, INTERIM, NEITHER.
+        # cross-product: 4 x 4 = 16.
+        # this assumes that current masci-tools version supports the environment switch WITH the 'Interim' option,
+        # i.e. from 2021-01-08 or newer (switch was implemented 2021-04-28, without 'Interim' option).
         #
-        # | env var            | const type | valid | defined | reaction  | case |
-        # | ------------------ | ---------- | ----- | ------- | --------- | ---- |
-        # | None               | NEW        | yes   | yes     | pass      | D    |
-        # | None               | OLD        | no    | no      | exception | A    |
-        # | None               | NEITHER    | no    | no      | exception | A    |
-        # | 'True'             | New        | no    | no      | exception | B    |
-        # | 'True'             | OLD        | yes   | yes     | pass      | D    |
-        # | 'True'             | NEITHER    | no    | no      | exception | B    |
-        # | not {None, 'True'} | NEW        | no    | no      | pass(1)   | D    |
-        # | not {None, 'True'} | OLD        | no    | no      | exception | C    |
-        # | not {None, 'True'} | NEITHER    | no    | no      | exception | C    |
+        # | env var                       | const type | valid | defined | reaction  | case |
+        # | ------------------            | ---------- | ----- | ------- | --------- | ---- |
+        # | None                          | NEW        | yes   | yes     | pass      | E    |
+        # | None                          | INTERIM    | no    | no      | exception | A    |
+        # | None                          | OLD        | no    | no      | exception | A    |
+        # | None                          | NEITHER    | no    | no      | exception | A    |
+        # | 'Interim                      | New        | no    | no      | exception | B    |
+        # | 'Interim'                     | INTERIM    | yes   | yes     | pass      | E    |
+        # | 'Interim'                     | OLD        | yes   | yes     | exception | B    |
+        # | 'Interim'                     | NEITHER    | no    | no      | exception | B    |
+        # | 'True'                        | New        | no    | no      | exception | C    |
+        # | 'True'                        | INTERIM    | no    | no      | exception | C    |
+        # | 'True'                        | OLD        | yes   | yes     | pass      | E    |
+        # | 'True'                        | NEITHER    | no    | no      | exception | C    |
+        # | not {None, 'True', 'Interim'} | NEW        | no    | no      | pass(1)   | E    |
+        # | not {None, 'True', 'Interim'} | INTERIM    | no    | no      | exception | D    |
+        # | not {None, 'True', 'Interim'} | OLD        | no    | no      | exception | D    |
+        # | not {None, 'True', 'Interim'} | NEITHER    | no    | no      | exception | D    |
         # Annotations:
         # - case 'D' = 'else' = 'pass'.
         # - (1): passes with warning, from const type NEITHER above.
@@ -282,35 +403,42 @@ class KkrConstantsChecker:
         env_var_key = 'MASCI_TOOLS_USE_OLD_CONSTANTS'
         env_var_val = _os.environ.get(env_var_key, None)
         const_type = self._runtime_const_type['ANG_BOHR_KKR']
+
         cases = {
-            'A': (env_var_val is None and const_type != KkrConstantType.NEW),
-            'B': (env_var_val == 'True' and const_type != KkrConstantType.OLD),
-            'C': (env_var_val not in [None, 'True'] and const_type != KkrConstantType.NEW)
+            'A': (const_type != KkrConstantsVersion.NEW and env_var_val is None),
+            'B': (const_type != KkrConstantsVersion.INTERIM and env_var_val == 'Interim'),
+            'C': (const_type != KkrConstantsVersion.OLD and env_var_val == 'True'),
+            'D': (const_type != KkrConstantsVersion.NEW and env_var_val not in [None, 'True', 'Interim'])
         }
-        if cases['A'] or cases['C']:
+        if cases['A'] or cases['D']:
             raise ValueError(
                 f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
-                f"be of type {KkrConstantType.NEW}, but they are of type {const_type}. "
+                f"be of type {KkrConstantsVersion.NEW}, but they are of type {const_type}. "
                 f"{msg_suffix}")
         elif cases['B']:
             raise ValueError(
                 f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
-                f"be of type {KkrConstantType.OLD}, but they are of type {const_type}. "
+                f"be of type {KkrConstantsVersion.INTERIM}, but they are of type {const_type}. "
+                f"{msg_suffix}")
+        elif cases['C']:
+            raise ValueError(
+                f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
+                f"be of type {KkrConstantsVersion.OLD}, but they are of type {const_type}. "
                 f"{msg_suffix}")
         else:
             pass
 
     @property
     def ANG_BOHR_KKR(self) -> dict:
-        """Old and new value of KKR constant ANG_BOHR_KKR."""
+        """All constants versions of the conversion constant ``ANG_BOHR_KKR`` (Angstrom to Bohr radius)."""
         return self._ANG_BOHR_KKR
 
     @property
     def RY_TO_EV_KKR(self) -> dict:
-        """Old and new value of KKR constant RY_TO_EV_KKR."""
+        """All constants versions of the conversion constant ``RY_TO_EV_KKR`` (Rydberg to electron Volt)."""
         return self._RY_TO_EV_KKR
 
-    def get_runtime_type(self, constant_name: str = 'ANG_BOHR_KKR') -> KkrConstantType:
+    def get_runtime_type(self, constant_name: str = 'ANG_BOHR_KKR') -> KkrConstantsVersion:
         """Get KKR constant type (old, new or neither) of runtime constant value.
 
         :param constant_name: name of the constant.
@@ -332,13 +460,20 @@ class KkrConstantsChecker:
         # drop all rows from dataframe
         self._df = self._df.drop(labels=self._df.index)
 
-    def check_workchain(self, wc: _WorkChainNode,
-                        zero_threshold:float = 1e-15,
-                        group_label:str=None):
-        """This function finds out whether the given finished workchain was run with the old or new constants values.
+    def check_single_workchain(self, wc: _WorkChainNode,
+                               set_extra: bool = False,
+                               zero_threshold: float = 1e-15,
+                               group_label: str = None):
+        """Classify a finished workchain by its used KKR constants version by reverse-calculation.
 
-        :param wc: finished workchain of type kkr_scf_wc.
-        :param zero_threshold: Set structure cell elements below threshold to zero to counter rounding errors.
+        The result is available as a dataframe :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.df`.
+
+        Note: Will always check constants version by recalculating it, even if it may have already been set as an
+        extra. To classify with the extra instead, use method TODO.
+
+        :param wc: finished aiida-kkr workchain. Must have a ``kkr_startpot_wc`` descendant.
+        :param zero_threshold: Set structure cell elements below this threshold to zero to counter rounding errors.
+        :param set_extra: True: Set an extra on the workchain denoting the identified KKR constants version and values.
         :param group_label: optional: specify group label the workchain belongs to.
         """
 
@@ -355,11 +490,9 @@ class KkrConstantsChecker:
         BRAVAIS = None
         POSITIONS = None
         ANG_BOHR_KKR = None
-        constant_type = None
-        diff_old = None
-        diff_new = None
+        constants_version = None
 
-        structure = wc.inputs.structure
+        structure = query_structure_from(wc)
 
         structure_cell = _np.array(structure.cell)
         _math_util.set_zero_below_threshold(structure_cell, threshold=zero_threshold)
@@ -371,8 +504,9 @@ class KkrConstantsChecker:
         _math_util.set_zero_below_threshold(structure_positions, threshold=zero_threshold)
 
         #######################
-        # 2) read original alat and bravais from first inputcard
-        # For now, this is implemented for kkr_scf_wc > kkr_startpot_wc > VoronoiCalculation only.
+        # 2) Read original alat and bravais from first inputcard
+        # For now, this is implemented for aiida-kkr workchains with a single
+        #  kkr_startpot_wc > VoronoiCalculation descendant only.
 
         startpots = wc.get_outgoing(node_class=_kkr_startpot_wc).all_nodes()
 
@@ -382,94 +516,70 @@ class KkrConstantsChecker:
             print(f"{msg_prefix}: Does not have a {_kkr_startpot_wc.__name__} descendant. {msg_suffix}.")
             return
         else:
-            vorocalcs = startpots[0].get_outgoing(node_class=_VoronoiCalculation).all_nodes()
+            vorocalcs = None
+            # workchain might have several startpot descendants, one of which should hava a vorocalc descendant.
+            for startpot in startpots:
+                vorocalcs = startpot.get_outgoing(node_class=_VoronoiCalculation).all_nodes()
+                if vorocalcs:
+                    break
             if not vorocalcs:
                 print(f"{msg_prefix}: Does not have a {_VoronoiCalculation.__name__} descendant. {msg_suffix}.")
                 return
             else:
                 vorocalc = vorocalcs[0]
                 # vorocalc.get_retrieve_list()
-                inputcard = vorocalc.get_object_content('inputcard')
-                inputcard = inputcard.split('\n')
+                try:
+                    inputcard = vorocalc.get_object_content('inputcard')
+                    inputcard = inputcard.split('\n')
 
-                # read alat value
-                indices = [idx for idx, line in enumerate(inputcard) if 'ALATBASIS' in line]
-                if len(indices) == 1:
-                    ALATBASIS = float(inputcard[indices[0]].split()[1])
-                else:
-                    print(f"{msg_prefix}: Could not read 'ALATBASIS' value from inputcard file. {msg_suffix}.")
+                    # read alat value
+                    indices = [idx for idx, line in enumerate(inputcard) if 'ALATBASIS' in line]
+                    if len(indices) == 1:
+                        ALATBASIS = float(inputcard[indices[0]].split()[1])
+                    else:
+                        print(f"{msg_prefix}: Could not read 'ALATBASIS' value from inputcard file. {msg_suffix}.")
+                        return
+
+                    def read_field(keyword: str):
+                        lines = []
+                        reading = False
+                        for i, line in enumerate(inputcard):
+                            if reading:
+                                if line.startswith(' '):
+                                    lines.append(line)
+                                else:
+                                    reading = False
+                            if keyword in line:
+                                reading = True
+                        array = []
+                        for line in lines:
+                            array.append([float(numstr) for numstr in line.split()])
+                        array = _np.array(array)
+                        return array
+
+                    # read bravais value(s)
+                    # Typically, inputcard has line 'BRAVAIS', followed by 3 linex of 1x3 bravais matrix values.
+                    BRAVAIS = read_field(keyword='BRAVAIS')
+
+                    # read position value(s)
+                    # Typically, inputcard has line '<RBASIS>', followed by x linex of 1x3 bravais matrix values.
+                    POSITIONS = read_field(keyword='<RBASIS>')
+
+                except FileNotFoundError as err:
+                    print(f"{msg_prefix}: {FileNotFoundError.__name__}: Could not retrieve inputcard from its "
+                          f"{_VoronoiCalculation.__name__} {vorocalc}.")
                     return
-
-                def read_field(keyword:str):
-                    lines = []
-                    reading = False
-                    for i, line in enumerate(inputcard):
-                        if reading:
-                            if line.startswith(' '):
-                                lines.append(line)
-                            else:
-                                reading = False
-                        if keyword in line:
-                            reading = True
-                    array = []
-                    for line in lines:
-                        array.append([float(numstr) for numstr in line.split()])
-                    array = _np.array(array)
-                    return array
-
-                # read bravais value(s)
-                # Typically, inputcard has line 'BRAVAIS', followed by 3 linex of 1x3 bravais matrix values.
-                BRAVAIS = read_field(keyword='BRAVAIS')
-
-                # read position value(s)
-                # Typically, inputcard has line '<RBASIS>', followed by x linex of 1x3 bravais matrix values.
-                POSITIONS = read_field(keyword='<RBASIS>')
-
 
         #######################
         # 3) Recalculate ANG_BOHR_KKR from inputcard alat and bravais
-
-        # print(40*'-')
-        # print('wc', wc.uuid)
-        # print('alat')
-        # print(ALATBASIS)
-        # print('bravais')
-        # print(BRAVAIS)
-        # print('structure cell')
-        # print(structure_cell)
-        # print('positions')
-        # print(POSITIONS)
-        # print('structure positions')
-        # print(structure_positions)
-
-        # def reverse_calc_ANG_BOHR_KKR(inp_arr:_np.ndarray, struc_arr:_np.ndarray):
-        #     def reverse_calc_single_ANG_BOHR_KKR(x: float, y: float):
-        #         return ALATBASIS * x / y if (y != 0.0 and x != 0.0) else 0.0
-        #
-        #     if inp_arr.shape == struc_arr.shape:
-        #         ANG_BOHR_KKR = _np.mean([reverse_calc_single_ANG_BOHR_KKR(x, y)
-        #                                  for x, y in _np.nditer([inp_arr, struc_arr])
-        #                                  if x != 0.0 and y != 0.0])
-        #         return ANG_BOHR_KKR
-        #     else:
-        #         print(f"{msg_prefix}: Shapes of inputcard matrix and structure matrix "
-        #               f"do not match: {inp_arr.shape} != {struc_arr.shape}.")
-        #         return
-
-        # a2b_bra = reverse_calc_ANG_BOHR_KKR(BRAVAIS, structure_cell)
-        # a2b_pos = reverse_calc_ANG_BOHR_KKR(POSITIONS, structure_positions)
-        # ANG_BOHR_KKR = (a2b_bra + a2b_pos) / 2
-
-
-        def reverse_calc_ANG_BOHR_KKR(inp_arr:_np.ndarray, struc_arr:_np.ndarray):
+        def reverse_calc_ANG_BOHR_KKR(inp_arr: _np.ndarray, struc_arr: _np.ndarray):
             def reverse_calc_single_ANG_BOHR_KKR(x: float, y: float):
                 # print(f'calc ALATBASIS * {x} / {y}')
                 return ALATBASIS * x / y if (y != 0.0 and x != 0.0) else 0.0
 
-
             if inp_arr.shape == struc_arr.shape:
                 ANG_BOHR_KKR_list = [reverse_calc_single_ANG_BOHR_KKR(x, y)
-                                         for x, y in _np.nditer([inp_arr, struc_arr])]
+                                     for x, y in _np.nditer([inp_arr, struc_arr])]
                 return ANG_BOHR_KKR_list
             else:
                 print(f"{msg_prefix}: Shapes of inputcard matrix and structure matrix "
@@ -488,39 +598,146 @@ class KkrConstantsChecker:
 
         ANG_BOHR_KKR = _np.mean(a2b_list)
 
+        #######################
+        # 4) Determine constant type from reverse-calculated constant
 
-        diff_old = abs(ANG_BOHR_KKR - self.ANG_BOHR_KKR[KkrConstantType.OLD])
-        diff_new = abs(ANG_BOHR_KKR - self.ANG_BOHR_KKR[KkrConstantType.NEW])
-        if (diff_new > 1e-9 and diff_old > 1e-9):
-            # in this case, reverse calculation likely failed and can't say anything about original constant value
-            constant_type = KkrConstantType.UNDECISIVE
-        else:
-            constant_type = KkrConstantType.NEW if (diff_new < diff_old) else KkrConstantType.OLD
-            constant_type = constant_type if (diff_new != diff_old) else KkrConstantType.UNDECISIVE
+        difference = _OrderedDict()
+        # difference = {}
+        for ctype, value in self.ANG_BOHR_KKR.items():
+            difference[ctype] = abs(ANG_BOHR_KKR - value)
+
+        # find indices of minima
+        indices = [i for i, val in enumerate(difference.values()) if val == min(difference.values())]
+        # in case there are more than one minimum, assign by constants type importance order:
+        #  lower index = higher importance. But issue a warning.
+        constants_version = list(difference.keys())[indices[0]]
+        if len(indices) > 1:
+            print(f"Info: Workchain {wc} reverse-calculated 'ANG_BOHR_KKR' value undecisive. Could be either of "
+                  f"{[list(difference.keys())[i] for i in indices]}. Chose {constants_version}.")
 
         #######################
-        # 4) Add results to dataframe
+        # 5) Add results to dataframe
         if group_label:
             row['group'] = group_label
         row['ctime'] = wc.ctime
         row['ANG_BOHR_KKR'] = ANG_BOHR_KKR
-        row['constant_type'] = constant_type
-        row['diff_old'] = diff_old
-        row['diff_new'] = diff_new
+        row['constants_version'] = constants_version
+        row['diff_new'] = difference[KkrConstantsVersion.NEW]
+        row['diff_old'] = difference[KkrConstantsVersion.OLD]
+        row['diff_interim'] = difference[KkrConstantsVersion.INTERIM]
 
         self._df = self._df.append(_pd.Series(name=wc.uuid, data=row))
 
-    def check_workchain_group(self, group: _Group,
-                              process_labels: list = ['kkr_scf_wc'],
-                              zero_threshold:float = 1e-15):
-        """Reverse calculate ANG_BOHR_KKR constants for a group of workchains.
+        if set_extra:
+            extra = {
+                'constants_version': constants_version.name,
+                'ANG_BOHR_KKR': None,
+                'RY_TO_EV_KKR': None
+            }
 
-        :param group: a group with workchain nodes.
-        :param process_labels: list of valid process labels, e.g. ['kkr_scf_wc'] for aiida-kkr plugin.
-        :param zero_threshold: Set structure cell elements below threshold to zero to counter rounding errors.
+            if constants_version in [KkrConstantsVersion.NEW,
+                                     KkrConstantsVersion.INTERIM,
+                                     KkrConstantsVersion.OLD]:
+                extra['ANG_BOHR_KKR'] = self.ANG_BOHR_KKR[constants_version]
+                extra['RY_TO_EV_KKR'] = self.RY_TO_EV_KKR[constants_version]
+            else:
+                extra['ANG_BOHR_KKR'] = ANG_BOHR_KKR
+                extra['RY_TO_EV_KKR'] = None  # TODO recalculate as well
+
+            wc.set_extra('kkr_constants_version', extra)
+
+    def check_workchain_group(self, group: _Group,
+                              process_labels: list = [],
+                              set_extra: bool = False,
+                              zero_threshold: float = 1e-15):
+        """Classify a group of finished workchains by their used KKR constants versions by reverse-calculation.
+
+        The result is available as a dataframe :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.df`.
+
+        Note: Will always check constants version by recalculating it, even if it may have already been set as an
+        extra. To classify with the extra instead, use method TODO.
+
+        :param group: a group with aiida-kkr workchain nodes. Workchains must have a ``kkr_startpot_wc`` descendant.
+        :param process_labels: list of valid aiida-kkr workchain process labels, e.g. ['kkr_scf_wc', ...].
+        :param set_extra: True: Set an extra on the workchain denoting the identified KKR constants version and values.
+        :param zero_threshold: Set structure cell elements below this threshold to zero to counter rounding errors.
         """
-        for node in group.nodes:
-            if isinstance(node, _WorkChainNode) and node.process_label in process_labels:
-                self.check_workchain(wc=node,
-                                     zero_threshold=zero_threshold,
-                                     group_label=group.label)
+        if not process_labels:
+            print("Warning: No process labels specified. I will do nothing. Specify labels of processes which have "
+                  "a 'kkr_startpot_wc' descendant. Valid example: ['kkr_scf_wc', 'kkr_imp_wc'].")
+        else:
+            for node in group.nodes:
+                if isinstance(node, _WorkChainNode) and node.process_label in process_labels:
+                    self.check_single_workchain(wc=node,
+                                                set_extra=set_extra,
+                                                zero_threshold=zero_threshold,
+                                                group_label=group.label)
+
+    def check_single_workchain_provenance(self, wc: _WorkChainNode):
+        """Check whether the workchain and all its ancestors of a workchain used the same KKR constants versions.
+
+        This requires that the constants version on the workchain AND its ancestors was set as extra before with either
+        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_single_workchain` or
+        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_workchain_group`.
+
+        Currently, only ``kkr_imp_wc`` workchains supported.
+
+        Currently checked nodes provenance path (these must have the extras): ``kkr_scf_wc`` > ``kkr_imp_wc``.
+
+        In theory, all constants versions along the provenance path MUST be identical, and if not, the workchain
+        should have failed. If it has finished successfully however, the extras must be wrong.
+
+        :param wc: finished aiida-kkr workchain. Must have a ``kkr_startpot_wc`` descendant.
+        """
+        # TODO: Include intermediate kkr_imp_wc in provenance path check (e.g. GF writeout kkr_imp_wc).
+        # TODO: store findings in dataframe or dict
+
+        if not wc.process_label == 'kkr_imp_wc':
+            print(f"Workchain '{wc.label}', pk={wc.pk} is not a {_kkr_imp_wc.__name__}. Currently not supported.")
+        else:
+            try:
+                imp_version = wc.extras['kkr_constants_version']['constants_version']
+
+                scf_wcs = wc.get_incoming(node_class=_RemoteData,
+                                          link_label_filter='remote_data_host').all_nodes()[0].get_incoming(
+                    node_class=_kkr_scf_wc).all_nodes()
+                if not scf_wcs:
+                    print(f"Workchain '{wc.label}', pk={wc.pk} does not have a {_kkr_scf_wc.__name__} ancestor.")
+                else:
+                    try:
+                        scf_version = scf_wcs[0].extras['kkr_constants_version']['constants_version']
+                        if imp_version != scf_version:
+                            print(f"Mismatch in {KkrConstantsVersion.__name__} extras for kkr_imp_wc pk={wc.pk}, "
+                                  f"label='{wc.label}': parent kkr_scf_wc {scf_version}, kkr_imp_wc {imp_version}.")
+                    except KeyError as err:
+                        print(f"Workchain '{wc.label}', pk={wc.pk} is missing 'kkr_constants_version' extra.")
+            except KeyError as err:
+                print(f"Workchain '{wc.label}', pk={wc.pk} is missing 'kkr_constants_version' extra.")
+
+    def check_workchain_group_provenance(self, group: _Group,
+                                         process_labels: list = ['kkr_imp_wc']):
+        """Check whether the workchain and all its ancestors of a workchain used the same KKR constants versions.
+
+        This requires that the constants version on the workchain AND its ancestors was set as extra before with either
+        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_single_workchain` or
+        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_workchain_group`.
+
+        Currently, only ``kkr_imp_wc`` workchains supported.
+
+        Currently checked nodes provenance path (these must have the extras): ``kkr_scf_wc`` > ``kkr_imp_wc``.
+
+        Currently, findings are only printed, not stored in any way.
+
+        In theory, all constants versions along the provenance path MUST be identical, and if not, the workchain
+        should have failed. If it has finished successfully however, the extras must be wrong.
+
+        :param group: a group with aiida-kkr workchain nodes. Workchains must have a ``kkr_startpot_wc`` descendant.
+        :param process_labels: currently only ['kkr_imp_wc'] supported.
+        """
+        if not process_labels or process_labels != ['kkr_imp_wc']:
+            print("Warning: Unsupported process_labels list. I will do nothing. Currently supported: ['kkr_imp_wc'].")
+        else:
+            for node in group.nodes:
+                if isinstance(node, _WorkChainNode) and node.process_label in process_labels:
+                    self.check_single_workchain_provenance(node)
+
