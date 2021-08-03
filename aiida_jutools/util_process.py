@@ -11,35 +11,45 @@
 #                                                                             #
 ###############################################################################
 """Tools for working with aiida Process and ProcessNode objects."""
+import dataclasses as _dc
+import datetime as _datetime
+import json as _json
+import time as _time
+from typing import Union as _Union, List as _List
 
-import dataclasses as dc
+from aiida.cmdline.utils.query.calculation import CalculationQueryBuilder as _CalculationQueryBuilder
+from aiida.common import timezone as _aiida_timezone
+from aiida.common.exceptions import NotExistent as _NotExistent
+from aiida.engine.processes import ProcessState as _PS, Process as _Process
+from aiida.orm import ProcessNode as _ProcessNode, Group as _Group
+from aiida.orm import QueryBuilder as _QueryBuilder
+from masci_tools.util import python_util as _python_util
 
-from aiida.orm import QueryBuilder
+from aiida_jutools import util_group as _util_group
+from aiida_jutools.util_computer import QuotaQuerier as _QuotaQuerier
 
-from aiida_jutools.util_computer import QuotaQuerier
 
-
-def get_process_states(terminated: bool = None, as_string: bool = True, with_legend: bool = False) -> list:
-    """Get AiiDA process state available string values (of process_node.process_state).
+def get_process_states(terminated: bool = None,
+                       as_string: bool = True,
+                       with_legend: bool = False) -> _Union[_List[str], _List[_PS]]:
+    """Get AiiDA process state available string values (of ``process_node.process_state``).
 
     :param terminated: None: all states. True: all terminated states. False: all not terminated states.
     :param as_string: True: states as string representations. False: states as ProcessState Enum values.
     :param with_legend: add 2nd return argument: string of AiiDA process state classification
     :return:
     """
-    from aiida.engine.processes import ProcessState as PS
 
     # first check that ProcessState implementation has not changed
-    process_states_should = [PS.CREATED, PS.WAITING, PS.RUNNING, PS.FINISHED, PS.EXCEPTED, PS.KILLED]
-    if not set(PS) == set(process_states_should):
-        from aiida.engine.processes import ProcessState
+    process_states_should = [_PS.CREATED, _PS.WAITING, _PS.RUNNING, _PS.FINISHED, _PS.EXCEPTED, _PS.KILLED]
+    if not set(_PS) == set(process_states_should):
         print(f"WARNING: {get_process_states.__name__}: predefined list of process states {process_states_should} "
-              f"does not match {ProcessState.__name__} states {list(PS)} anymore. Update code.")
+              f"does not match {_PS.__name__} states {list(_PS)} anymore. Update code.")
 
     def states_subset(terminated: bool):
         if terminated is None:
-            return list(PS)
-        return [PS.FINISHED, PS.EXCEPTED, PS.KILLED] if terminated else [PS.CREATED, PS.WAITING, PS.RUNNING]
+            return list(_PS)
+        return [_PS.FINISHED, _PS.EXCEPTED, _PS.KILLED] if terminated else [_PS.CREATED, _PS.WAITING, _PS.RUNNING]
 
     states = [ps.value for ps in states_subset(terminated)] if as_string else states_subset(terminated)
 
@@ -62,7 +72,7 @@ AiiDA process state hierarchy:
         return states, legend
 
 
-def validate_process_states(process_states: list = [], as_string: bool = True) -> bool:
+def validate_process_states(process_states: _Union[_List[str], _List[_PS]], as_string: bool = True) -> bool:
     """Check if list contains any non-defined process state.
 
     :param process_states: list of items 'created' 'running' 'waiting' 'finished' 'excepted' 'killed'.
@@ -70,7 +80,7 @@ def validate_process_states(process_states: list = [], as_string: bool = True) -
     :return: True if all items are one of the above, False otherwise.
     """
     allowed_process_states = get_process_states(terminated=None, with_legend=False, as_string=as_string)
-    return all([ps in allowed_process_states for ps in process_states])
+    return all(ps in allowed_process_states for ps in process_states)
 
 
 def get_exit_codes(process_cls, as_dict: bool = False) -> object:
@@ -82,21 +92,19 @@ def get_exit_codes(process_cls, as_dict: bool = False) -> object:
     :param as_dict: return as dict {status : message} instead of as list of ExitCodes.
     :return: list of ExitCodes or dict.
     """
-    from aiida.engine import Process
-    assert issubclass(process_cls, Process)
+    assert issubclass(process_cls, _Process)
     exit_codes = list(process_cls.spec().exit_codes.values())
     return exit_codes if not as_dict else {ec.status: ec.message for ec in exit_codes}
 
 
-def validate_exit_statuses(process_cls, exit_statuses: list = []) -> bool:
+def validate_exit_statuses(process_cls, exit_statuses: _List[int] = []) -> bool:
     """Check if list contains any non-defined exit status for this process class.
 
     :param process_cls: Process class. Must be subclass of aiida Process
     :param exit_statuses: list of integers
     :return: True if all items are defined exit statuses for that process class, False otherwise.
     """
-    from aiida.engine import Process
-    assert issubclass(process_cls, Process)
+    assert issubclass(process_cls, _Process)
 
     exit_codes = get_exit_codes(process_cls=process_cls)
     valid_exit_statuses = [exit_code.status for exit_code in exit_codes]
@@ -104,10 +112,20 @@ def validate_exit_statuses(process_cls, exit_statuses: list = []) -> bool:
     return all([exit_status in valid_exit_statuses for exit_status in exit_statuses_without_0])
 
 
-def query_processes(label: str = None, process_label: str = None, process_states: list = None,
-                    exit_statuses: list = None, failed: bool = False, paused: bool = False, node_types: list = None,
-                    group=None, timedelta=None):
+def query_processes(label: str = None,
+                    process_label: str = None,
+                    process_states: _Union[_List[str], _List[_PS]] = None,
+                    exit_statuses: _List[int] = None,
+                    failed: bool = False,
+                    paused: bool = False,
+                    node_types: _Union[_List[_ProcessNode], _List[_Process]] = None,
+                    group: _Group = None,
+                    timedelta: _datetime.timedelta = None) -> _QueryBuilder:
     """Get all process nodes with given specifications. All arguments are optional.
+
+    ``process_states`` can either be a list of process state strings ('created' 'running' 'waiting' 'finished'
+    'excepted' 'killed'), or a list of :py:class:`~aiida.engine.processes.ProcessState` objects. See
+    :py:meth:`~aiida_jutools.util_process.get_process_states`.
 
     Examples:
     >>> from aiida_jutools.util_process import query_processes as qp, get_process_states as ps
@@ -120,9 +138,9 @@ def query_processes(label: str = None, process_label: str = None, process_states
 
     :param label: node label
     :param process_label: process label. for workflows of plugins, short name of workflow class.
-    :param process_states: list of items 'created' 'running' 'waiting' 'finished' 'excepted' 'killed'.
+    :param process_states: list of process states.
     :param exit_statuses: list of exit statuses as defined by the process label Process type.
-    :param failed: True: Restrict to 'finished' processes with exit_status 0. Ignore process_states, exit_statuses.
+    :param failed: True: Restrict to 'finished' processes with exit_status > 0. Ignore process_states, exit_statuses.
     :param paused: restrict to paused processes.
     :param node_types: list of subclasses of ProcessNode or Process.
     :param group: restrict search to this group.
@@ -130,7 +148,6 @@ def query_processes(label: str = None, process_label: str = None, process_states
     :param timedelta: if None, ignore. Else, include only recently created up to timedelta.
     :type timedelta: datetime.timedelta
     :return: query builder
-    :rtype: QueryBuilder
 
     Note: This method doesn't offer projections. Speed and memory-wise, this does not become an
     issue for smaller queries. To test this, measurements were taken of querying a database with ~1e5 nodes for
@@ -146,26 +163,23 @@ def query_processes(label: str = None, process_label: str = None, process_states
     DEVNOTE: wasmer: filter by process label 'kkr_imp_wc' yields the correct result,
     filter by cls kkr_imp_wc (WorkChain, but qb resolves this) does not. dunno why.
     """
-    from aiida.engine import Process
-    from aiida.orm import QueryBuilder, ProcessNode, Group
-    from aiida.cmdline.utils.query.calculation import CalculationQueryBuilder
 
     if not node_types:
-        _node_types = [Process]
+        _node_types = [_Process]
     else:
-        _node_types = [typ for typ in node_types if typ is not None and issubclass(typ, (Process, ProcessNode))]
+        _node_types = [typ for typ in node_types if typ is not None and issubclass(typ, (_Process, _ProcessNode))]
         difference = set(node_types) - set(_node_types)
         if not _node_types:
-            _node_types = [Process]
+            _node_types = [_Process]
         if difference:
             print(f"Warning: {query_processes.__name__}(): Specified node_types {node_types}, some of which are "
-                  f"not subclasses of ({Process.__name__}, {ProcessNode.__name__}). Replaced with node_types "
+                  f"not subclasses of ({_Process.__name__}, {_ProcessNode.__name__}). Replaced with node_types "
                   f"{_node_types}.")
 
     filters = {}
     # Use CalculationQueryBuilder (CQB) to build filters.
     # This offers many conveniences, but also limitations. We will deal with the latter manually.
-    builder = CalculationQueryBuilder()
+    builder = _CalculationQueryBuilder()
     if exit_statuses:
         process_states = ['finished']
     filters = builder.get_filters(failed=failed, process_state=process_states, process_label=process_label,
@@ -175,18 +189,18 @@ def query_processes(label: str = None, process_label: str = None, process_states
     if label:
         filters['label'] = {'==': label}
     if timedelta:
-        from aiida.common import timezone
-        filters['ctime'] = {'>': timezone.now() - timedelta}
+        filters['ctime'] = {'>': _aiida_timezone.now() - timedelta}
 
-    qb = QueryBuilder()
+    qb = _QueryBuilder()
     if not group:
         return qb.append(_node_types, filters=filters)
     else:
-        qb.append(Group, filters={'label': group.label}, tag='group')
+        qb.append(_Group, filters={'label': group.label}, tag='group')
         return qb.append(_node_types, with_group='group', filters=filters)
 
 
 class ProcessClassifier:
+    """Classifies processes by process_state and exit_status."""
     _TMP_GROUP_LABEL_PREFIX = "process_classification"
 
     def __init__(self, processes: list = None):
@@ -196,8 +210,6 @@ class ProcessClassifier:
 
         :param processes: list of processes or process nodes to classify.
         """
-        from aiida.orm import Group
-        from aiida_jutools import util_group
 
         self._unclassified_processes = processes
 
@@ -212,34 +224,30 @@ class ProcessClassifier:
 
         # check if temporary groups from previous instances have not been cleaned up.
         # if so, delete them.
-        qb = QueryBuilder()
-        temporary_groups = qb.append(Group,
+        qb = _QueryBuilder()
+        temporary_groups = qb.append(_Group,
                                      filters={"label": {"like": ProcessClassifier._TMP_GROUP_LABEL_PREFIX + "%"}}).all(
             flat=True)
         if temporary_groups:
             print(f"Info: Found temporary classification groups, most likely not cleaned up from a previous "
                   f"{ProcessClassifier.__name__} instance. I will delete them now.")
-            util_group.delete_groups(group_labels=[group.label for group in temporary_groups],
-                                     skip_nonempty_groups=False,
-                                     silent=False)
+            _util_group.delete_groups(group_labels=[group.label for group in temporary_groups],
+                                      skip_nonempty_groups=False,
+                                      silent=False)
 
     def _group_for_classification(self) -> object:
         """Create a temporary group to help in classification. delete group after all classified.
         """
-        from datetime import datetime
-        from masci_tools.util import python_util
-        from aiida.orm import Group
-        from aiida.common.exceptions import NotExistent
 
         exists_already = True
         while exists_already:
             group_label = "_".join([ProcessClassifier._TMP_GROUP_LABEL_PREFIX,
-                                    datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-                                    python_util.random_string(length=16)])
+                                    _datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+                                    _python_util.random_string(length=16)])
             try:
-                Group.get(label=group_label)
-            except NotExistent as err:
-                tmp_classification_group = Group(label=group_label)
+                _Group.get(label=group_label)
+            except _NotExistent as err:
+                tmp_classification_group = _Group(label=group_label)
                 tmp_classification_group.store()
                 exists_already = False
 
@@ -257,8 +265,6 @@ class ProcessClassifier:
         Result stored as class attribute. It is a dict process_state : processes. process_state 'finished' is further
         subdivided into exit_status : processes.
         """
-        from aiida.engine.processes import ProcessState as PS
-        from aiida_jutools import util_group
 
         tmp_classification_group = self._group_for_classification()
 
@@ -268,7 +274,7 @@ class ProcessClassifier:
         self.classified_by_state = {}
 
         states = get_process_states(terminated=None, as_string=True, with_legend=False)
-        finished = PS.FINISHED.value
+        finished = _PS.FINISHED.value
         states.pop(states.index(finished))
 
         for state in states:
@@ -286,9 +292,9 @@ class ProcessClassifier:
 
         # classification done.
         # cleanup:
-        util_group.delete_groups(group_labels=[tmp_classification_group.label],
-                                 skip_nonempty_groups=False,
-                                 silent=True)
+        _util_group.delete_groups(group_labels=[tmp_classification_group.label],
+                                  skip_nonempty_groups=False,
+                                  silent=True)
 
     def classify_by_type(self) -> None:
         """Classify processes / process nodes (here: interchangeable) by various type indicators.
@@ -328,13 +334,12 @@ class ProcessClassifier:
         :param process_states: process states. keys of classified processes dict. If None, count all.
         :return: sum of counts of processes of specified process states.
         """
-        from aiida.engine.processes import ProcessState as PS
 
         _process_states = process_states if process_states \
             else get_process_states(terminated=None, as_string=True, with_legend=False)
 
         total = 0
-        finished = PS.FINISHED.value
+        finished = _PS.FINISHED.value
         for process_state in _process_states:
             if not process_state == finished:
                 total += len(self.classified_by_state.get(process_state, []))
@@ -343,30 +348,27 @@ class ProcessClassifier:
                     total += sum([len(v) for v in self.classified_by_state[process_state].values()])
         return total
 
-    def print_statistitics(self, title:str="", with_legend: bool = True, type_classification: str = 'process_label'):
+    def print_statistitics(self, title: str = "", with_legend: bool = True, type_classification: str = 'process_label'):
         """Pretty-print classification statistics.
 
         :param title: A title.
         :param with_legend: True: with process states legend.
         :param type_classification: One of 'type', 'process_class', 'process_label', 'process_type'.
         """
-        import json
-        from aiida.engine.processes import ProcessState as PS
 
         _title = "" if not title else "\n" + title
         print(f"Process classification statistics{_title}:")
 
-        print(40*'-' + "\nClassification by type:")
+        print(40 * '-' + "\nClassification by type:")
         type_clfctn = type_classification if type_classification in self.classified_by_type.keys() else "process_label"
         if type_classification not in self.classified_by_type.keys():
             print(f"Warning: selected type classifiction '{type_classification}' is invalid. Valid choices are: "
                   f"{list(self.classified_by_type.keys())}. Choosing '{type_clfctn}' instead.")
 
         statistics = {ptyp: len(processes) for ptyp, processes in self.classified_by_type[type_clfctn].items()}
-        print(json.dumps(statistics, indent=4))
+        print(_json.dumps(statistics, indent=4))
 
-
-        print(40*'-' + "\nClassfication by process state:")
+        print(40 * '-' + "\nClassfication by process state:")
         if with_legend:
             _, legend = get_process_states(with_legend=True)
             print(legend)
@@ -376,13 +378,13 @@ class ProcessClassifier:
         print(f"Total not terminated: {self.count(states)}.")
 
         print(f"\nFull classification by process state:")
-        finished = PS.FINISHED.value
+        finished = _PS.FINISHED.value
         statistics = {process_state: len(processes) for process_state, processes in self.classified_by_state.items()
                       if process_state != finished}
         if self.classified_by_state.get(finished, None):
             statistics[finished] = {exit_status: len(processes)
                                     for exit_status, processes in self.classified_by_state[finished].items()}
-        print(json.dumps(statistics, indent=4))
+        print(_json.dumps(statistics, indent=4))
 
     def subgroup_classified_results(self, group, dry_run: bool = True, silent: bool = False):
         """Subgroup classified processes.
@@ -395,7 +397,6 @@ class ProcessClassifier:
         :param dry_run: True: Perform dry run, show what I *would* do.
         :param silent: True: Do not print any information.
         """
-        from aiida.engine.processes import ProcessState as PS
 
         # check if all unclassified processes are really part of passed-in group.
         proc_ids = set([proc.uuid for proc in self._unclassified_processes])
@@ -406,35 +407,35 @@ class ProcessClassifier:
         if not self.classified_by_state:
             print("INFO: No classification performed. Nothing to subgroup.")
         failed_exit_statuses = []
-        finished = PS.FINISHED.value
+        finished = _PS.FINISHED.value
         if self.classified_by_state.get(finished, None):
             failed_exit_statuses = [exit_status for exit_status in self.classified_by_state[finished] if exit_status]
 
         subgroups_classification = {
             'finished_ok': [{finished: [0]}],
-            'failed': [PS.EXCEPTED.value, PS.KILLED.value, {finished: failed_exit_statuses}]
+            'failed': [_PS.EXCEPTED.value, _PS.KILLED.value, {finished: failed_exit_statuses}]
         }
 
         if dry_run:
-            from masci_tools.util.python_util import JSONEncoderTailoredIndent, NoIndent
+            from masci_tools.util.python_util import JSONEncoderTailoredIndent as _JSONEncoderTailoredIndent, \
+                NoIndent as _NoIndent
             # prevent indent of subdicts for better readability
             for subgroup_name, process_states in subgroups_classification.items():
-                subgroups_classification[subgroup_name] = [NoIndent(process_state) for process_state in process_states
+                subgroups_classification[subgroup_name] = [_NoIndent(process_state) for process_state in process_states
                                                            if isinstance(process_state, dict)]
 
             group_info = f"subgroups of group {group.label}" if group else "groups"
             print(f"INFO: I will try to group classified states into subgroups as follows. In the displayed dict, the "
                   f"keys are the names of the '{group_info}' which I will load or create, while the values depict "
                   f"which sets of classified processes will be added to that group.")
-            import json
-            print(json.dumps(subgroups_classification, cls=JSONEncoderTailoredIndent, indent=4))
+            print(_json.dumps(subgroups_classification, cls=_JSONEncoderTailoredIndent, indent=4))
             print("This was a dry run. I will exit now.")
         else:
-            from aiida.tools.groups import GroupPath
+            from aiida.tools.groups import GroupPath as _GroupPath
             group_path_prefix = group.label + "/" if group else ""
             for subgroup_name, process_states in subgroups_classification.items():
                 count = 0
-                group_path = GroupPath(group_path_prefix + subgroup_name)
+                group_path = _GroupPath(group_path_prefix + subgroup_name)
                 subgroup, created = group_path.get_or_create_group()
                 for process_state in process_states:
                     if isinstance(process_state, str):
@@ -466,16 +467,13 @@ def find_partially_excepted_processes(processes: list, to_depth: int = 1) -> dic
     :param to_depth: Descend down descendants to this depth.
     :return: dict of process : list of excepted descendants.
     """
-    from aiida.engine.processes import ProcessState as PS
-    from aiida.orm import ProcessNode
-
     if to_depth > 1:
         raise NotImplementedError("Currently, to_depth > 1 not supported.")  # TODO
 
     processes_excepted = {}
     for process in processes:
-        for child in process.get_outgoing(node_class=ProcessNode).all_nodes():
-            if child.process_state == PS.EXCEPTED:
+        for child in process.get_outgoing(node_class=_ProcessNode).all_nodes():
+            if child.process_state == _PS.EXCEPTED:
                 if not processes_excepted.get(process, None):
                     processes_excepted[process] = []
                 processes_excepted[process].append(child)
@@ -537,9 +535,9 @@ def verdi_calcjob_outputcat(calcjob) -> str:
     :return: string output
     """
 
-    from shutil import copyfileobj
-    from io import StringIO
-    import errno
+    from shutil import copyfileobj as _copyfileobj
+    from io import StringIO as _StringIO
+    import errno as _errno
 
     try:
         retrieved = calcjob.outputs.retrieved
@@ -565,20 +563,20 @@ def verdi_calcjob_outputcat(calcjob) -> str:
 
     try:
         # When we `cat`, it makes sense to directly send the output to stdout as it is
-        output = StringIO()
+        output = _StringIO()
         with retrieved.open(path, mode='r') as fhandle:
-            copyfileobj(fhandle, output)
+            _copyfileobj(fhandle, output)
         return output.getvalue()
 
     except OSError as exception:
         # The sepcial case is breakon pipe error, which is usually OK.
         # It can happen if the output is redirected, for example, to `head`.
-        if exception.errno != errno.EPIPE:
+        if exception.errno != _errno.EPIPE:
             # Incorrect path or file not readable
             raise ValueError(f'Could not open output path "{path}". Exception: {exception}')
 
 
-@dc.dataclass
+@_dc.dataclass
 class SubmissionSupervisorSettings:
     """Settings for SubmissionSupervisor. Use e.g. in a loop of many submissions.
 
@@ -610,7 +608,9 @@ class SubmissionSupervisorSettings:
 
 
 class SubmissionSupervisor:
-    def __init__(self, settings: SubmissionSupervisorSettings, quota_querier: QuotaQuerier = None):
+    """Class for supervised process submission to daemon."""
+    # TODO check if outdated because of https://github.com/aiidateam/aiida-submission-controller
+    def __init__(self, settings: SubmissionSupervisorSettings, quota_querier: _QuotaQuerier = None):
         """Class for supervised process submission to daemon.
 
         :param settings: supervisor settings
@@ -643,12 +643,9 @@ class SubmissionSupervisor:
         :return: tuple (next process, is process from db True or from submit False) or (None,None) if submit failed
         :rtype: tuple(ProcessNode, bool)
         """
-        import time
-        from datetime import timedelta
-        from aiida.orm import load_node, Group
-        from aiida.engine import submit
-        from aiida.manage.database.delete.nodes import delete_nodes
-        from masci_tools.util import python_util
+        from aiida.orm import load_node as _load_node
+        from aiida.engine import submit as _aiida_submit
+        from aiida.manage.database.delete.nodes import delete_nodes as _delete_nodes
 
         self.__tmp_guard_against_delete_if_stalling()
 
@@ -659,7 +656,7 @@ class SubmissionSupervisor:
         wc_process_label = builder._process_class.get_name()
 
         # get workchains from group(s)
-        if isinstance(groups, Group):
+        if isinstance(groups, _Group):
             groups = [groups]
         workchains = []
         for group in groups:
@@ -702,14 +699,14 @@ class SubmissionSupervisor:
         if workchains_finished_ok:
             # found A:B in db and finished_ok
             next_process_is_from_db = True
-            next_process = load_node(workchains_finished_ok[0].pk)
+            next_process = _load_node(workchains_finished_ok[0].pk)
             print(f"loaded '{wc_label}' from db, finished_ok")
         else:
             # not found A:B in db with state finished_ok. try submitting
             if workchains_terminated and not s.resubmit_failed:
                 # found A:B in db with state terminated and not_finished_ok, and no 'retry'
                 next_process_is_from_db = True
-                next_process = load_node(workchains_terminated[0].pk)
+                next_process = _load_node(workchains_terminated[0].pk)
                 info = f"process state {next_process.attributes['process_state']}"
                 info = info if not next_process.attributes.get('exit_status', None) else \
                     info + f", exit status {next_process.attributes['exit_status']}"
@@ -718,7 +715,7 @@ class SubmissionSupervisor:
             elif workchains_not_terminated:
                 # found A:B in db with state not terminated, so it's currently in the queue already
                 next_process_is_from_db = False
-                next_process = load_node(workchains_not_terminated[0].pk)
+                next_process = _load_node(workchains_not_terminated[0].pk)
                 self._submitted_top_processes.append(next_process)
                 print(f"'{wc_label}' is not terminated")
 
@@ -773,7 +770,8 @@ class SubmissionSupervisor:
                             # - at every new blocking submit, all wc's deltas are back to zero.
                             # - python_util.now() as is now measureus UTC. wrong offset (+1 compared to ctime? need localization first?)
                             # - sometimes it DOES delete nodes, but i'm not sure if it was correct for those.
-                            is_stalling = (python_util.now() - wc.mtime) > timedelta(minutes=s.max_wait_for_stalling)
+                            is_stalling = (_python_util.now() - wc.mtime) > _datetime.timedelta(
+                                minutes=s.max_wait_for_stalling)
                             # print(f"wc {wc.label} pk {wc.pk} last change time {python_util.now() - wc.mtime}, is stalling {is_stalling}")
                             if is_stalling:
                                 info_msg_suffix = "would now delete its nodes nodes (delete_if_stalling dry run)" \
@@ -785,7 +783,7 @@ class SubmissionSupervisor:
                                 if not s.delete_if_stalling_dry_run:
                                     # note: we do not need to kill the top processnode's process first.
                                     # deleting its nodes will also kill all not terminated connected processes.
-                                    delete_nodes(pks=[wc.pk], dry_run=False, force=True, verbosity=1)
+                                    _delete_nodes(pks=[wc.pk], dry_run=False, force=True, verbosity=1)
                             return is_stalling
 
                         # print("while wait, check if any stalling")
@@ -795,19 +793,19 @@ class SubmissionSupervisor:
                     if num_running(0) > s.max_top_processes_running or num_running(1) > s.max_all_processes_running:
                         # process queue is too full, wait
                         waited_for_submit += s.wait_for_submit  # in minutes
-                        time.sleep(s.wait_for_submit * seconds_per_min)
+                        _time.sleep(s.wait_for_submit * seconds_per_min)
                     else:
                         # process queue is not too full, can submit
                         print(f"try submit (waited {waited_for_submit} min, "
                               f"queued: {num_running(0)} top, {num_running(1)} all processes; "
                               f"wait another {s.wait_after_submit} minutes after submission)")
                         if not s.dry_run:
-                            next_process = submit(_builder)
+                            next_process = _aiida_submit(_builder)
                             self._submitted_top_processes.append(next_process)
                             for group in groups:
                                 group.add_nodes([next_process])
                             print(f"submitted {wc_label}, pk {next_process.pk}")
-                            time.sleep(s.wait_after_submit * seconds_per_min)
+                            _time.sleep(s.wait_after_submit * seconds_per_min)
                         else:
                             print(f"dry_run: would now submit {wc_label}")
                             next_process = None
