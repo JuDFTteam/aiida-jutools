@@ -12,7 +12,7 @@
 ###############################################################################
 """Tools for working with aiida-kkr nodes."""
 
-from typing import Union as _Union, Dict as _Dict, Any as _Any
+from typing import Union as _Union, Dict as _Dict, List as _List
 from collections import OrderedDict as _OrderedDict
 import enum as _enum
 import os as _os
@@ -291,7 +291,7 @@ class KkrConstantsVersion(_enum.Enum):
 class KkrConstantsVersionChecker:
     """Find out with which version of constants ``ANG_BOHR_KKR``, ``RY_TO_EV_KKR`` finished aiida-kkr workchain were run.
 
-    Between 2021-02-16 and 2021-04-28, the the values of the conversion constants ``ANG_BOHR_KKR`` and
+    Between 2021-02-16 and 2021-04-28, the values of the conversion constants ``ANG_BOHR_KKR`` and
     ``RY_TO_EV_KKR`` in :py:mod:`~masci_tools.util.constants` were changed from previous values to a set of
     intermediate values, and then finally to NIST values. See :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersion`
     docstring for a complete list. The ``constants`` module mentioned above offers an option to switch
@@ -332,10 +332,8 @@ class KkrConstantsVersionChecker:
             KkrConstantsVersion.INTERIM: 13.605693122994,
             KkrConstantsVersion.OLD: 13.605693009,
         }
-        self._runtime_const_type = {
-            'ANG_BOHR_KKR': None,
-            'RY_TO_EV_KKR': None
-        }
+        self._runtime_version = None
+
         # create an empty DataFrame to hold one row of data for each check workchain.
         self._df_index_name = 'workchain_uuid'
         self._df_schema = {
@@ -347,8 +345,8 @@ class KkrConstantsVersionChecker:
             'diff_old': _np.float64,  # abs. difference recalculated - old ANG_BOHR_KKR value
             'diff_interim': _np.float64,  # abs. difference recalculated - interim ANG_BOHR_KKR value
         }
-        self._df = _pd.DataFrame(columns=self._df_schema.keys()).astype(self._df_schema)
-        self._df.index.name = self._df_index_name
+        self._records = _pd.DataFrame(columns=self._df_schema.keys()).astype(self._df_schema)
+        self._records.index.name = self._df_index_name
 
         #######################
         # 2) read in current constants values and cross-check with environment
@@ -362,14 +360,15 @@ class KkrConstantsVersionChecker:
                      "As a result, this function might not work correctly anymore."
 
         if _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.NEW]:
-            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantsVersion.NEW
+            self._runtime_version = KkrConstantsVersion.NEW
         elif _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.INTERIM]:
-            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantsVersion.INTERIM
+            self._runtime_version = KkrConstantsVersion.INTERIM
         elif _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.OLD]:
-            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantsVersion.OLD
+            self._runtime_version = KkrConstantsVersion.OLD
         else:
-            self._runtime_const_type['ANG_BOHR_KKR'] = KkrConstantsVersion.NEITHER
-            print(f"Warning: The runtime value of constant ANG_BOHR_KKR matches no expected value. {msg_suffix}")
+            self._runtime_version = KkrConstantsVersion.NEITHER
+            print(f"Warning: The KKR constants version the runtime is using could not be determined: "
+                  f"The runtime value of constant ANG_BOHR_KKR matches no expected value. {msg_suffix}")
 
         # env var cases: 4: None, 'Interim', 'True', not {None, 'True', 'Interim'}.
         # const type cases: 4: NEW, OLD, INTERIM, NEITHER.
@@ -402,28 +401,28 @@ class KkrConstantsVersionChecker:
         # double-check with environment variable
         env_var_key = 'MASCI_TOOLS_USE_OLD_CONSTANTS'
         env_var_val = _os.environ.get(env_var_key, None)
-        const_type = self._runtime_const_type['ANG_BOHR_KKR']
+        runtime_version = self.runtime_version
 
         cases = {
-            'A': (const_type != KkrConstantsVersion.NEW and env_var_val is None),
-            'B': (const_type != KkrConstantsVersion.INTERIM and env_var_val == 'Interim'),
-            'C': (const_type != KkrConstantsVersion.OLD and env_var_val == 'True'),
-            'D': (const_type != KkrConstantsVersion.NEW and env_var_val not in [None, 'True', 'Interim'])
+            'A': (runtime_version != KkrConstantsVersion.NEW and env_var_val is None),
+            'B': (runtime_version != KkrConstantsVersion.INTERIM and env_var_val == 'Interim'),
+            'C': (runtime_version != KkrConstantsVersion.OLD and env_var_val == 'True'),
+            'D': (runtime_version != KkrConstantsVersion.NEW and env_var_val not in [None, 'True', 'Interim'])
         }
         if cases['A'] or cases['D']:
             raise ValueError(
                 f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
-                f"be of type {KkrConstantsVersion.NEW}, but they are of type {const_type}. "
+                f"be of type {KkrConstantsVersion.NEW}, but they are of type {runtime_version}. "
                 f"{msg_suffix}")
         elif cases['B']:
             raise ValueError(
                 f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
-                f"be of type {KkrConstantsVersion.INTERIM}, but they are of type {const_type}. "
+                f"be of type {KkrConstantsVersion.INTERIM}, but they are of type {runtime_version}. "
                 f"{msg_suffix}")
         elif cases['C']:
             raise ValueError(
                 f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
-                f"be of type {KkrConstantsVersion.OLD}, but they are of type {const_type}. "
+                f"be of type {KkrConstantsVersion.OLD}, but they are of type {runtime_version}. "
                 f"{msg_suffix}")
         else:
             pass
@@ -438,46 +437,45 @@ class KkrConstantsVersionChecker:
         """All constants versions of the conversion constant ``RY_TO_EV_KKR`` (Rydberg to electron Volt)."""
         return self._RY_TO_EV_KKR
 
-    def get_runtime_type(self, constant_name: str = 'ANG_BOHR_KKR') -> KkrConstantsVersion:
-        """Get KKR constant type (old, new or neither) of runtime constant value.
-
-        :param constant_name: name of the constant.
-        """
-        if constant_name in self._runtime_const_type:
-            return self._runtime_const_type[constant_name]
-        else:
-            print(f"Warning: Unknown constant name '{constant_name}'. "
-                  f"Known constant names: {self._runtime_const_type[constant_name]}. "
-                  f"I will return nothing.")
+    @property
+    def runtime_version(self) -> KkrConstantsVersion:
+        """Get KKR constant version which the interpreter is using at runtime."""
+        return self._runtime_version
 
     @property
-    def df(self) -> _pd.DataFrame:
-        """DataFrame containing all checked workchain data."""
-        return self._df
+    def records(self) -> _pd.DataFrame:
+        """DataFrame containing all checked workchain records."""
+        return self._records
 
     def clear(self):
-        """Clear all previous workchain checks."""
-        # drop all rows from dataframe
-        self._df = self._df.drop(labels=self._df.index)
+        """Drop the records from previous workchain checks from memory."""
+        self._records = self._records.drop(labels=self._records.index)
 
     def check_single_workchain(self, wc: _WorkChainNode,
+                               record: bool = False,
                                set_extra: bool = False,
                                zero_threshold: float = 1e-15,
-                               group_label: str = None):
+                               group_label: str = None) -> _Union[KkrConstantsVersion, None]:
         """Classify a finished workchain by its used KKR constants version by reverse-calculation.
 
-        The result is available as a dataframe :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.df`.
+        Current implementation only works with aiida-kkr workflows which have a ``kkr_startpot_wc`` descendant.
+        These are: ``kkr_scf_wc``, ``kkr_eos_wc``, ``kkr_imp_wc``.
 
-        Note: Will always check constants version by recalculating it, even if it may have already been set as an
-        extra. To classify with the extra instead, use method TODO.
+        If ``record`` is False, the constants version used by the workchain is returned. If ``record`` is False,
+        the result is appended to the dataframe  :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.records`.
 
-        :param wc: finished aiida-kkr workchain. Must have a ``kkr_startpot_wc`` descendant.
+        Will always check constants version by recalculating it, even if it may have already been set as an
+        extra. To filter workchains by this extra, assuming it has already been set for them, use the method
+        :py:meth:`~aiida_jutools.util_kkr.filter_using_runtime_version` instead.
+
+        :param wc: finished aiida-kkr workchain.
+        :param record: False: return constants version of workchain. True: record results in dataframe.
         :param zero_threshold: Set structure cell elements below this threshold to zero to counter rounding errors.
         :param set_extra: True: Set an extra on the workchain denoting the identified KKR constants version and values.
         :param group_label: optional: specify group label the workchain belongs to.
         """
 
-        if wc.uuid in self._df.index:
+        if wc.uuid in self._records.index:
             print(f"Info: skipping Workchain {wc}: is already checked.")
             return
 
@@ -616,18 +614,7 @@ class KkrConstantsVersionChecker:
                   f"{[list(difference.keys())[i] for i in indices]}. Chose {constants_version}.")
 
         #######################
-        # 5) Add results to dataframe
-        if group_label:
-            row['group'] = group_label
-        row['ctime'] = wc.ctime
-        row['ANG_BOHR_KKR'] = ANG_BOHR_KKR
-        row['constants_version'] = constants_version
-        row['diff_new'] = difference[KkrConstantsVersion.NEW]
-        row['diff_old'] = difference[KkrConstantsVersion.OLD]
-        row['diff_interim'] = difference[KkrConstantsVersion.INTERIM]
-
-        self._df = self._df.append(_pd.Series(name=wc.uuid, data=row))
-
+        # 5) Set extra.
         if set_extra:
             extra = {
                 'constants_version': constants_version.name,
@@ -646,16 +633,36 @@ class KkrConstantsVersionChecker:
 
             wc.set_extra('kkr_constants_version', extra)
 
+        #######################
+        # 6) Return used version, or record results in dataframe
+        if record:
+            if group_label:
+                row['group'] = group_label
+            row['ctime'] = wc.ctime
+            row['ANG_BOHR_KKR'] = ANG_BOHR_KKR
+            row['constants_version'] = constants_version
+            row['diff_new'] = difference[KkrConstantsVersion.NEW]
+            row['diff_old'] = difference[KkrConstantsVersion.OLD]
+            row['diff_interim'] = difference[KkrConstantsVersion.INTERIM]
+
+            self._records = self._records.append(_pd.Series(name=wc.uuid, data=row))
+        else:
+            return constants_version
+
     def check_workchain_group(self, group: _Group,
                               process_labels: list = [],
                               set_extra: bool = False,
                               zero_threshold: float = 1e-15):
         """Classify a group of finished workchains by their used KKR constants versions by reverse-calculation.
 
-        The result is available as a dataframe :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.df`.
+        Current implementation only works with aiida-kkr workflows which have a ``kkr_startpot_wc`` descendant.
+        These are: ``kkr_scf_wc``, ``kkr_eos_wc``, ``kkr_imp_wc``.
 
-        Note: Will always check constants version by recalculating it, even if it may have already been set as an
-        extra. To classify with the extra instead, use method TODO.
+        The results are appended to the dataframe :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.records`.
+
+        Will always check constants version by recalculating it, even if it may have already been set as an
+        extra. To filter workchains by this extra, assuming it has already been set for them, use the method
+        :py:meth:`~aiida_jutools.util_kkr.filter_using_runtime_version` instead.
 
         :param group: a group with aiida-kkr workchain nodes. Workchains must have a ``kkr_startpot_wc`` descendant.
         :param process_labels: list of valid aiida-kkr workchain process labels, e.g. ['kkr_scf_wc', ...].
@@ -669,9 +676,53 @@ class KkrConstantsVersionChecker:
             for node in group.nodes:
                 if isinstance(node, _WorkChainNode) and node.process_label in process_labels:
                     self.check_single_workchain(wc=node,
+                                                record=True,
                                                 set_extra=set_extra,
                                                 zero_threshold=zero_threshold,
                                                 group_label=group.label)
+
+    def filter_using_runtime_version(self, wcs: _List[_WorkChainNode],
+                                     select: bool = True,
+                                     set_extra: bool = False) -> _Union[_List[bool], _List[_WorkChainNode]]:
+        """Filter workchains by which of them are using the same KKR constants version as the interpreter at runtime.
+
+        This method is useful for selecting those workchains which can be reused at runtime for new calculations.
+        The ones would throw an error, unless the runtime is reset to the KKR constants version which they are using.
+
+        This method assumes that each workchain has the KKR constants version which it uses set as an extra via
+        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_single_workchain` or
+        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_workchain_group`. If the extra cannot
+        be read, the constants version gets recalculated by the former method.
+
+        :param wcs: list of workchains nodes.
+        :param select: True: return sublist of workchains using runtime version. False: return boolean mask.
+        :param set_extra: True: If extra could not be read, set recalculated version as extra. False: Only recalculate.
+        :return: list of matching workchains, or boolean mask of matching workchains (True = same version as runtime.)
+        """
+
+        def _uses_runtime_version(wc, set_extra: bool = False):
+            version = None
+            extra = wc.extras.get('kkr_constants_version', None)
+            convert_extra_failed = False
+
+            if extra:
+                version_str = extra.get('constants_version', None)
+                try:
+                    version = KkrConstantsVersion[version_str.upper()]
+                except KeyError as err:
+                    convert_extra_failed = True
+
+            if not extra or convert_extra_failed:
+                do_set_extra = set_extra if not convert_extra_failed else True
+                version = self.check_single_workchain(wc, record=False, set_extra=do_set_extra)
+
+            return version == self.runtime_version
+
+        mask = [_uses_runtime_version(wc, set_extra=set_extra) for wc in wcs]
+        if select:
+            return [wc for i, wc in enumerate(wcs) if mask[i]]
+        else:
+            return mask
 
     def check_single_workchain_provenance(self, wc: _WorkChainNode):
         """Check whether the workchain and all its ancestors of a workchain used the same KKR constants versions.
@@ -740,4 +791,3 @@ class KkrConstantsVersionChecker:
             for node in group.nodes:
                 if isinstance(node, _WorkChainNode) and node.process_label in process_labels:
                     self.check_single_workchain_provenance(node)
-
