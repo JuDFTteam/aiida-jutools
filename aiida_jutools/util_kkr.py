@@ -308,8 +308,12 @@ class KkrConstantsVersionChecker:
     The ``RY_TO_EV_KKR`` constant is not used.
     """
 
-    def __init__(self):
-        """Initialization reads the constants' runtime versions and cross-checks with environment settings."""
+    def __init__(self, check_env: bool = True):
+        """Initialization reads the constants' runtime versions and cross-checks with environment settings.
+
+        :param check_env: True: check found runtime version against expected environment variable setting,
+                          except if unexpected setting. False: don't check.
+        """
 
         # problem is that masci_tools.util.constants constants ANG_BOHR_KKR, RY_TO_EV_KKR definitions (values) depend on
         # the value of the env var os.environ['MASCI_TOOLS_USE_OLD_CONSTANTS'] at module initialization. After that,
@@ -398,34 +402,35 @@ class KkrConstantsVersionChecker:
         # - case 'D' = 'else' = 'pass'.
         # - (1): passes with warning, from const type NEITHER above.
 
-        # double-check with environment variable
-        env_var_key = 'MASCI_TOOLS_USE_OLD_CONSTANTS'
-        env_var_val = _os.environ.get(env_var_key, None)
-        runtime_version = self.runtime_version
+        if check_env:
+            # double-check with environment variable
+            env_var_key = 'MASCI_TOOLS_USE_OLD_CONSTANTS'
+            env_var_val = _os.environ.get(env_var_key, None)
+            runtime_version = self.runtime_version
 
-        cases = {
-            'A': (runtime_version != KkrConstantsVersion.NEW and env_var_val is None),
-            'B': (runtime_version != KkrConstantsVersion.INTERIM and env_var_val == 'Interim'),
-            'C': (runtime_version != KkrConstantsVersion.OLD and env_var_val == 'True'),
-            'D': (runtime_version != KkrConstantsVersion.NEW and env_var_val not in [None, 'True', 'Interim'])
-        }
-        if cases['A'] or cases['D']:
-            raise ValueError(
-                f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
-                f"be of type {KkrConstantsVersion.NEW}, but they are of type {runtime_version}. "
-                f"{msg_suffix}")
-        elif cases['B']:
-            raise ValueError(
-                f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
-                f"be of type {KkrConstantsVersion.INTERIM}, but they are of type {runtime_version}. "
-                f"{msg_suffix}")
-        elif cases['C']:
-            raise ValueError(
-                f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
-                f"be of type {KkrConstantsVersion.OLD}, but they are of type {runtime_version}. "
-                f"{msg_suffix}")
-        else:
-            pass
+            cases = {
+                'A': (runtime_version != KkrConstantsVersion.NEW and env_var_val is None),
+                'B': (runtime_version != KkrConstantsVersion.INTERIM and env_var_val == 'Interim'),
+                'C': (runtime_version != KkrConstantsVersion.OLD and env_var_val == 'True'),
+                'D': (runtime_version != KkrConstantsVersion.NEW and env_var_val not in [None, 'True', 'Interim'])
+            }
+            if cases['A'] or cases['D']:
+                raise ValueError(
+                    f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
+                    f"be of type {KkrConstantsVersion.NEW}, but they are of type {runtime_version}. "
+                    f"{msg_suffix}")
+            elif cases['B']:
+                raise ValueError(
+                    f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
+                    f"be of type {KkrConstantsVersion.INTERIM}, but they are of type {runtime_version}. "
+                    f"{msg_suffix}")
+            elif cases['C']:
+                raise ValueError(
+                    f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
+                    f"be of type {KkrConstantsVersion.OLD}, but they are of type {runtime_version}. "
+                    f"{msg_suffix}")
+            else:
+                pass
 
     @property
     def ANG_BOHR_KKR(self) -> dict:
