@@ -12,15 +12,15 @@
 ###############################################################################
 """Tools for working with aiida Node objects."""
 
-import pprint
-import typing
+import pprint as _pprint
+import typing as _typing
 
-from aiida.orm import Node
+import aiida.orm as _orm
 
 simple_types = [int, bool, float, complex, list, tuple, set]
 # define attribute lists of some aiida types. of course these lists are non-exhaustive.
 # selected for interesting stuff, inspired by aiida cheat sheet / this tutorial.
-attribute_string_lists: typing.Dict[str, typing.List[str]] = {
+attribute_string_lists: _typing.Dict[str, _typing.List[str]] = {
     "StructureData": ["cell", "sites", "kinds", "pbc", "get_formula", "get_cell_volume",
                       "cell_angles", "cell_lengths",
                       "attributes"],
@@ -31,7 +31,9 @@ attribute_string_lists: typing.Dict[str, typing.List[str]] = {
 }
 
 
-def is_same_node(node: Node, other: Node, comparator: str = "uuid"):
+def is_same_node(node: _orm.Node,
+                 other: _orm.Node,
+                 comparator: str = "uuid") -> bool:
     """Basic node comparator.
 
     Note: since aiida-core v.1.6.0, the base Node class now evaluates equality based on the node's UUID. Yet,
@@ -47,7 +49,6 @@ def is_same_node(node: Node, other: Node, comparator: str = "uuid"):
     :param other: another node.
     :param comparator: "uuid" (default), "pk", or "hash" (warning: slow)
     :return: True if same node, False otherwise.
-    :rtype: bool
     """
     allowed_comparators = ["uuid", "pk", "hash"]
     if comparator not in allowed_comparators:
@@ -63,7 +64,8 @@ def is_same_node(node: Node, other: Node, comparator: str = "uuid"):
     return att_node == att_other
 
 
-def intersection(nodes: typing.List[Node], others: typing.List[Node]):
+def intersection(nodes: _typing.List[_orm.Node],
+                 others: _typing.List[_orm.Node]) -> _typing.List[_orm.Node]:
     """Computes intersection set of nodes from both lists.
 
     DEVNOTE: outer loop over longer list seems to guarantee symmetry.
@@ -71,7 +73,7 @@ def intersection(nodes: typing.List[Node], others: typing.List[Node]):
 
     :param nodes:
     :param others:
-    :return:
+    :return: intersection
     """
     intersection = []
     if len(nodes) > len(others):
@@ -90,7 +92,9 @@ def intersection(nodes: typing.List[Node], others: typing.List[Node]):
     return intersection
 
 
-def print_attributes(obj, obj_name, attr_str_list):
+def print_attributes(obj: _orm.EntityAttributesMixin,
+                     obj_name: str,
+                     attr_str_list: str):
     """easily print-inspect the values of an aiida object we created.
 
     :param obj: aiida object
@@ -106,7 +110,7 @@ def print_attributes(obj, obj_name, attr_str_list):
     >>> Cu29 = StructureData()
     >>> print_attributes(Cu29, "Cu", attribute_string_lists["StructureData"])
     """
-    pp = pprint.PrettyPrinter(indent=4)
+    pp = _pprint.PrettyPrinter(indent=4)
     sep = "-------------------------------"
     print(sep)
     print(f"Attributes of object '{obj_name}' of type {type(obj)}:")
@@ -129,7 +133,10 @@ def print_attributes(obj, obj_name, attr_str_list):
     print(sep)
 
 
-def list_differences(calculation_sequence: list, node_type: Node, member_name: str, outgoing: bool = True):
+def list_differences(calculation_sequence: _typing.List[_orm.CalcJobNode],
+                     node_type: _typing.Type[_orm.Node],
+                     member_name: str,
+                     outgoing: bool = True):
     """Print attributes (e.g. output files) of nodes in list, and only differences in list between subsequent nodes.
 
     Note for comparing Dict nodes, prefer library DeepDiff.
