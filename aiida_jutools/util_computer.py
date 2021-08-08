@@ -12,33 +12,49 @@
 ###############################################################################
 """Tools for working with aiida Computer nodes."""
 
-# python imports
-import dataclasses as dc
+import dataclasses as _dc
+import io as _io
+import re as _re
+import typing as _typing
 
-# aiida imports
-from aiida.orm import Computer, Dict, Group
+import aiida as _aiida
+import aiida.engine as _aiida_engine
+import aiida.orm as _orm
+import aiida.schedulers as _aiida_schedulers
+import aiida.schedulers.plugins.lsf as _aiida_lsf_schedulers
+import aiida.schedulers.plugins.slurm as _aiida_slurm_schedulers
+import aiida.tools as _aiida_tools
+import humanfriendly as _humanfriendly
+import masci_tools.util.python_util as _masci_python_util
+import pandas as _pd
+
+from aiida_jutools import util_group as _jutools_group
 
 
-def get_computers(computer_name_pattern: str = ""):
+def get_computers(computer_name_pattern: str = "") -> _typing.List[_orm.Computer]:
     """Query computer.
 
-    :param computer_name_pattern: (sub)string of computer name, case-insensitive, no regex. default = "": get all computers.
+    :param computer_name_pattern: (sub)string of computer name, case-insensitive, no regex. default = "":
+           get all computers.
     :return: aiida Computer if unique, list of Computers if not, empty list if no match
     """
-    from aiida.orm import QueryBuilder
     # version compatibility check: old: computer.name, new: computer.label. else error.
-    qb = QueryBuilder()
+    qb = _orm.QueryBuilder()
     computer = None
-    computers = qb.append(Computer, filters={'name': {'ilike': f"%{computer_name_pattern}%"}}).all(flat=True)
-    return computers
+    return qb.append(
+        _orm.Computer,
+        filters={'name': {'ilike': f"%{computer_name_pattern}%"}},
+    ).all(flat=True)
 
 
-def shell_command(computer: Computer, command: str) -> tuple:
+def shell_command(computer: _orm.Computer,
+                  command: str) -> _typing.Tuple[str, str, str]:
     """Get output of shell command on aiida computer.
 
     Assume aiida computer is remote. so execute remote command via get_transport().
 
-    Note: if you get a port error, you probably forgot to open an ssh tunnel to the remote computer on the specified ports first.
+    Note: if you get a port error, you probably forgot to open an ssh tunnel to the remote computer on the
+    specified ports first.
 
     Note: if stderr is NotExistent, the computer is probably not configured, eg imported.
 
@@ -46,15 +62,14 @@ def shell_command(computer: Computer, command: str) -> tuple:
     :param command: shell command to execute
     :return: tuple of strings exit_code, stdout, stderr. Use only stdout like: _,stdout,_ = shell_command(...).
     """
-    from aiida.common.exceptions import AiidaException
 
-    assert isinstance(computer, Computer), "computer is not a Computer, but a %r" % type(computer)
+    assert isinstance(computer, _orm.Computer), "computer is not a Computer, but a %r" % type(computer)
     # import signal
     # signal.alarm(maxwait)
     try:
         with computer.get_transport() as connection:
             exit_code, stdout, stderr = connection.exec_command_wait(command)
-    except AiidaException as err:
+    except _aiida.common.exceptions.AiidaException as err:
         # common error: NotExistent. often cause computer not configured, eg imported.
         exit_code = type(err)
         stdout = ''
@@ -64,62 +79,63 @@ def shell_command(computer: Computer, command: str) -> tuple:
     return exit_code, stdout, stderr
 
 
-def get_queues(computer: Computer, gpu: bool = None, with_node_count: bool = True, silent: bool = False) -> list:
-    """Get list of the remote computer (cluster's) queues (slurm: partitions) sorted by highest number of idle nodes descending.
+def get_queues(computer: _orm.Computer,
+               gpu: bool = None,
+               with_node_count: bool = True,
+               silent: bool = False) -> _typing.List[_typing.List[_typing.Union[str, int]]]:
+    """Get list of the remote computer (cluster's) queues (slurm: partitions) sorted by highest number of idle nodes
+    descending.
 
     Implementations available for these computers:
     - 'iffslurm': FZJ PGI-1 iffslurm cluster.
 
     :param computer: aiida computer.
-    :type computer: Computer
     :param gpu: False: exclude gpu queues. True exclude non-gpu partitions. None: ignore this option.
     :param with_node_count: True: return queue names with resp. idle nodes count, False: just queue names.
     :param silent: True: do not print out any info.
-    :return: list of [queue/partition name, idle nodes count] or of queue names
+    :return: list of [queue/partition name, idle nodes count] or just list of queue names
     :raise: NotImplementedError if get queues not implemented for that type (by label substring) of computer.
 
     DEVNOTES: TODO: replace filter by shell command with sinfo -> pandas.Dataframe -> apply filters.
     """
-    if 'iffslurm' in computer.label:
-
-        iffslurm_cmd_sorted_partitions_list = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r"""
-        iffslurm_partition_max_idle_nodes = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r | awk 'NR == 1 { print $1 }'"""
-
-        exit_code, stdout, stderr = shell_command(computer=computer, command=iffslurm_cmd_sorted_partitions_list)
-        # turn into list of strings
-        idle_nodes = stdout.split('\n')
-        # split into partition and idle_nodes_count, filter out empty entries
-        idle_nodes = [partition_nodes.split(' ') for partition_nodes in idle_nodes if partition_nodes]
-        # filter out 'gpu' partitions
-        if gpu is None:
-            idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes]
-        elif not gpu:
-            idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes if not 'gpu' in pn[0]]
-        elif gpu:
-            idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes if 'gpu' in pn[0]]
-        # print out info about total remaining idle nodes
-        if not silent:
-            sum_idle_nodes = sum([pn[1] for pn in idle_nodes])
-            print(f"Idle nodes left on computer '{computer.label}': {sum_idle_nodes}")
-
-        if not with_node_count:
-            idle_nodes = [pn[0] for pn in idle_nodes]
-
-        return idle_nodes
-    else:
-
+    if 'iffslurm' not in computer.label:
         raise NotImplementedError(f"{get_queues.__name__} not implemented for computer {computer.label}")
+    iffslurm_cmd_sorted_partitions_list = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r"""
+    iffslurm_partition_max_idle_nodes = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r | awk 'NR == 1 { print $1 }'"""
+
+    exit_code, stdout, stderr = shell_command(computer=computer, command=iffslurm_cmd_sorted_partitions_list)
+    # turn into list of strings
+    idle_nodes = stdout.split('\n')
+    # split into partition and idle_nodes_count, filter out empty entries
+    idle_nodes = [partition_nodes.split(' ') for partition_nodes in idle_nodes if partition_nodes]
+    # filter out 'gpu' partitions
+    if gpu is None:
+        idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes]
+    elif not gpu:
+        idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes if 'gpu' not in pn[0]]
+    else:
+        idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes if 'gpu' in pn[0]]
+        # print out info about total remaining idle nodes
+    if not silent:
+        sum_idle_nodes = sum(pn[1] for pn in idle_nodes)
+        print(f"Idle nodes left on computer '{computer.label}': {sum_idle_nodes}")
+
+    if not with_node_count:
+        idle_nodes = [pn[0] for pn in idle_nodes]
+
+    return idle_nodes
 
 
-def get_least_occupied_queue(computer: Computer, gpu: bool = None,
-                             with_node_count: bool = True, silent: bool = False):
+def get_least_occupied_queue(computer: _orm.Computer,
+                             gpu: bool = None,
+                             with_node_count: bool = True,
+                             silent: bool = False) -> _typing.Union[_typing.Tuple[str, int], str]:
     """Get name of the remote computer (cluster's) queue (slurm: partition) with the highest number of idle nodes.
 
     Implementations available for these computers:
     - 'iffslurm': FZJ PGI-1 iffslurm cluster.
 
     :param computer: aiida computer.
-    :type computer: Computer
     :param gpu: False: exclude gpu queues. True exclude non-gpu queues. None: ignore this option.
     :param with_node_count: True: queue name with idle nodes count, False: just queue name.
     :param silent: True: do not print out any info.
@@ -132,37 +148,33 @@ def get_least_occupied_queue(computer: Computer, gpu: bool = None,
     return (queue_name, idle_nodes_count) if with_node_count else queue_name
 
 
-@dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
+@_dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
 class _OptionsQueryConfig:
     """Database query configuration for :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options`.
 
-    :param ignored: these options fields are ignored for querying options of this config.
-    :param mandatory: these options fields are mandatory for querying options of this config.
-    :param optional: these options fields are optional for querying options of this config.
+    :param: ignored: these options fields are ignored for querying options of this config.
+    :param: mandatory: these options fields are mandatory for querying options of this config.
+    :param: optional: these options fields are optional for querying options of this config.
     """
-    from typing import AnyStr as _AnyStr, List as _List
-    from masci_tools.util.python_util import dataclass_default_field as _field
-    ignored: _List[_AnyStr] = _field([])
-    mandatory: _List[_AnyStr] = _field([])
-    optional: _List[_AnyStr] = _field(["queue_name", "account", "withmpi", "gpu"])
+    ignored: _typing.List[str] = _masci_python_util.dataclass_default_field([])
+    mandatory: _typing.List[str] = _masci_python_util.dataclass_default_field([])
+    optional: _typing.List[str] = _masci_python_util.dataclass_default_field(
+        ["queue_name", "account", "withmpi", "gpu"])
 
 
-@dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
+@_dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
 class _OptionsDefaultCreationValues:
     """Default options creation values for :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options`.
 
-    :param conditional: options fields with values which depend on other fields.
-    :param unconditional: options fields with values which do not depend on other fields.
+    :param: conditional: options fields with values which depend on other fields.
+    :param: unconditional: options fields with values which do not depend on other fields.
 
     Adding parameters with default values during runtime works for unconditional only. Adding conditional
     values might require to adapt. :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options`.
 
     Keys which begin with an underscore '_' are ignored.
     """
-
-    from typing import Any as _Any, AnyStr as _AnyStr, Dict as _Dict
-    from masci_tools.util.python_util import dataclass_default_field as _field
-    conditional: _Dict[_AnyStr, _Any] = _field({
+    conditional: _typing.Dict[str, _typing.Any] = _masci_python_util.dataclass_default_field({
         "withmpi": {
             False: {
                 "resources": {"num_machines": 1, "tot_num_mpiprocs": 1},
@@ -176,12 +188,12 @@ class _OptionsDefaultCreationValues:
             },
         },
     })
-    unconditional: _Dict[_AnyStr, _Any] = _field({
+    unconditional: _typing.Dict[str, _typing.Any] = _masci_python_util.dataclass_default_field({
         "max_wallclock_seconds": (60 ** 2) * 24  # one day
     })
 
 
-@dc.dataclass(init=True, repr=True, eq=False, order=False, frozen=False)
+@_dc.dataclass(init=True, repr=True, eq=False, order=False, frozen=False)
 class _OptionsConfig:
     """A class to define and group-manage default computer options (builder.metdata.options) for AiiDA processes.
 
@@ -197,24 +209,21 @@ class _OptionsConfig:
     corresponding groups with those nodes in the database. If present, it will load them. If not, it will create and
     store them.
     """
-    from typing import AnyStr as _AnyStr, List as _List, Dict as _Dict
-    from masci_tools.util.python_util import dataclass_default_field as _field
-    from abc import ABCMeta as _ABCMeta
-    from aiida.schedulers import JobResource as _JobResource
-    name: _AnyStr = ""
-    _groups: _List[Group] = _field([])
-    _group_extras: _Dict = _field(
+    name: str = ""
+    _groups: _typing.List[_orm.Group] = _masci_python_util.dataclass_default_field([])
+    _group_extras: _typing.Dict[str, _typing.List[str]] = _masci_python_util.dataclass_default_field(
         {"comments": ["These options are also available as iffaiida import, see extras/references."],
          "references": ["https://iffgit.fz-juelich.de/aiida/aiida_nodes",
                         "https://github.com/JuDFTteam/aiida-jutools"]})
-    _options: _List[Dict] = _field([])
-    _query_config: _OptionsQueryConfig = _field(_OptionsQueryConfig())
-    _jobresource_cls: _ABCMeta = _JobResource
-    _default_option_creation_values: _OptionsDefaultCreationValues = _field(_OptionsDefaultCreationValues())
-    _computers: _List[Computer] = _field([])
-    _silent: dc.InitVar[bool] = False
+    _options: _typing.List[_orm.Dict] = _masci_python_util.dataclass_default_field([])
+    _query_config: _OptionsQueryConfig = _masci_python_util.dataclass_default_field(_OptionsQueryConfig())
+    _jobresource_cls: _typing.Type[_aiida_schedulers.JobResource] = _aiida_schedulers.JobResource
+    _default_option_creation_values: _OptionsDefaultCreationValues = _masci_python_util.dataclass_default_field(
+        _OptionsDefaultCreationValues())
+    _computers: _typing.List[_orm.Computer] = _masci_python_util.dataclass_default_field([])
+    _silent: _dc.InitVar[bool] = False
 
-    @dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
+    @_dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
     class _HelpConfig:
         """Internal helper class for :py:class:`~aiida_jutools.util_computer._OptionsConfig`.
 
@@ -231,10 +240,10 @@ class _OptionsConfig:
         desc_mode: str = 'descriptions'
 
         @property
-        def modes(self):
+        def modes(self) -> _typing.List[str]:
             return [self.keys_mode, self.desc_mode]
 
-    def __post_init__(self, _silent):
+    def __post_init__(self, _silent: bool):
         self._is_initialized = False
 
         # set group extras
@@ -250,7 +259,9 @@ class _OptionsConfig:
         if not _silent:
             self._log("Info", None, f"Call {self.initialize.__name__}() before use.")
 
-    def _log(self, level: str = None, func=None, msg: str = "", name: bool = True):
+    def _log(self, level: str = None,
+             func=None, msg: str = "",
+             name: bool = True):
         """Basic logging.
 
         TODO replace with real logging / aiida logging.
@@ -261,7 +272,7 @@ class _OptionsConfig:
         func_name = f", {func.__name__}()" if func else ""
         print(f"{level}{cls_name}{config_name}{func_name}: {msg}")
 
-    def _check_if_initalized(self):
+    def _check_if_initalized(self) -> bool:
         """Checks if :py:meth:`~aiida_jutools.util_computer._OptionsConfig.initialize` has been called.
 
         Internal helper.
@@ -271,7 +282,7 @@ class _OptionsConfig:
         return self._is_initialized
 
     @property
-    def computers(self) -> _List[Computer]:
+    def computers(self) -> _typing.List[_orm.Computer]:
         """This config's associated AiiDA computers.
 
         Can optionally be set in defaults, or during runtime by user. Otherwise it is guessed by this instance
@@ -285,7 +296,7 @@ class _OptionsConfig:
             return get_computers(computer_name_pattern=self.name)
 
     @property
-    def groups(self) -> _List[Group]:
+    def groups(self) -> _typing.List[_orm.Group]:
         """This config's groups (with options nodes).
 
         The underlying list :py:attr:`~aiida_jutools.util_computer.OptionsConfig._groups` must be set
@@ -305,14 +316,13 @@ class _OptionsConfig:
         """
         # refresh options attribute as collection of all distinct Dicts from all groups
         if self._is_initialized:
-            from aiida.orm import QueryBuilder
-            qb = QueryBuilder()
+            qb = _orm.QueryBuilder()
             group_names = [group.label for group in self._groups]
-            qb.append(Group, filters={"label": {"in": group_names}}, tag="group")
-            self._options = qb.append(Dict, with_group="group").distinct().all(flat=True)
+            qb.append(_orm.Group, filters={"label": {"in": group_names}}, tag="group")
+            self._options = qb.append(_orm.Dict, with_group="group").distinct().all(flat=True)
 
     @property
-    def options(self) -> _List[Dict]:
+    def options(self) -> _typing.List[_orm.Dict]:
         """All of this config's computer options (builder.metatdata.options) for AiiDA processes.
 
         The underlying list :py:attr:`~aiida_jutools.util_computer.OptionsConfig._options` must be set
@@ -328,7 +338,8 @@ class _OptionsConfig:
             self._update_options()
         return self._options
 
-    def initialize(self, alternative_group_names: _List[_AnyStr] = [], silent: bool = False):
+    def initialize(self, alternative_group_names: _typing.List[str] = [],
+                   silent: bool = False):
         """Initialize this options config.
 
         Will load or create attribute- or argument- specified groups and load or create attribute-specified
@@ -341,8 +352,6 @@ class _OptionsConfig:
             or to replace attribute-specified group(s) with existing ones to load from db.
         :param silent: True: do not print out any info.
         """
-        import copy
-        from aiida.common.exceptions import NotExistent
 
         # Step1): group initialize:
         #
@@ -362,8 +371,8 @@ class _OptionsConfig:
 
         # add alternative groups, unstored
         for group_name in alternative_group_names:
-            group = Group(label=group_name,
-                          description=primary_group.description)
+            group = _orm.Group(label=group_name,
+                               description=primary_group.description)
             group.set_extra_many(self._group_extras)
             self._groups.append(group)
         group_names = [group.label for group in self._groups]
@@ -371,25 +380,30 @@ class _OptionsConfig:
         # load already stored groups
         for i, group_name in enumerate(group_names):
             try:
-                stored_group = Group.get(label=group_name)
+                stored_group = _orm.Group.get(label=group_name)
                 self._groups[i] = stored_group
-            except NotExistent as err:
+            except _aiida.common.exceptions.NotExistent as err:
                 pass
 
         # if no default groups loaded but alternative groups loaded, get rid of default groups
-        if (not any([group.is_stored for group in self._groups[:default_groups_count]])) \
-                and (any([group.is_stored for group in self._groups[default_groups_count:]])):
+        if not any(
+                group.is_stored for group in self._groups[:default_groups_count]
+        ) and any(
+            group.is_stored for group in self._groups[default_groups_count:]
+        ):
             self._groups[:] = self._groups[default_groups_count:]
 
         # if now any groups loaded, skip creation and remove the unstored ones
-        if any([group.is_stored for group in self._groups]):
+        if any(group.is_stored for group in self._groups):
             self._groups[:] = [group for group in self._groups if group.is_stored]
 
         # now we have our final group list.
-        loaded_or_created = "Loaded" if all([g.is_stored for g in self._groups]) else "Created"
+        loaded_or_created = (
+            "Loaded" if all(g.is_stored for g in self._groups) else "Created"
+        )
 
         # if now no groups loaded, ditch all groups except the primary one, and 'create' (store)
-        if not any([group.is_stored for group in self._groups]):
+        if not any(group.is_stored for group in self._groups):
             self._groups[:] = [self._groups[0]]
             self._groups[0].store()
 
@@ -407,7 +421,8 @@ class _OptionsConfig:
             found = False
             for group in self._groups:
                 if not found:
-                    group_options = [node for node in list(group.nodes) if (isinstance(node, Dict) and node.is_stored)]
+                    group_options = [node for node in list(group.nodes) if
+                                     (isinstance(node, _orm.Dict) and node.is_stored)]
                     for group_option in group_options:
                         if option.attributes == group_option.attributes:
                             # before overwrite, preserve labels if any
@@ -436,9 +451,16 @@ class _OptionsConfig:
                   f"Loaded {num_loaded}, created {num_created} default computer options nodes. "
                   f"Use {self.get_options.__name__}() to load or create options nodes.")
 
-    def get_options(self, store_if_not_exist: bool = True, as_Dict: bool = True, silent: bool = False,
-                    computer_name: str = None, gpu: bool = None, withmpi: bool = True, queue_name: str = None,
-                    account: str = None, **kwargs) -> list:
+    def get_options(self,
+                    store_if_not_exist: bool = True,
+                    as_Dict: bool = True,
+                    silent: bool = False,
+                    computer_name: str = None,
+                    gpu: bool = None,
+                    withmpi: bool = True,
+                    queue_name: str = None,
+                    account: str = None,
+                    **kwargs) -> _typing.Union[_typing.List[_orm.Dict], _typing.List[_typing.Dict]]:
         """Get matching options most closely matching given parameters.
 
         This is the central method of both :py:class:`~aiida_jutools.util_computer._OptionsConfig`and its collection
@@ -466,7 +488,8 @@ class _OptionsConfig:
         :param withmpi: options field.
         :param queue_name: options field. Queue/partition name. If not given but needed, I will guess it.
         :param account: options field. For configs (computers) with account-based queue assignment (e.g., claix).
-        :param kwargs: Optional: other options fields. See :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help`.
+        :param kwargs: Optional: other options fields.
+               See :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help`.
         :return: list of options.
         """
         # DEVNOTE: adjust this if signature changes! (ie if other options keywords are moved from kwargs to named
@@ -485,7 +508,7 @@ class _OptionsConfig:
         resources_keys = help.pop(self._help_config.keys_mode_return_key_rescources)
         # need to pop explicit argument keywords to avoid double occurrence
         all_options_keys[:] = [k for k in all_options_keys if k not in explicit_argument_keywords]
-        invalid_kwargs = {k: v for k, v in kwargs.items() if not k in all_options_keys}
+        invalid_kwargs = {k: v for k, v in kwargs.items() if k not in all_options_keys}
         valid_kwargs = kwargs if not invalid_kwargs else {k: v for k, v in kwargs.items() if k in all_options_keys}
         if invalid_kwargs:
             self._log('Warning', self.get_options,
@@ -532,7 +555,7 @@ class _OptionsConfig:
                         idx_remove_computer.append(idx_computer)
                     idx_computer += 1
                 self._computers[:] = [computer for idx, computer in enumerate(self._computers)
-                                      if not idx in idx_remove_computer]
+                                      if idx not in idx_remove_computer]
                 if not queue_names:
                     # next try to get computer by query
                     computer_name_pattern = computer_name if computer_name else self.name
@@ -541,17 +564,16 @@ class _OptionsConfig:
                     computers = get_computers(computer_name_pattern=computer_name_pattern)
                     if not computers:
                         # next, try decomposing config name into words and get computer from words
-                        import re
-                        confwords = (" ".join(re.findall("[a-zA-Z]+", self.name))).split(" ")
+                        confwords = (" ".join(_re.findall("[a-zA-Z]+", self.name))).split(" ")
                         idx_words = 0
                         while (not computers) and (idx_words < len(confwords)):
                             computers = get_computers(computer_name_pattern=confwords[idx_words])
                             idx_words += 1
                     if not computers:
-                        from aiida.common.exceptions import NotExistent
-                        raise NotExistent(
+                        raise _aiida.common.exceptions.NotExistent(
                             missing_mandatory_arg_err_msg("queue_name",
-                                                          f"Found no matching computer with name pattern '{computer_name_pattern}'."))
+                                                          f"Found no matching computer with name pattern "
+                                                          f"'{computer_name_pattern}'."))
                     else:
                         idx_computer = 0
                         while (not queue_names) and (idx_computer < len(computers)):
@@ -569,7 +591,7 @@ class _OptionsConfig:
 
                 if queue_name:
                     # make sure that the supplied queue name actually exists on that computer.
-                    if not queue_name in queue_names:
+                    if queue_name not in queue_names:
                         raise ValueError(f"Supplied queue_name {queue_name} does not exist / not available for "
                                          f"associated computer {computer} of options config {self.name}.")
                 else:
@@ -591,11 +613,10 @@ class _OptionsConfig:
         loaded, stored = True, True
 
         # now try to load (query) the desired options node first
-        from aiida.orm import QueryBuilder, Group
-        qb = QueryBuilder()
+        qb = _orm.QueryBuilder()
         tag_group = "group"
         group_names = [group.label for group in self._groups]
-        qb.append(Group, filters={"label": {"in": group_names}}, tag=tag_group)
+        qb.append(_orm.Group, filters={"label": {"in": group_names}}, tag=tag_group)
         filters = {"and": []}
         if queue_name:
             filters["and"].append({"attributes.queue_name": queue_name})
@@ -632,7 +653,7 @@ class _OptionsConfig:
                 attr_string = f"attributes.{attr}"
                 filters["and"].append({attr_string: value})
 
-        qb.append(Dict, with_group=tag_group, filters=filters)
+        qb.append(_orm.Dict, with_group=tag_group, filters=filters)
         res = qb.all(flat=True)
 
         # if no results, create a temporary options node (ie without storing).
@@ -700,8 +721,8 @@ class _OptionsConfig:
                                 resources_mpi_keys = ["tot_num_mpiprocs", "num_mpiprocs_per_machine"]
                                 if (cond_attr == "resources") and (withmpi) \
                                         and not any(value.get(rkey, None) for rkey in resources_mpi_keys):
-                                    # in this case tot_num_mpi_procs is neither default nor user-specified (through kwargs),
-                                    # so must determine.
+                                    # in this case tot_num_mpi_procs is neither default nor user-specified
+                                    # (through kwargs), so must determine.
                                     tot_num_mpiprocs = None
                                     mpiprocs_per_mac = None
                                     resources_value = None
@@ -731,8 +752,8 @@ class _OptionsConfig:
                                             tot_num_mpiprocs = max(node_totmpi) if node_totmpi else None
                                             mpiprocs_per_mac = max(node_mpiper) if node_mpiper else None
 
-                                    # if that failed (ie if no computers): go through existing option nodes and take the minimum.
-                                    # if none exist, choose value 1.
+                                    # if that failed (ie if no computers): go through existing option nodes and
+                                    # take the minimum. if none exist, choose value 1.
                                     if not tot_num_mpiprocs and not mpiprocs_per_mac:
                                         node_totmpi = []
                                         node_mpiper = []
@@ -776,7 +797,7 @@ class _OptionsConfig:
                         opt_dict[attr][subattr] = subvalue
 
             # now turn opt_dict into a option node and store in group, if so specified.
-            opt_Dict = Dict(label="", dict=opt_dict)
+            opt_Dict = _orm.Dict(label="", dict=opt_dict)
             opt_Dict.label = opt_label
             if store_if_not_exist:
                 stored = True
@@ -831,7 +852,9 @@ class _OptionsConfig:
 
         return res if as_Dict else [node.attributes for node in res]
 
-    def get_help(self, mode: str, *args) -> dict:
+    def get_help(self,
+                 mode: str,
+                 *args) -> _typing.Dict[str, _typing.Any]:
         """Get list of valid computer options keywords, optionally with descriptions.
 
         Has two modes: either return full lists of keywords, or return keywords with their descriptions.
@@ -857,34 +880,32 @@ class _OptionsConfig:
         is_mode_keys = (mode == self._help_config.keys_mode)
         is_mode_desc = (mode == self._help_config.desc_mode)
 
-        from aiida.engine import CalcJob
-        all_options_keys = sorted(list(CalcJob.spec_options.keys()))
+        all_options_keys = sorted(list(_aiida_engine.CalcJob.spec_options.keys()))
 
         if is_mode_desc:
-            invalid_options_keys = [k for k in args if not k in all_options_keys]
+            invalid_options_keys = [k for k in args if k not in all_options_keys]
             valid_options_keys = args if not invalid_options_keys else [k for k in args if k in all_options_keys]
             if invalid_options_keys:
                 self._log('Warning', self.get_help, f"Supplied some invalid options keywords: "
                                                     f"{list(invalid_options_keys)}.")
 
-            selected_keys = valid_options_keys if valid_options_keys else all_options_keys
-            all_descriptions = CalcJob.spec_options.get_description()
+            selected_keys = valid_options_keys or all_options_keys
+            all_descriptions = _aiida_engine.CalcJob.spec_options.get_description()
             descriptions = {k: v for k, v in all_descriptions.items() if k in selected_keys}
             return {k: descriptions[k] for k in sorted(descriptions)}
 
         elif is_mode_keys:
-            # special treatment for keyword 'resources': its value is a dict with sub-keywords. those allowed keywords are
-            # defined by the computer's scheduler's JobResource.
+            # special treatment for keyword 'resources': its value is a dict with sub-keywords. those allowed
+            # keywords are defined by the computer's scheduler's JobResource.
             resources_keys = []
 
             # for need corresponding JobResource. First try to get from class attribute.
             # If that fails, try to get computer, to get associated JobResource.
-            from aiida.schedulers import JobResource
-
             if self._jobresource_cls:
-                if not issubclass(self._jobresource_cls, JobResource):
+                if not issubclass(self._jobresource_cls, _aiida_schedulers.JobResource):
                     self._log('Warning', self.get_options, f"Config's jobresource attribute should be a subclass "
-                                                           f"of {JobResource.__module__}.{JobResource.__name__}. "
+                                                           f"of {_aiida_schedulers.JobResource.__module__}."
+                                                           f"{_aiida_schedulers.JobResource.__name__}. "
                                                            f"It is not. I will ignore it.")
                 resources_keys = self._jobresource_cls.get_valid_keys()
             if not resources_keys:
@@ -899,11 +920,9 @@ class _OptionsConfig:
                 # since could not determine appropriate resources keys for this config, do sth else instead:
                 # gather all resources keys defined in all immediate JobResource subclasses and use that.
                 # note that this might be a bit unstable wrt aiida version changes.
-                from aiida.schedulers import NodeNumberJobResource, ParEnvJobResource
-                from aiida.schedulers.plugins.lsf import LsfJobResource
-                resources_keys = sorted(list(set(NodeNumberJobResource.get_valid_keys()) +
-                                             set(ParEnvJobResource.get_valid_keys()) +
-                                             set(LsfJobResource.get_valid_keys())))
+                resources_keys = sorted(list(set(_aiida_schedulers.NodeNumberJobResource.get_valid_keys()) +
+                                             set(_aiida_schedulers.ParEnvJobResource.get_valid_keys()) +
+                                             set(_aiida_lsf_schedulers.LsfJobResource.get_valid_keys())))
 
             return {self._help_config.keys_mode_return_key_options: all_options_keys,
                     self._help_config.keys_mode_return_key_rescources: resources_keys}
@@ -911,7 +930,10 @@ class _OptionsConfig:
         else:
             raise NotImplementedError("This code should never be reached. Fix code or contact developer.")
 
-    def delete_options(self, options_nodes: _List[Dict], dry_run: bool = True, verbosity: int = 1):
+    def delete_options(self,
+                       options_nodes: _typing.List[_orm.Dict],
+                       dry_run: bool = True,
+                       verbosity: int = 1):
         """Delete some of the config's stored options from the database.
 
         This is useful, for instance, if you created and stored some undesired options via
@@ -928,21 +950,18 @@ class _OptionsConfig:
         # safety checks
         if not isinstance(options_nodes, list):
             options_nodes = [options_nodes]
-        if not all([isinstance(node, Dict) for node in options_nodes]):
-            self._log("Warning", self.delete_options, f"Not all supplied nodes are {Dict.__name__} nodes. Aborting.")
+        if not all(isinstance(node, _orm.Dict) for node in options_nodes):
+            self._log("Warning", self.delete_options,
+                      f"Not all supplied nodes are {_orm.Dict.__name__} nodes. Aborting.")
             return
-        if not all([node.is_stored for node in options_nodes]):
+        if not all(node.is_stored for node in options_nodes):
             self._log("Warning", self.delete_options, f"Not all supplied nodes are stored. Aborting.")
             return
         config_options = self.options
         is_from_config = []
         is_not_from_config_pks = []
         for node in options_nodes:
-            found = False
-            for opt in self.options:
-                if node.pk == opt.pk:
-                    found = True
-                    break
+            found = any(node.pk == opt.pk for opt in self.options)
             is_from_config.append(found)
             if not found:
                 is_not_from_config_pks.append(node.pk)
@@ -954,11 +973,10 @@ class _OptionsConfig:
         pks = [node.pk for node in options_nodes]
         if verbosity > 0:
             self._log("Info", self.delete_options, f"Deleting specified option nodes {pks} from config ...")
-        from aiida.manage.database.delete.nodes import delete_nodes
-        delete_nodes(pks=pks, dry_run=dry_run, force=True, verbosity=verbosity)
+        _aiida_tools.delete_nodes(pks=pks, dry_run=dry_run, force=True, verbosity=verbosity)
 
 
-@dc.dataclass(init=True, repr=True, eq=False, order=False, frozen=False)
+@_dc.dataclass(init=True, repr=True, eq=False, order=False, frozen=False)
 class ComputerOptionsManager:
     """Manage computer options (builder.metdata.options) for AiiDA processes.
 
@@ -995,102 +1013,99 @@ class ComputerOptionsManager:
     >>> optman.iffslurm.get_options()
     >>> optman.claix18.get_help()
     """
-    from typing import List as _List, AnyStr as _AnyStr
-    from masci_tools.util.python_util import dataclass_default_field as _field
-    from aiida.schedulers.plugins.slurm import SlurmJobResource as _SlurmJobResource
-    localhost: _OptionsConfig = _field(_OptionsConfig(
+    localhost: _OptionsConfig = _masci_python_util.dataclass_default_field(_OptionsConfig(
         name="localhost",
-        _groups=[Group(label="computer_options/localhost",
-                       description="Default computer options (Dict nodes) for the a generic local computer.")],
-        _options=[Dict(label="options_localhost_serial",
-                       dict={'max_wallclock_seconds': (60 ** 2),
-                             'withmpi': False,
-                             'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}}),
-                  Dict(label="options_localhost",
-                       dict={'max_wallclock_seconds': (60 ** 2),
-                             'withmpi': False,
-                             'resources': {'num_machines': 1, 'tot_num_mpiprocs': 4}})],
+        _groups=[_orm.Group(label="computer_options/localhost",
+                            description="Default computer options (Dict nodes) for a generic local computer.")],
+        _options=[_orm.Dict(label="options_localhost_serial",
+                            dict={'max_wallclock_seconds': (60 ** 2),
+                                  'withmpi': False,
+                                  'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}}),
+                  _orm.Dict(label="options_localhost",
+                            dict={'max_wallclock_seconds': (60 ** 2),
+                                  'withmpi': False,
+                                  'resources': {'num_machines': 1, 'tot_num_mpiprocs': 4}})],
         _query_config=_OptionsQueryConfig(ignored=["queue_name", "account", "gpu"],
                                           mandatory=[],
                                           optional=["withmpi"]),
         _silent=True
     ), deepcopy=False)
-    iffslurm: _OptionsConfig = _field(_OptionsConfig(
+    iffslurm: _OptionsConfig = _masci_python_util.dataclass_default_field(_OptionsConfig(
         name="iffslurm",
-        _groups=[Group(label="computer_options/iffslurm",
-                       description="Default computer options (Dict nodes) for the FZJ PGI iffslurm computer."),
-                 Group(label="iffslurm_options",
-                       description="Default computer options (Dict nodes) for the FZJ PGI iffslurm computer.")],
-        _options=[Dict(label="options_iffslurm_oscar",
-                       dict={"queue_name": "oscar", "max_wallclock_seconds": (60 ** 2) * 24,
-                             "withmpi": True,
-                             "resources": {"num_machines": 1, "tot_num_mpiprocs": 12}}),
-                  Dict(label="options_iffslurm_oscar_serial",
-                       dict={"queue_name": "oscar", "max_wallclock_seconds": (60 ** 2) * 24,
-                             "withmpi": False,
-                             "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
-                  Dict(label="options_iffslurm_th1",
-                       dict={"queue_name": "th1", "max_wallclock_seconds": (60 ** 2) * 24,
-                             "withmpi": True,
-                             "resources": {"num_machines": 1, "tot_num_mpiprocs": 12}}),
-                  Dict(label="options_iffslurm_th1_serial",
-                       dict={"queue_name": "th1", "max_wallclock_seconds": (60 ** 2) * 24,
-                             "withmpi": False,
-                             "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
-                  Dict(label="options_iffslurm_th1-2020-32",
-                       dict={"queue_name": "th1-2020-32", "max_wallclock_seconds": (60 ** 2) * 24,
-                             "withmpi": True,
-                             "resources": {"num_machines": 1, "tot_num_mpiprocs": 32}}),
-                  Dict(label="options_iffslurm_th1-2020-32_serial",
-                       dict={"queue_name": "th1-2020-32", "max_wallclock_seconds": (60 ** 2) * 24,
-                             "withmpi": False,
-                             "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
-                  Dict(label="options_iffslurm_th1-2020-64",
-                       dict={"queue_name": "th1-2020-64", "max_wallclock_seconds": (60 ** 2) * 24,
-                             "withmpi": True,
-                             "resources": {"num_machines": 1, "tot_num_mpiprocs": 64}}),
-                  Dict(label="options_iffslurm_viti",
-                       dict={"queue_name": "viti", "max_wallclock_seconds": (60 ** 2) * 24,
-                             "withmpi": True,
-                             "resources": {"num_machines": 1, "tot_num_mpiprocs": 20}})],
+        _groups=[_orm.Group(label="computer_options/iffslurm",
+                            description="Default computer options (Dict nodes) for the FZJ PGI iffslurm computer."),
+                 _orm.Group(label="iffslurm_options",
+                            description="Default computer options (Dict nodes) for the FZJ PGI iffslurm computer.")],
+        _options=[_orm.Dict(label="options_iffslurm_oscar",
+                            dict={"queue_name": "oscar", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 12}}),
+                  _orm.Dict(label="options_iffslurm_oscar_serial",
+                            dict={"queue_name": "oscar", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": False,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
+                  _orm.Dict(label="options_iffslurm_th1",
+                            dict={"queue_name": "th1", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 12}}),
+                  _orm.Dict(label="options_iffslurm_th1_serial",
+                            dict={"queue_name": "th1", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": False,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
+                  _orm.Dict(label="options_iffslurm_th1-2020-32",
+                            dict={"queue_name": "th1-2020-32", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 32}}),
+                  _orm.Dict(label="options_iffslurm_th1-2020-32_serial",
+                            dict={"queue_name": "th1-2020-32", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": False,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
+                  _orm.Dict(label="options_iffslurm_th1-2020-64",
+                            dict={"queue_name": "th1-2020-64", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 64}}),
+                  _orm.Dict(label="options_iffslurm_viti",
+                            dict={"queue_name": "viti", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 20}})],
         _query_config=_OptionsQueryConfig(ignored=["account"],
                                           mandatory=["queue_name"],
                                           optional=["gpu", "withmpi"]),
-        _jobresource_cls=_SlurmJobResource,
+        _jobresource_cls=_aiida_slurm_schedulers.SlurmJobResource,
         _silent=True
     ), deepcopy=False)
-    claix18: _OptionsConfig = _field(_OptionsConfig(
+    claix18: _OptionsConfig = _masci_python_util.dataclass_default_field(_OptionsConfig(
         name="claix18",
-        _groups=[Group(label="computer_options/claix18",
-                       description="Default computer options (Dict nodes) for the RWTH claix 2018 computer.")],
+        _groups=[_orm.Group(label="computer_options/claix18",
+                            description="Default computer options (Dict nodes) for the RWTH claix 2018 computer.")],
         _options=[
-            Dict(label="options_claix18",
-                 dict={'max_wallclock_seconds': (60 ** 2) * 24,
-                       'withmpi': True,
-                       'resources': {'num_machines': 1, 'tot_num_mpiprocs': 48},
-                       'custom_scheduler_commands': ""})
+            _orm.Dict(label="options_claix18",
+                      dict={'max_wallclock_seconds': (60 ** 2) * 24,
+                            'withmpi': True,
+                            'resources': {'num_machines': 1, 'tot_num_mpiprocs': 48},
+                            'custom_scheduler_commands': ""})
         ],
         _query_config=_OptionsQueryConfig(ignored=["queue_name", "gpu"],
                                           mandatory=[],
                                           optional=["account", "withmpi"]),
-        _jobresource_cls=_SlurmJobResource,
+        _jobresource_cls=_aiida_slurm_schedulers.SlurmJobResource,
         _silent=True
     ), deepcopy=False)
-    claix16: _OptionsConfig = _field(_OptionsConfig(
+    claix16: _OptionsConfig = _masci_python_util.dataclass_default_field(_OptionsConfig(
         name="claix16",
-        _groups=[Group(label="computer_options/claix16",
-                       description="Default computer options (Dict nodes) for the RWTH claix 2016 computer.")],
+        _groups=[_orm.Group(label="computer_options/claix16",
+                            description="Default computer options (Dict nodes) for the RWTH claix 2016 computer.")],
         _options=[
-            Dict(label="options_claix16",
-                 dict={'max_wallclock_seconds': (60 ** 2) * 24,
-                       'withmpi': True,
-                       'resources': {'num_machines': 1, 'tot_num_mpiprocs': 24},
-                       'custom_scheduler_commands': ""})
+            _orm.Dict(label="options_claix16",
+                      dict={'max_wallclock_seconds': (60 ** 2) * 24,
+                            'withmpi': True,
+                            'resources': {'num_machines': 1, 'tot_num_mpiprocs': 24},
+                            'custom_scheduler_commands': ""})
         ],
         _query_config=_OptionsQueryConfig(ignored=["queue_name", "gpu"],
                                           mandatory=[],
                                           optional=["account", "withmpi"]),
-        _jobresource_cls=_SlurmJobResource,
+        _jobresource_cls=_aiida_slurm_schedulers.SlurmJobResource,
         _silent=True
     ), deepcopy=False)
 
@@ -1102,7 +1117,11 @@ class ComputerOptionsManager:
 
         self._log("Info", None, f"Call {self.initialize.__name__}() before use.")
 
-    def _log(self, level: str = None, func=None, msg: str = "", name: bool = True):
+    def _log(self,
+             level: str = None,
+             func=None,
+             msg: str = "",
+             name: bool = True):
         """Basic logging.
 
         TODO replace with real logging / aiida logging.
@@ -1113,24 +1132,25 @@ class ComputerOptionsManager:
         print(f"{level}{cls_name}{func_name}: {msg}")
 
     @property
-    def configs(self) -> _List[_OptionsConfig]:
+    def configs(self) -> _typing.List[_OptionsConfig]:
         """Get all configs.
         """
         return self._configs
 
     @property
-    def config_names(self) -> _List[_AnyStr]:
+    def config_names(self) -> _typing.List[str]:
         """Get the names of all configs.
         """
         return [config.name for config in self.configs]
 
     @property
-    def groups(self) -> _List[Group]:
+    def groups(self) -> _typing.List[_orm.Group]:
         """Get the groups of all configs.
         """
         return self.get_groups()
 
-    def get_groups(self, config_names: list = []) -> _List[Group]:
+    def get_groups(self,
+                   config_names: _typing.List[str] = []) -> _typing.List[_orm.Group]:
         """Get the groups of a selection of configs.
 
         :param config_names: selection of configs. If empty, select all configs.
@@ -1144,14 +1164,17 @@ class ComputerOptionsManager:
                 groups.extend(config.groups)
         return groups
 
-    def _get_valid_config_names_from(self, config_names: list = [], silent: bool = True):
+    def _get_valid_config_names_from(self,
+                                     config_names: _typing.List[str] = [],
+                                     silent: bool = True) -> _typing.Tuple[
+        _typing.List[str], _typing.List[str], _typing.List[str]]:
         """Helper. Check supplied config names against names of actual configs and return valid names.
 
         :param config_names: selection of config names.
         :param silent: True: do not print out any info. False: only print warnings.
         :return: tuple of (valid, unselected, invalid config names) of this config
         """
-        supplied_config_names = config_names if config_names else self.config_names
+        supplied_config_names = config_names or self.config_names
         valid_config_names = [config.name for config in self.configs if config.name in supplied_config_names]
         invalid_config_names = list(set(supplied_config_names) - set(valid_config_names))
         unselected_config_names = list(set(self.config_names) - set(valid_config_names))
@@ -1161,8 +1184,12 @@ class ComputerOptionsManager:
 
         return valid_config_names, unselected_config_names, invalid_config_names
 
-    def initialize(self, config_names: list = [], silent: bool = False, delete_other: bool = False,
-                   delete_dry_run: bool = True, delete_verbosity: int = 1):
+    def initialize(self,
+                   config_names: _typing.List[str] = [],
+                   silent: bool = False,
+                   delete_other: bool = False,
+                   delete_dry_run: bool = True,
+                   delete_verbosity: int = 1):
         """Initialize the manager's configs. Must be called before usage.
 
         Each config is a :py:class:`~aiida_jutools.util_computer._OptionsConfig` instance. These
@@ -1190,23 +1217,10 @@ class ComputerOptionsManager:
         # get rid of unselected configs
         # # first delete in db if so specified
         if delete_other:
-            if not unselected_config_names:
-                if not silent:
-                    method_name = f"{self.__class__.__name__}.{self.initialize.__name__}()"
-                    print(
-                        f"Info: Specified to delete unselected configs, but none present. If you selected only a "
-                        f"subset of config names and expected to see some deletions now, this may be because you ran "
-                        f"{method_name} in delete dry run mode previously. Unselected config attributes get removed "
-                        f"from the instance in any case, but, for safety, only get deleted from the database as well "
-                        f"if delete True and delete dry run mode False. If you want that done, please re-instantiate "
-                        f"this class to get back the unselected config attributes, then run {method_name} again with "
-                        f"delete dry run False.")
-            else:
-                from aiida.common.exceptions import NotExistent
+            if unselected_config_names:
                 if not silent:
                     print(f"Deleting groups and nodes for unselected configs {unselected_config_names} "
                           f"from database, if already stored, dry run: {delete_dry_run}.")
-                from aiida_jutools import util_group
 
                 # not using get_groups() here to suppress not initialized warning
                 groups = []
@@ -1218,14 +1232,24 @@ class ComputerOptionsManager:
                     # since we are not necessarily initialized yet, the groups may or may not exist in db.
                     # so wrap in try except block.
                     try:
-                        stored_group = Group.get(label=group.label)
+                        stored_group = _orm.Group.get(label=group.label)
                         stored_groups.append(stored_group)
-                    except NotExistent as err:
+                    except _aiida.common.exceptions.NotExistent as err:
                         pass
-                util_group.delete_groups_with_nodes(group_labels=[group.label for group in stored_groups],
-                                                    dry_run=delete_dry_run, verbosity=delete_verbosity,
-                                                    leave_groups=False)
+                _jutools_group.delete_groups_with_nodes(group_labels=[group.label for group in stored_groups],
+                                                        dry_run=delete_dry_run, verbosity=delete_verbosity,
+                                                        leave_groups=False)
 
+            elif not silent:
+                method_name = f"{self.__class__.__name__}.{self.initialize.__name__}()"
+                print(
+                    f"Info: Specified to delete unselected configs, but none present. If you selected only a "
+                    f"subset of config names and expected to see some deletions now, this may be because you ran "
+                    f"{method_name} in delete dry run mode previously. Unselected config attributes get removed "
+                    f"from the instance in any case, but, for safety, only get deleted from the database as well "
+                    f"if delete True and delete dry run mode False. If you want that done, please re-instantiate "
+                    f"this class to get back the unselected config attributes, then run {method_name} again with "
+                    f"delete dry run False.")
         # # then remove unselected configs from instance
         self._configs[:] = [config for config in self._configs if config.name in valid_config_names]
         for config_name in unselected_config_names:
@@ -1239,9 +1263,17 @@ class ComputerOptionsManager:
                 elif not silent:
                     print(f"Config '{config.name}' is already initialized.")
 
-    def get_options(self, config_names: list = [], store_if_not_exist: bool = True, as_Dict: bool = True,
-                    silent: bool = False, computer_name: str = None, gpu: bool = None, withmpi: bool = True,
-                    queue_name: str = None, account: str = None, **kwargs):
+    def get_options(self,
+                    config_names: _typing.List[str] = [],
+                    store_if_not_exist: bool = True,
+                    as_Dict: bool = True,
+                    silent: bool = False,
+                    computer_name: str = None,
+                    gpu: bool = None,
+                    withmpi: bool = True,
+                    queue_name: str = None,
+                    account: str = None,
+                    **kwargs) -> _typing.Union[_typing.List[_orm.Dict], _typing.List[_typing.Dict]]:
         """Get matching options from specified configs most closely matching given parameters.
 
         Note: Often it is easier to address the desired config by manager attribute and call its
@@ -1260,7 +1292,8 @@ class ComputerOptionsManager:
         :param withmpi: options field.
         :param queue_name: options field. Queue/partition name. If not given but needed, I will guess it.
         :param account: options field. For configs (computers) with account-based queue assignment (e.g., claix).
-        :param kwargs: Optional: other options fields. See :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help`.
+        :param kwargs: Optional: other options fields.
+               See :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help`.
         :return: list of options from selected configs.
         """
         valid_config_names, _, _ = self._get_valid_config_names_from(config_names=config_names, silent=silent)
@@ -1269,13 +1302,22 @@ class ComputerOptionsManager:
         for config in self.configs:
             if config.name in valid_config_names:
                 options.extend(
-                    config.get_options(store_if_not_exist=store_if_not_exist, as_Dict=as_Dict, silent=silent,
-                                       computer_name=computer_name, gpu=gpu, withmpi=withmpi, queue_name=queue_name,
-                                       account=account, **kwargs))
+                    config.get_options(store_if_not_exist=store_if_not_exist,
+                                       as_Dict=as_Dict,
+                                       silent=silent,
+                                       computer_name=computer_name,
+                                       gpu=gpu,
+                                       withmpi=withmpi,
+                                       queue_name=queue_name,
+                                       account=account,
+                                       **kwargs)
+                )
 
         return options
 
-    def get_help(self, mode: str, *args) -> dict:
+    def get_help(self,
+                 mode: str,
+                 *args) -> _typing.Dict[str, _typing.Any]:
         """Get help on valid computer options keywords.
 
         This method calls the manager's configs' :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help` method.
@@ -1316,7 +1358,10 @@ class ComputerOptionsManager:
             return {self._help_config.keys_mode_return_key_options: all_options_keys,
                     self._help_config.keys_mode_return_key_rescources: resources_keys}
 
-    def delete_options(self, config_names: _List[_AnyStr] = [], options_nodes: _List[Dict] = [], dry_run: bool = True,
+    def delete_options(self,
+                       config_names: _typing.List[str] = [],
+                       options_nodes: _typing.List[_orm.Dict] = [],
+                       dry_run: bool = True,
                        verbosity: int = 1):
         """Delete some of the specified configs' stored options from the database.
 
@@ -1334,7 +1379,10 @@ class ComputerOptionsManager:
             if config.name in valid_config_names:
                 config.delete_options(options_nodes=options_nodes, dry_run=dry_run, verbosity=verbosity)
 
-    def add_config(self, config: _OptionsConfig, initialize: bool = False, silent: bool = False):
+    def add_config(self,
+                   config: _OptionsConfig,
+                   initialize: bool = False,
+                   silent: bool = False):
         """Add a config (set of group-managed options nodes with defaults) to the manager.
 
         The config will become available as named attribute and will be included in the manager's collective
@@ -1353,7 +1401,7 @@ class ComputerOptionsManager:
             print(f"Added computer options config: {config.name}.")
 
 
-@dc.dataclass
+@_dc.dataclass
 class QuotaQuerierSettings:
     """Settings for QuotaQuerier.
 
@@ -1365,55 +1413,48 @@ class QuotaQuerierSettings:
     :param min_free_space: memory space too stay away from hard limit. string like "10G" = 10 gigabyte = default.
     :param comment: optional comment on usage, e.g. for different template instances.
     """
-    from masci_tools.util import python_util
-    from typing import AnyStr as _AnyStr, List as _List
-    command: _AnyStr = "quota"
+    command: str = "quota"
     header_line_count: int = 1
-    column_space_used: _AnyStr = "used"
-    column_space_hard: _AnyStr = "hard"
-    dirname_pattern: _AnyStr = ""
-    min_free_space: _AnyStr = "10G"
-    comment: _List[_AnyStr] = python_util.dataclass_default_field([""])
+    column_space_used: str = "used"
+    column_space_hard: str = "hard"
+    dirname_pattern: str = ""
+    min_free_space: str = "10G"
+    comment: _typing.List[str] = _masci_python_util.dataclass_default_field([""])
 
 
 class QuotaQuerier:
-    def __init__(self, computer: Computer, settings: QuotaQuerierSettings):
+    def __init__(self,
+                 computer: _orm.Computer,
+                 settings: QuotaQuerierSettings):
         """Convenience methods for getting the quota of aiida configured computer nodes.
 
         Use this class' builder :py:class:`~aiida_jutools.util_computer.QuotaQuerierBuilder` to create an instance.
 
         :param computer:  an aiida configured computer
-        :type computer: Computer
         :param settings: settings
-        :type settings: QuotaQuerierSettings
         """
         self.computer = computer
         self.settings = settings
 
-    def get_quota(self):
+    def get_quota(self) -> _pd.DataFrame:
         """Get quota as a pandas dataframe.
         """
-        import pandas as pd
-        import io
         s = self.settings
 
         exit_code, stdout, stderr = shell_command(self.computer, s.command)
 
         # strip away the header lines:
         # # stdout is a single string, lines sep. by '\n'
-        for i in range(s.header_line_count):
+        for _ in range(s.header_line_count):
             stdout = stdout[stdout.find("\n") + 1:].lstrip()
 
-        # convert remaining string to dataframe
-        df = pd.read_table(io.StringIO(stdout), sep=r"\s+")
-        return df
+        return _pd.read_table(_io.StringIO(stdout), sep=r"\s+")
 
     def is_min_free_space_left(self) -> bool:
         """Check output of quota command on computer to see if more than 'buffer' space is available.
 
-        :return: True if used space > (hard limit - buffer) , False if not, None if could not find out.
+        :return: True if used space > (hard limit - buffer) , False if not.
         """
-        import humanfriendly
         s = self.settings
 
         if not s.dirname_pattern or not s.min_free_space:
@@ -1427,16 +1468,17 @@ class QuotaQuerier:
         row_idx = row.index[0]
 
         # extract bytesize used, hard limit
-        used = humanfriendly.parse_size(row[s.column_space_used][row_idx])
-        hard = humanfriendly.parse_size(row[s.column_space_hard][row_idx])
+        used = _humanfriendly.parse_size(row[s.column_space_used][row_idx])
+        hard = _humanfriendly.parse_size(row[s.column_space_hard][row_idx])
 
         # check if free space is big enough
-        min_free_space = humanfriendly.parse_size(s.min_free_space)
+        min_free_space = _humanfriendly.parse_size(s.min_free_space)
         is_min_free_space_left = (hard - used) > min_free_space
         if not is_min_free_space_left:
             print(
                 f"not enough space available on computer (used: {used}, hard limit: {hard}, requested free space:"
-                f" {s.min_free_space}). Try cleaning up the aiida computer's workdir (see verdi calcjob cleanworkdir -h).")
+                f" {s.min_free_space}). Try cleaning up the aiida computer's workdir "
+                f"(see verdi calcjob cleanworkdir -h).")
         return is_min_free_space_left
 
 
@@ -1451,7 +1493,9 @@ class QuotaQuerierBuilder:
     def print_available_templates(self):
         print(self.templates)
 
-    def build(self, template: str, computer: Computer):
+    def build(self,
+              template: str,
+              computer: _orm.Computer) -> QuotaQuerier:
         """Build a QuotaQuerier for a given template and computer.
 
         The template configures the settings such that the quota will return the desired
@@ -1465,7 +1509,6 @@ class QuotaQuerierBuilder:
         :param template: a valid template from this class
         :param computer: configured aiida computer
         :return: an instance of a quota querier for that computer.
-        :rtype: QuotaQuerier
         """
         print(f"Configuring {QuotaQuerierSettings.__name__} for template '{template}'.")
 
