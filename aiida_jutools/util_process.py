@@ -11,35 +11,42 @@
 #                                                                             #
 ###############################################################################
 """Tools for working with aiida Process and ProcessNode objects."""
+
 import dataclasses as _dc
 import datetime as _datetime
+import errno as _errno
+import io as _io
 import json as _json
+import shutil as _shutil
 import time as _time
-from typing import Union as _Union, List as _List
+import typing as _typing
 
-from aiida.cmdline.utils.query.calculation import CalculationQueryBuilder as _CalculationQueryBuilder
-from aiida.common import timezone as _aiida_timezone
-from aiida.common.exceptions import NotExistent as _NotExistent
-from aiida.engine.processes import ProcessState as _PS, Process as _Process
-from aiida.orm import ProcessNode as _ProcessNode, Group as _Group
-from aiida.orm import QueryBuilder as _QueryBuilder
-from masci_tools.util import python_util as _python_util
+import aiida as _aiida
+import aiida.cmdline.utils.query.calculation as _aiida_cmdline_calculation
+import aiida.common.timezone as _aiida_timezone
+import aiida.engine as _aiida_engine
+import aiida.engine.processes as _aiida_processes
+import aiida.orm as _orm
+import aiida.tools as _aiida_tools
+import aiida.tools.groups as _aiida_groups
+import masci_tools.util.python_util as _masci_python_util
+import pandas as _pd
+from aiida.engine.processes import ProcessState as _PS
 
-from aiida_jutools import util_group as _util_group
-from aiida_jutools.util_computer import QuotaQuerier as _QuotaQuerier
+import aiida_jutools.util_computer as _jutools_computer
+import aiida_jutools.util_group as _jutools_group
 
 
 def get_process_states(terminated: bool = None,
                        as_string: bool = True,
-                       with_legend: bool = False) -> _Union[_List[str], _List[_PS]]:
+                       with_legend: bool = False) -> _typing.Union[_typing.List[str], _typing.List[_PS]]:
     """Get AiiDA process state available string values (of ``process_node.process_state``).
 
     :param terminated: None: all states. True: all terminated states. False: all not terminated states.
     :param as_string: True: states as string representations. False: states as ProcessState Enum values.
     :param with_legend: add 2nd return argument: string of AiiDA process state classification
-    :return:
+    :return: process states
     """
-
     # first check that ProcessState implementation has not changed
     process_states_should = [_PS.CREATED, _PS.WAITING, _PS.RUNNING, _PS.FINISHED, _PS.EXCEPTED, _PS.KILLED]
     if not set(_PS) == set(process_states_should):
@@ -72,7 +79,8 @@ AiiDA process state hierarchy:
         return states, legend
 
 
-def validate_process_states(process_states: _Union[_List[str], _List[_PS]], as_string: bool = True) -> bool:
+def validate_process_states(process_states: _typing.Union[_typing.List[str], _typing.List[_PS]],
+                            as_string: bool = True) -> bool:
     """Check if list contains any non-defined process state.
 
     :param process_states: list of items 'created' 'running' 'waiting' 'finished' 'excepted' 'killed'.
@@ -83,7 +91,8 @@ def validate_process_states(process_states: _Union[_List[str], _List[_PS]], as_s
     return all(ps in allowed_process_states for ps in process_states)
 
 
-def get_exit_codes(process_cls, as_dict: bool = False) -> object:
+def get_exit_codes(process_cls: _typing.Type[_aiida_processes.Process],
+                   as_dict: bool = False) -> _typing.Union[list, dict]:
     """Get collection of all exit codes for this process class.
 
     An ExitCode is a NamedTuple of exit_status, exit_message and some other things.
@@ -92,35 +101,40 @@ def get_exit_codes(process_cls, as_dict: bool = False) -> object:
     :param as_dict: return as dict {status : message} instead of as list of ExitCodes.
     :return: list of ExitCodes or dict.
     """
-    assert issubclass(process_cls, _Process)
+    assert issubclass(process_cls, _aiida_processes.Process)
     exit_codes = list(process_cls.spec().exit_codes.values())
     return exit_codes if not as_dict else {ec.status: ec.message for ec in exit_codes}
 
 
-def validate_exit_statuses(process_cls, exit_statuses: _List[int] = []) -> bool:
+def validate_exit_statuses(process_cls: _typing.Type[_aiida_processes.Process],
+                           exit_statuses: _typing.List[int] = []) -> bool:
     """Check if list contains any non-defined exit status for this process class.
 
     :param process_cls: Process class. Must be subclass of aiida Process
     :param exit_statuses: list of integers
     :return: True if all items are defined exit statuses for that process class, False otherwise.
     """
-    assert issubclass(process_cls, _Process)
+    assert issubclass(process_cls, _aiida_processes.Process)
 
     exit_codes = get_exit_codes(process_cls=process_cls)
     valid_exit_statuses = [exit_code.status for exit_code in exit_codes]
     exit_statuses_without_0 = [es for es in exit_statuses if es != 0]
-    return all([exit_status in valid_exit_statuses for exit_status in exit_statuses_without_0])
+    return all(
+        exit_status in valid_exit_statuses
+        for exit_status in exit_statuses_without_0
+    )
 
 
 def query_processes(label: str = None,
                     process_label: str = None,
-                    process_states: _Union[_List[str], _List[_PS]] = None,
-                    exit_statuses: _List[int] = None,
+                    process_states: _typing.Union[_typing.List[str], _typing.List[_PS]] = None,
+                    exit_statuses: _typing.List[int] = None,
                     failed: bool = False,
                     paused: bool = False,
-                    node_types: _Union[_List[_ProcessNode], _List[_Process]] = None,
-                    group: _Group = None,
-                    timedelta: _datetime.timedelta = None) -> _QueryBuilder:
+                    node_types: _typing.Union[
+                        _typing.List[_orm.ProcessNode], _typing.List[_aiida_processes.Process]] = None,
+                    group: _orm.Group = None,
+                    timedelta: _datetime.timedelta = None) -> _orm.QueryBuilder:
     """Get all process nodes with given specifications. All arguments are optional.
 
     ``process_states`` can either be a list of process state strings ('created' 'running' 'waiting' 'finished'
@@ -144,9 +158,7 @@ def query_processes(label: str = None,
     :param paused: restrict to paused processes.
     :param node_types: list of subclasses of ProcessNode or Process.
     :param group: restrict search to this group.
-    :type group: Group
     :param timedelta: if None, ignore. Else, include only recently created up to timedelta.
-    :type timedelta: datetime.timedelta
     :return: query builder
 
     Note: This method doesn't offer projections. Speed and memory-wise, this does not become an
@@ -165,21 +177,22 @@ def query_processes(label: str = None,
     """
 
     if not node_types:
-        _node_types = [_Process]
+        _node_types = [_aiida_processes.Process]
     else:
-        _node_types = [typ for typ in node_types if typ is not None and issubclass(typ, (_Process, _ProcessNode))]
+        _node_types = [typ for typ in node_types if
+                       typ is not None and issubclass(typ, (_aiida_processes.Process, _orm.ProcessNode))]
         difference = set(node_types) - set(_node_types)
         if not _node_types:
-            _node_types = [_Process]
+            _node_types = [_aiida_processes.Process]
         if difference:
             print(f"Warning: {query_processes.__name__}(): Specified node_types {node_types}, some of which are "
-                  f"not subclasses of ({_Process.__name__}, {_ProcessNode.__name__}). Replaced with node_types "
-                  f"{_node_types}.")
+                  f"not subclasses of ({_aiida_processes.Process.__name__}, {_orm.ProcessNode.__name__}). "
+                  f"Replaced with node_types {_node_types}.")
 
     filters = {}
     # Use CalculationQueryBuilder (CQB) to build filters.
     # This offers many conveniences, but also limitations. We will deal with the latter manually.
-    builder = _CalculationQueryBuilder()
+    builder = _aiida_cmdline_calculation.CalculationQueryBuilder()
     if exit_statuses:
         process_states = ['finished']
     filters = builder.get_filters(failed=failed, process_state=process_states, process_label=process_label,
@@ -190,20 +203,19 @@ def query_processes(label: str = None,
         filters['label'] = {'==': label}
     if timedelta:
         filters['ctime'] = {'>': _aiida_timezone.now() - timedelta}
-
-    qb = _QueryBuilder()
+    qb = _orm.QueryBuilder()
     if not group:
         return qb.append(_node_types, filters=filters)
-    else:
-        qb.append(_Group, filters={'label': group.label}, tag='group')
-        return qb.append(_node_types, with_group='group', filters=filters)
+    qb.append(_orm.Group, filters={'label': group.label}, tag='group')
+    return qb.append(_node_types, with_group='group', filters=filters)
 
 
 class ProcessClassifier:
     """Classifies processes by process_state and exit_status."""
     _TMP_GROUP_LABEL_PREFIX = "process_classification"
 
-    def __init__(self, processes: list = None):
+    def __init__(self,
+                 processes: _typing.List[_typing.Union[_orm.ProcessNode, _aiida_processes.Process]] = None):
         """Classifies processes by process_state and exit_status.
 
         Use e.g. :py:meth:`~aiida_jutools.util_process.query_processes` to get a list of processes to classify.
@@ -224,30 +236,32 @@ class ProcessClassifier:
 
         # check if temporary groups from previous instances have not been cleaned up.
         # if so, delete them.
-        qb = _QueryBuilder()
-        temporary_groups = qb.append(_Group,
+        qb = _orm.QueryBuilder()
+        temporary_groups = qb.append(_orm.Group,
                                      filters={"label": {"like": ProcessClassifier._TMP_GROUP_LABEL_PREFIX + "%"}}).all(
             flat=True)
         if temporary_groups:
             print(f"Info: Found temporary classification groups, most likely not cleaned up from a previous "
                   f"{ProcessClassifier.__name__} instance. I will delete them now.")
-            _util_group.delete_groups(group_labels=[group.label for group in temporary_groups],
-                                      skip_nonempty_groups=False,
-                                      silent=False)
+            _jutools_group.delete_groups(group_labels=[group.label for group in temporary_groups],
+                                         skip_nonempty_groups=False,
+                                         silent=False)
 
-    def _group_for_classification(self) -> object:
+    def _group_for_classification(self) -> _orm.Group:
         """Create a temporary group to help in classification. delete group after all classified.
+
+        :return: temporary classification group
         """
 
         exists_already = True
         while exists_already:
             group_label = "_".join([ProcessClassifier._TMP_GROUP_LABEL_PREFIX,
                                     _datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-                                    _python_util.random_string(length=16)])
+                                    _masci_python_util.random_string(length=16)])
             try:
-                _Group.get(label=group_label)
-            except _NotExistent as err:
-                tmp_classification_group = _Group(label=group_label)
+                _orm.Group.get(label=group_label)
+            except _aiida.common.exceptions.NotExistent as err:
+                tmp_classification_group = _orm.Group(label=group_label)
                 tmp_classification_group.store()
                 exists_already = False
 
@@ -292,9 +306,9 @@ class ProcessClassifier:
 
         # classification done.
         # cleanup:
-        _util_group.delete_groups(group_labels=[tmp_classification_group.label],
-                                  skip_nonempty_groups=False,
-                                  silent=True)
+        _jutools_group.delete_groups(group_labels=[tmp_classification_group.label],
+                                     skip_nonempty_groups=False,
+                                     silent=True)
 
     def classify_by_type(self) -> None:
         """Classify processes / process nodes (here: interchangeable) by various type indicators.
@@ -314,13 +328,13 @@ class ProcessClassifier:
             pcls = process.process_class
             plabel = process.process_label
             ptype = process.process_type
-            if not typ in d['type']:
+            if typ not in d['type']:
                 d['type'][typ] = []
-            if not pcls in d['process_class']:
+            if pcls not in d['process_class']:
                 d['process_class'][pcls] = []
-            if not plabel in d['process_label']:
+            if plabel not in d['process_label']:
                 d['process_label'][plabel] = []
-            if not ptype in d['process_type']:
+            if ptype not in d['process_type']:
                 d['process_type'][ptype] = []
             d['type'][typ].append(process)
             d['process_class'][pcls].append(process)
@@ -328,27 +342,31 @@ class ProcessClassifier:
             d['process_type'][ptype].append(process)
         self.classified_by_type = d
 
-    def count(self, process_states: list = None) -> int:
+    def count(self,
+              process_states: _typing.List[str] = None) -> int:
         """Count processes classified under specified process states.
 
         :param process_states: process states. keys of classified processes dict. If None, count all.
         :return: sum of counts of processes of specified process states.
         """
 
-        _process_states = process_states if process_states \
-            else get_process_states(terminated=None, as_string=True, with_legend=False)
+        _process_states = process_states or get_process_states(
+            terminated=None, as_string=True, with_legend=False
+        )
 
         total = 0
         finished = _PS.FINISHED.value
         for process_state in _process_states:
-            if not process_state == finished:
+            if process_state != finished:
                 total += len(self.classified_by_state.get(process_state, []))
-            else:
-                if self.classified_by_state.get(process_state, None):
-                    total += sum([len(v) for v in self.classified_by_state[process_state].values()])
+            elif self.classified_by_state.get(process_state, None):
+                total += sum(len(v) for v in self.classified_by_state[process_state].values())
         return total
 
-    def print_statistitics(self, title: str = "", with_legend: bool = True, type_classification: str = 'process_label'):
+    def print_statistitics(self,
+                           title: str = "",
+                           with_legend: bool = True,
+                           type_classification: str = 'process_label'):
         """Pretty-print classification statistics.
 
         :param title: A title.
@@ -386,7 +404,10 @@ class ProcessClassifier:
                                     for exit_status, processes in self.classified_by_state[finished].items()}
         print(_json.dumps(statistics, indent=4))
 
-    def subgroup_classified_results(self, group, dry_run: bool = True, silent: bool = False):
+    def subgroup_classified_results(self,
+                                    group: _orm.Group,
+                                    dry_run: bool = True,
+                                    silent: bool = False):
         """Subgroup classified processes.
 
         Adds subgroups to group of classified processes (if it exists) and adds classified process nodes by state.
@@ -399,8 +420,8 @@ class ProcessClassifier:
         """
 
         # check if all unclassified processes are really part of passed-in group.
-        proc_ids = set([proc.uuid for proc in self._unclassified_processes])
-        group_ids = set([node.uuid for node in group.nodes])
+        proc_ids = {proc.uuid for proc in self._unclassified_processes}
+        group_ids = {node.uuid for node in group.nodes}
         if not proc_ids.issubset(group_ids):
             print(f"Warning: The classified process nodes are not a subset of the specified group '{group.label}'.")
 
@@ -417,25 +438,24 @@ class ProcessClassifier:
         }
 
         if dry_run:
-            from masci_tools.util.python_util import JSONEncoderTailoredIndent as _JSONEncoderTailoredIndent, \
-                NoIndent as _NoIndent
             # prevent indent of subdicts for better readability
             for subgroup_name, process_states in subgroups_classification.items():
-                subgroups_classification[subgroup_name] = [_NoIndent(process_state) for process_state in process_states
+                subgroups_classification[subgroup_name] = [_masci_python_util.NoIndent(process_state) for
+                                                           process_state in
+                                                           process_states
                                                            if isinstance(process_state, dict)]
 
             group_info = f"subgroups of group {group.label}" if group else "groups"
             print(f"INFO: I will try to group classified states into subgroups as follows. In the displayed dict, the "
                   f"keys are the names of the '{group_info}' which I will load or create, while the values depict "
                   f"which sets of classified processes will be added to that group.")
-            print(_json.dumps(subgroups_classification, cls=_JSONEncoderTailoredIndent, indent=4))
+            print(_json.dumps(subgroups_classification, cls=_masci_python_util.JSONEncoderTailoredIndent, indent=4))
             print("This was a dry run. I will exit now.")
         else:
-            from aiida.tools.groups import GroupPath as _GroupPath
             group_path_prefix = group.label + "/" if group else ""
             for subgroup_name, process_states in subgroups_classification.items():
                 count = 0
-                group_path = _GroupPath(group_path_prefix + subgroup_name)
+                group_path = _aiida_groups.GroupPath(group_path_prefix + subgroup_name)
                 subgroup, created = group_path.get_or_create_group()
                 for process_state in process_states:
                     if isinstance(process_state, str):
@@ -451,7 +471,9 @@ class ProcessClassifier:
                     print(f"Added {count} processes to subgroup '{subgroup.label}'")
 
 
-def find_partially_excepted_processes(processes: list, to_depth: int = 1) -> dict:
+def find_partially_excepted_processes(processes: _typing.List[_orm.ProcessNode],
+                                      to_depth: int = 1) -> _typing.Dict[
+    _orm.ProcessNode, _typing.List[_orm.ProcessNode]]:
     """Filter out processes with excepted descendants.
 
     Here, 'partially excepted' is defined as 'not itself excepted, but has excepted descendants'.
@@ -472,7 +494,7 @@ def find_partially_excepted_processes(processes: list, to_depth: int = 1) -> dic
 
     processes_excepted = {}
     for process in processes:
-        for child in process.get_outgoing(node_class=_ProcessNode).all_nodes():
+        for child in process.get_outgoing(node_class=_orm.ProcessNode).all_nodes():
             if child.process_state == _PS.EXCEPTED:
                 if not processes_excepted.get(process, None):
                     processes_excepted[process] = []
@@ -481,17 +503,16 @@ def find_partially_excepted_processes(processes: list, to_depth: int = 1) -> dic
     return processes_excepted
 
 
-def copy_metadata_options(parent_calc, builder):
+def copy_metadata_options(parent_process: _orm.ProcessNode,
+                          builder: _aiida_processes.ProcessBuilder):
     """Copy standard metadata options from parent calc to new calc.
 
     Reference: https://aiida-kkr.readthedocs.io/en/stable/user_guide/calculations.html#special-run-modes-host-gf-writeout-for-kkrimp
 
-    :param parent_calc: performed calculation
-    :type parent_calc: ProcessNode
-    :param builder: new calculation
-    :type builder: ProcessBuilder
+    :param parent_process: finished process
+    :param builder: builder of new process
     """
-    attr = parent_calc.attributes
+    attr = parent_process.attributes
     builder.metadata.options = {
         'max_wallclock_seconds': attr['max_wallclock_seconds'],
         'resources': attr['resources'],
@@ -500,7 +521,7 @@ def copy_metadata_options(parent_calc, builder):
     }
 
 
-def verdi_calcjob_outputcat(calcjob) -> str:
+def verdi_calcjob_outputcat(calcjob: _orm.CalcJobNode) -> str:
     """Equivalent of verdi calcjob otuputcat NODE_IDENTIFIER
 
     Note: Apparently same as calling
@@ -531,14 +552,8 @@ def verdi_calcjob_outputcat(calcjob) -> str:
     References: https://groups.google.com/g/aiidausers/c/Zvrk-3lFWd8
 
     :param calcjob: calcjob
-    :type calcjob: CalcJobNode
     :return: string output
     """
-
-    from shutil import copyfileobj as _copyfileobj
-    from io import StringIO as _StringIO
-    import errno as _errno
-
     try:
         retrieved = calcjob.outputs.retrieved
     except AttributeError:
@@ -563,9 +578,9 @@ def verdi_calcjob_outputcat(calcjob) -> str:
 
     try:
         # When we `cat`, it makes sense to directly send the output to stdout as it is
-        output = _StringIO()
+        output = _io.StringIO()
         with retrieved.open(path, mode='r') as fhandle:
-            _copyfileobj(fhandle, output)
+            _shutil.copyfileobj(fhandle, output)
         return output.getvalue()
 
     except OSError as exception:
@@ -589,7 +604,8 @@ class SubmissionSupervisorSettings:
     :param max_wait_for_submit: max time to wait in line, give up afterwards
     :param wait_after_submit: if could submit, wait this long until returning
     :param resubmit_failed: True: if found failed process of same label in group, resubmit. Default False.
-    :param resubmit_failed_as_restart: True: submit get_builder_restarted() from failed instead of builder. Default True.
+    :param resubmit_failed_as_restart: True: submit get_builder_restarted() from failed instead of builder.
+           Default True.
     :param delete_if_stalling: True: delete nodes of 'stalling' top processes. Default True.
     :param delete_if_stalling_dry_run: True: if delete_if_stalling, simulate delete_if_stalling to 'try it out'.
     :param max_wait_for_stalling: delete top process (node & descendants) if running this long. To avoid congestion.
@@ -609,8 +625,11 @@ class SubmissionSupervisorSettings:
 
 class SubmissionSupervisor:
     """Class for supervised process submission to daemon."""
+
     # TODO check if outdated because of https://github.com/aiidateam/aiida-submission-controller
-    def __init__(self, settings: SubmissionSupervisorSettings, quota_querier: _QuotaQuerier = None):
+    def __init__(self,
+                 settings: SubmissionSupervisorSettings,
+                 quota_querier: _jutools_computer.QuotaQuerier = None):
         """Class for supervised process submission to daemon.
 
         :param settings: supervisor settings
@@ -623,7 +642,10 @@ class SubmissionSupervisor:
         # queue for submitted workchains, k=wc, v=run_time in min
         self._submitted_top_processes = []
 
-    def blocking_submit(self, builder, groups=None):
+    def blocking_submit(self,
+                        builder: _aiida_processes.ProcessBuilder,
+                        groups: _typing.Union[_orm.Group, _typing.List[_orm.Group]] = None) -> _typing.Tuple[
+        _orm.ProcessNode, bool]:
         """Submit calculation but wait if more than limit_running processes are running already.
 
         Note: processes are identified by their label (builder.metadata.label). Meaning: if the supervisor
@@ -637,16 +659,9 @@ class SubmissionSupervisor:
         builder['kkrimp'].computer.
 
         :param builder: code builder. metadata.label must be set!
-        :type builder: ProcessBuilder
         :param groups: restrict to processes in a group or list of groups (optional)
-        :type group: Group or list of Group
         :return: tuple (next process, is process from db True or from submit False) or (None,None) if submit failed
-        :rtype: tuple(ProcessNode, bool)
         """
-        from aiida.orm import load_node as _load_node
-        from aiida.engine import submit as _aiida_submit
-        from aiida.manage.database.delete.nodes import delete_nodes as _delete_nodes
-
         self.__tmp_guard_against_delete_if_stalling()
 
         wc_label = builder.metadata.label
@@ -656,7 +671,7 @@ class SubmissionSupervisor:
         wc_process_label = builder._process_class.get_name()
 
         # get workchains from group(s)
-        if isinstance(groups, _Group):
+        if isinstance(groups, _orm.Group):
             groups = [groups]
         workchains = []
         for group in groups:
@@ -666,7 +681,7 @@ class SubmissionSupervisor:
         _wc_uuids = []
 
         def _is_duplicate(wc):
-            if not wc.uuid in _wc_uuids:
+            if wc.uuid not in _wc_uuids:
                 _wc_uuids.append(wc.uuid)
                 return False
             return True
@@ -699,14 +714,14 @@ class SubmissionSupervisor:
         if workchains_finished_ok:
             # found A:B in db and finished_ok
             next_process_is_from_db = True
-            next_process = _load_node(workchains_finished_ok[0].pk)
+            next_process = _orm.load_node(workchains_finished_ok[0].pk)
             print(f"loaded '{wc_label}' from db, finished_ok")
         else:
             # not found A:B in db with state finished_ok. try submitting
             if workchains_terminated and not s.resubmit_failed:
                 # found A:B in db with state terminated and not_finished_ok, and no 'retry'
                 next_process_is_from_db = True
-                next_process = _load_node(workchains_terminated[0].pk)
+                next_process = _orm.load_node(workchains_terminated[0].pk)
                 info = f"process state {next_process.attributes['process_state']}"
                 info = info if not next_process.attributes.get('exit_status', None) else \
                     info + f", exit status {next_process.attributes['exit_status']}"
@@ -715,7 +730,7 @@ class SubmissionSupervisor:
             elif workchains_not_terminated:
                 # found A:B in db with state not terminated, so it's currently in the queue already
                 next_process_is_from_db = False
-                next_process = _load_node(workchains_not_terminated[0].pk)
+                next_process = _orm.load_node(workchains_not_terminated[0].pk)
                 self._submitted_top_processes.append(next_process)
                 print(f"'{wc_label}' is not terminated")
 
@@ -768,11 +783,13 @@ class SubmissionSupervisor:
                             #               as expected. It SHOULD delete all top processes that appear in verdi process
                             #               list, with time in verdi process list > max_stalling_time. Instead:
                             # - at every new blocking submit, all wc's deltas are back to zero.
-                            # - python_util.now() as is now measureus UTC. wrong offset (+1 compared to ctime? need localization first?)
+                            # - python_util.now() as is now measureus UTC. wrong offset (+1 compared to ctime? need
+                            # localization first?)
                             # - sometimes it DOES delete nodes, but i'm not sure if it was correct for those.
-                            is_stalling = (_python_util.now() - wc.mtime) > _datetime.timedelta(
+                            is_stalling = (_masci_python_util.now() - wc.mtime) > _datetime.timedelta(
                                 minutes=s.max_wait_for_stalling)
-                            # print(f"wc {wc.label} pk {wc.pk} last change time {python_util.now() - wc.mtime}, is stalling {is_stalling}")
+                            # print(f"wc {wc.label} pk {wc.pk} last change time {python_util.now() - wc.mtime}, is
+                            # stalling {is_stalling}")
                             if is_stalling:
                                 info_msg_suffix = "would now delete its nodes nodes (delete_if_stalling dry run)" \
                                     if s.delete_if_stalling_dry_run else "deleting all its nodes"
@@ -783,7 +800,7 @@ class SubmissionSupervisor:
                                 if not s.delete_if_stalling_dry_run:
                                     # note: we do not need to kill the top processnode's process first.
                                     # deleting its nodes will also kill all not terminated connected processes.
-                                    _delete_nodes(pks=[wc.pk], dry_run=False, force=True, verbosity=1)
+                                    _aiida_tools.delete_nodes(pks=[wc.pk], dry_run=False, force=True, verbosity=1)
                             return is_stalling
 
                         # print("while wait, check if any stalling")
@@ -800,7 +817,7 @@ class SubmissionSupervisor:
                               f"queued: {num_running(0)} top, {num_running(1)} all processes; "
                               f"wait another {s.wait_after_submit} minutes after submission)")
                         if not s.dry_run:
-                            next_process = _aiida_submit(_builder)
+                            next_process = _aiida_engine.submit(_builder)
                             self._submitted_top_processes.append(next_process)
                             for group in groups:
                                 group.add_nodes([next_process])
@@ -831,22 +848,19 @@ class SubmissionSupervisor:
             self.settings.delete_if_stalling_dry_run = True
 
 
-def get_runtime(process_node):
+def get_runtime(process_node: _orm.ProcessNode) -> _datetime.timedelta:
     """Get estimate of elapsed runtime.
 
     Warning: if the process_node has not any callees, node's mtime-ctime is returned.
     This may not be wrong / much too large, eg if mtime changed later due to changed extras.
 
     :return:  estimate of runtime
-    :rtype: datetime.timedelta
     """
     if process_node.called:
-        return max([node.mtime for node in process_node.called]) - process_node.ctime
-        # return max([node.mtime for node in process_node.called_descendants]) - process_node.ctime
+        return max(node.mtime for node in process_node.called) - process_node.ctime
+        # return max(node.mtime for node in process_node.called_descendants) - process_node.ctime
     return process_node.mtime - process_node.ctime
-    # wc.outputs.workflow_info.ctime - wc.ctime
 
 
-def get_runtime_statistics(processes):
-    import pandas as pd
-    return pd.DataFrame(data=[get_runtime(proc) for proc in processes], columns=['runtime'])
+def get_runtime_statistics(processes) -> _pd.DataFrame:
+    return _pd.DataFrame(data=[get_runtime(proc) for proc in processes], columns=['runtime'])
