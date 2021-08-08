@@ -15,12 +15,15 @@
 # DEVNOTE: AiiDA best practice for process functions: one module per function.
 # Reference: https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/processes/functions.html#provenance
 
-from aiida.engine import calcfunction
-from aiida.orm import List
+import typing as _typing
+
+import aiida.engine as _aiida_engine
+import aiida.orm as _orm
+import numpy as _np
 
 
-@calcfunction
-def itemize_list(a_list: List):
+@_aiida_engine.calcfunction
+def itemize_list(a_list: _orm.List) -> _typing.Union[_typing.Dict[str, _orm.Data], _aiida_engine.ExitCode]:
     """Itemize an ORM List node of python type objects into a set of ORM Data nodes. Store provenance.
 
     Currently supported input data types: bool, numpy.bool, int, numpy.int, float, numpy.float, str, dict,
@@ -29,9 +32,7 @@ def itemize_list(a_list: List):
     Corresponding output Data node types: Bool, Int, Float, Str, Dict, List (list of Lists).
 
     :param a_list: a list node with items of python data types.
-    :type a_list: List
     :return: a dict with values = one ORM Data type node for each item in the input list
-    :rtype: dict
 
     Use cases / recipes:
 
@@ -45,20 +46,16 @@ def itemize_list(a_list: List):
     numpy array itemization can be useful. For example, to itemize a 1D numpy array into a set of Float nodes,
     call itemize_list(List(list=(list(numpy_array)))).
     """
-    import numpy
-    from aiida.orm import Bool, Int, Float, Str, Dict, List
-    from aiida.engine import ExitCode
-
     type_correspondence = {
-        bool: Bool,
-        numpy.bool: Bool,
-        int: Int,
-        numpy.int: Int,
-        float: Float,
-        numpy.float: Float,
-        str: Str,
-        dict: Dict,
-        list : List
+        bool: _orm.Bool,
+        _np.bool: _orm.Bool,
+        int: _orm.Int,
+        _np.int: _orm.Int,
+        float: _orm.Float,
+        _np.float: _orm.Float,
+        str: _orm.Str,
+        dict: _orm.Dict,
+        list: _orm.List
     }
 
     warning_messages = {
@@ -68,11 +65,10 @@ def itemize_list(a_list: List):
              f"Item list:\n{a_list}"
     }
 
-    exit_messages = {}
     exit_status = None
 
     orm_types = [type_correspondence.get(type(item)) for item in a_list]
-    if not all([orm_type for orm_type in orm_types]):
+    if not all(orm_types):
         print(warning_messages[100])
 
     zeropad = f"0{len(a_list) % 10}"
@@ -83,15 +79,13 @@ def itemize_list(a_list: List):
         orm_cls = orm_types[index]
         if orm_cls:
             key = keys[index]
-            if issubclass(orm_cls, Dict):
+            if issubclass(orm_cls, _orm.Dict):
                 value = orm_cls(dict=item)
-            if issubclass(orm_cls, List):
-                value = orm_cls(list=item)
-            else:
-                value = orm_cls(item)
+            value = orm_cls(list=item) if issubclass(orm_cls, _orm.List) else orm_cls(item)
             a_dict[key] = value
 
     if exit_status:
-        return ExitCode(exit_status, exit_messages[exit_status])
+        exit_messages = {}
+        return _aiida_engine.ExitCode(exit_status, exit_messages[exit_status])
 
     return a_dict
