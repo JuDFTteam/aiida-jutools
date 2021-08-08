@@ -11,25 +11,23 @@
 #                                                                             #
 ###############################################################################
 """Tools for working with aiida Group entities."""
-import logging
-import sys
-import typing
-from datetime import datetime
+import copy as _copy
+import datetime as _datetime
+import json as _json
+import logging as _logging
+import sys as _sys
+import typing as _typing
 
-import aiida.orm
-import aiida.tools.groups
-import pytz
-
-# _all__: visible namespace of the module on import. prevents namespace pollution.
-# reference: https://stackoverflow.com/a/7424390/8116031.
-__all__ = ("verdi_group_list", "move_nodes", "get_nodes", "group_new_nodes", "delete_groups",
-           "delete_groups_with_nodes")
+import aiida as _aiida
+import aiida.orm as _orm
+import aiida.tools.groups as _aiida_groups
+import pytz as _pytz
 
 
 class GroupsFromDict:
     TEMPLATE = {
         "INSERT_IN_ALL": {
-            "TO_DEPTH": sys.maxsize,
+            "TO_DEPTH": _sys.maxsize,
             "INSERT": {
                 "extras": {
                     "version": "",
@@ -47,7 +45,10 @@ class GroupsFromDict:
     _ignore_labels = ["TEMPLATE", "INSERT_IN_ALL"]
     _insert_label = "INSERT_IN_ALL"
 
-    def get_template_dict(self, with_example_group: bool = True, print_dict: bool = True, indent: int = 4) -> dict:
+    @staticmethod
+    def get_template_dict(with_example_group: bool = True,
+                          print_dict: bool = True,
+                          indent: int = 4) -> dict:
         """Print a valid example dict with nested groups as input for load_or_create().
 
         :param with_example_group: add a valid example group structure to template dict
@@ -55,9 +56,7 @@ class GroupsFromDict:
         :param indent: indent for the printed dict
         :return: template dict
         """
-        import copy
-        import json
-        template = copy.deepcopy(GroupsFromDict.TEMPLATE)
+        template = _copy.deepcopy(GroupsFromDict.TEMPLATE)
         if with_example_group:
             template["my_base_group1"] = {
                 "description": "Short description of this group.",
@@ -72,17 +71,18 @@ class GroupsFromDict:
                 }  # base subgroups
             }  # base group
         if print_dict:
-            print(json.dumps(template, indent=indent))
+            print(_json.dumps(template, indent=indent))
         return template
 
-    def load_or_create(self, group_labeling: dict, overwrite_extras: bool = True) -> list:
+    def load_or_create(self,
+                       group_labeling: dict,
+                       overwrite_extras: bool = True) -> list:
         """Given a dict describing a group structure, create or load these groups.
 
         If group(s), exist, will just be loaded. But extras will be modified according to dict.
 
         :param group_labeling: group structure. See GroupFromDict.TEMPLATE for valid template.
         :param overwrite_extras: replace if True, add if False
-        :type group_labeling: dict
         :return: list of created or loaded groups
         """
         # TODO validate dict structure against template dict
@@ -92,12 +92,15 @@ class GroupsFromDict:
 
         depth = 0
         group_path_str = ""
-        dict_of_groups = group_labeling
         groups = []
         self._create_or_load(depth, group_path_str, group_labeling, groups)
         return groups
 
-    def _create_or_load(self, depth: int, group_path_str: str, dict_of_groups: dict, groups: list):
+    def _create_or_load(self,
+                        depth: int,
+                        group_path_str: str,
+                        dict_of_groups: dict,
+                        groups: list):
         """Recursively creates groups from possibly nested dict according to GroupFromDict.TEMPLATE.
         """
         base_path = group_path_str
@@ -105,7 +108,7 @@ class GroupsFromDict:
             if group_label in GroupsFromDict._ignore_labels:
                 continue
             group_path_str = base_path + group_label
-            group_path = aiida.tools.groups.GroupPath(group_path_str)
+            group_path = _aiida_groups.GroupPath(group_path_str)
             group, created = group_path.get_or_create_group()
             group.description = attrs["description"]
             if "extras" in self._to_insert and depth <= self._insert_to_depth:
@@ -126,8 +129,9 @@ class GroupsFromDict:
             groups.append(group)
 
 
-def verdi_group_list(projection: typing.List[str] = ['label', 'id', 'type_string'],
-                     with_header: bool = True, label_filter: str = None) -> list:
+def verdi_group_list(projection: _typing.List[str] = ['label', 'id', 'type_string'],
+                     with_header: bool = True,
+                     label_filter: str = None) -> _typing.List[_typing.List]:
     """Equivalent to CLI "verdi group list -a" (minus user mail address).
 
     :param projection: query projection
@@ -135,8 +139,8 @@ def verdi_group_list(projection: typing.List[str] = ['label', 'id', 'type_string
     :param label_filter: optional: only include groups with this substring in their label
     :return: list of lists, one entry per projection value, for each group
     """
-    qb = aiida.orm.QueryBuilder()
-    group_list = qb.append(aiida.orm.Group, project=projection).all()
+    qb = _orm.QueryBuilder()
+    group_list = qb.append(_orm.Group, project=projection).all()
 
     if 'label' in projection and label_filter:
         index_of_label = projection.index('label')
@@ -153,7 +157,7 @@ def verdi_group_list(projection: typing.List[str] = ['label', 'id', 'type_string
     return group_list
 
 
-def get_subgroups(group: aiida.orm.Group) -> typing.List[aiida.orm.Group]:
+def get_subgroups(group: _orm.Group) -> _typing.List[_orm.Group]:
     """Get all subgroups of a group.
 
     In accordance with aiida GroupPath, the group with label "foo/bar" is a valid subgroup
@@ -162,15 +166,14 @@ def get_subgroups(group: aiida.orm.Group) -> typing.List[aiida.orm.Group]:
     :param group: a group with possible subgroups
     :return: subgroups
     """
-    from aiida.orm import Group
-    group_labels = [group.label for group in Group.objects.all()]
+    group_labels = [group.label for group in _orm.Group.objects.all()]
     subgroup_labels = [label for label in group_labels if label.startswith(group.label)
                        and len(label) > len(group.label)]
-    subgroups = [Group.get(label=label) for label in subgroup_labels]
-    return subgroups
+    return [_orm.Group.get(label=label) for label in subgroup_labels]
 
 
-def move_nodes(origin: aiida.orm.Group, destination: aiida.orm.Group):
+def move_nodes(origin: _orm.Group,
+               destination: _orm.Group):
     """Move all nodes from one group to another, possibly sub/supergroup.
 
     :param origin: origin group
@@ -182,7 +185,7 @@ def move_nodes(origin: aiida.orm.Group, destination: aiida.orm.Group):
     origin.remove_nodes(list(origin.nodes))
 
 
-def get_nodes(group_label: str):
+def get_nodes(group_label: str) -> _typing.Generator[_orm.Node, None, None]:
     """Get all nodes from given group (or subgroup) by label (path).
 
     Deprecated: just use group.nodes, or list(group.nodes).
@@ -190,12 +193,14 @@ def get_nodes(group_label: str):
     :param group_label: e.g. for a subgroup, "groupA/subgroupB/subgroupC".
     :return: nodes as generator for efficient iteration (convert via list() to list)
     """
-    group = aiida.orm.Group.get(label=group_label)
+    group = _orm.Group.get(label=group_label)
     return group.nodes
 
 
-def group_new_nodes(new_group_label: str, blacklist: typing.List[aiida.orm.Node] = [aiida.orm.Code, aiida.orm.Computer],
-                    right_date: datetime = None, left_date: datetime = None):
+def group_new_nodes(new_group_label: str,
+                    blacklist: _typing.List[_typing.Type[_orm.Node]] = [_orm.Code, _orm.Computer],
+                    right_date: _datetime.datetime = None, left_date: _datetime.datetime = None) -> \
+        _typing.Optional[_orm.Group]:
     """Groups new nodes with ctime in timerange (left_date,right_date] into new group
 
     If you're working on one project at a time, everytime you finish a project you can use this function to
@@ -204,19 +209,19 @@ def group_new_nodes(new_group_label: str, blacklist: typing.List[aiida.orm.Node]
     and the intended nodes are already added, repeated calls will change nothing.
 
     :param new_group_label: label of new group/subgroup
-    :param blacklist: nodes in timerange to exclude from grouping. Normally Code, Computer.
-    :param right_date: if not given (usually as datetime.now()), will take right_date = newest ctime, > left_date, of any node, ungrouped nodes included.
+    :param blacklist: node types in timerange to exclude from grouping. Normally Code, Computer.
+    :param right_date: if not given (usually as datetime.now()), will take right_date = newest ctime, > left_date,
+           of any node, ungrouped nodes included.
     :param left_date: if not given, will take left_date=newest ctime of any grouped node
     :return: the new populated, stored, group, or None if no new nodes found
-    :rtype: Group or None
     """
 
-    timezone = pytz.UTC
+    timezone = _pytz.UTC
 
     ## step1: find d7=infdate from all *grouped* nodes
 
     # new group to create or add
-    new_path = aiida.tools.groups.GroupPath(path=new_group_label)
+    new_path = _aiida_groups.GroupPath(path=new_group_label)
     new_group = new_path.get_or_create_group()[0]
 
     # get all groups, exclude new group if present
@@ -225,10 +230,10 @@ def group_new_nodes(new_group_label: str, blacklist: typing.List[aiida.orm.Node]
         group_labels.remove(new_group_label)
     except ValueError:
         pass
-    groups = [aiida.orm.Group.get(label=label) for label in group_labels]
+    groups = [_orm.Group.get(label=label) for label in group_labels]
 
     # find tuple (group,node) with largest node.ctime across all groups
-    left_date_computed = datetime(year=1, month=1, day=1, tzinfo=pytz.UTC)
+    left_date_computed = _datetime.datetime(year=1, month=1, day=1, tzinfo=_pytz.UTC)
     for group in groups:
         for node in group.nodes:
             left_date_computed = max(left_date_computed, node.ctime)
@@ -237,30 +242,33 @@ def group_new_nodes(new_group_label: str, blacklist: typing.List[aiida.orm.Node]
         left_date = timezone.localize(left_date)
         if left_date < left_date_computed:
             print(
-                f"WARNING: left_date {left_date} < computed left date from groups {left_date_computed}, grouping overlap likely.")
+                f"WARNING: left_date {left_date} < computed left date from groups {left_date_computed}, "
+                f"grouping overlap likely.")
         elif left_date > left_date_computed:
             print(
-                f"WARNING: left_date {left_date} > computed left date from groups {left_date_computed}, leftover ungrouped nodes likely.")
+                f"WARNING: left_date {left_date} > computed left date from groups {left_date_computed}, "
+                f"leftover ungrouped nodes likely.")
     else:
         left_date = left_date_computed
 
         ## step2: find d8=maxdate from all nodes newer than d7
 
-    qb = aiida.orm.QueryBuilder()
-    new_nodes = qb.append(aiida.orm.Node, filters={'ctime': {'>': left_date}}).all(flat=True)
+    qb = _orm.QueryBuilder()
+    new_nodes = qb.append(_orm.Node, filters={'ctime': {'>': left_date}}).all(flat=True)
     if not new_nodes:
         print(f"Info: found no nodes newer than last grouped at date {left_date}. "
               f"Attempting to delete group '{new_group_label}' if empty.")
         delete_groups([new_group_label])
         return None
     else:
-        right_date_computed = max([node.ctime for node in new_nodes])
+        right_date_computed = max(node.ctime for node in new_nodes)
 
         if right_date is not None:
             right_date = timezone.localize(right_date)
             if right_date < right_date_computed:
                 print(
-                    f"WARNING: right_date {right_date} < computed right date from groups {right_date_computed}, leftover ungrouped nodes likely.")
+                    f"WARNING: right_date {right_date} < computed right date from groups {right_date_computed}, "
+                    f"leftover ungrouped nodes likely.")
         else:
             right_date = right_date_computed
 
@@ -272,8 +280,8 @@ def group_new_nodes(new_group_label: str, blacklist: typing.List[aiida.orm.Node]
                 {'ctime': {'<=': right_date}}  # older than
             ]
         }
-        qb = aiida.orm.QueryBuilder()
-        new_nodes = qb.append(aiida.orm.Node, filters=daterange_filter).distinct().all(flat=True)
+        qb = _orm.QueryBuilder()
+        new_nodes = qb.append(_orm.Node, filters=daterange_filter).distinct().all(flat=True)
         drops = []
         for i, node in enumerate(new_nodes):
             for blacktype in blacklist:
@@ -290,7 +298,9 @@ def group_new_nodes(new_group_label: str, blacklist: typing.List[aiida.orm.Node]
         return new_group
 
 
-def delete_groups(group_labels: typing.List[str], skip_nonempty_groups: bool = True, silent: bool = False):
+def delete_groups(group_labels: _typing.List[str],
+                  skip_nonempty_groups: bool = True,
+                  silent: bool = False):
     """Delete group(s). Does not delete nodes in group(s). Use delete_groups_with_nodes() for that.
 
     :param group_labels: list of group labels
@@ -299,8 +309,8 @@ def delete_groups(group_labels: typing.List[str], skip_nonempty_groups: bool = T
     """
     for label in group_labels:
         try:
-            group = aiida.orm.Group.get(label=label)
-        except aiida.common.exceptions.NotExistent:
+            group = _orm.Group.get(label=label)
+        except _aiida.common.exceptions.NotExistent:
             print(f"Warning: group to delete '{label}' does not exist.")
         else:
             if group.count() > 0 and skip_nonempty_groups:
@@ -308,13 +318,15 @@ def delete_groups(group_labels: typing.List[str], skip_nonempty_groups: bool = T
                     print(f"Info: Skipping non-empty group<{label}>: contains {group.count()} nodes.")
             else:
                 group.clear()  # remove nodes from group
-                aiida.orm.Group.objects.delete(group.pk)
+                _orm.Group.objects.delete(group.pk)
                 if not silent:
                     print(f"Group '{label}' deleted.")
 
 
-def delete_groups_with_nodes(group_labels: typing.List[str], dry_run: bool = True,
-                             verbosity: int = logging.INFO, leave_groups: bool = False):
+def delete_groups_with_nodes(group_labels: _typing.List[str],
+                             dry_run: bool = True,
+                             verbosity: int = _logging.INFO,
+                             leave_groups: bool = False):
     """Delete all nodes in each group (including repo files), then delete the groups themselves.
 
     :param group_labels: list of group labels
@@ -329,8 +341,8 @@ def delete_groups_with_nodes(group_labels: typing.List[str], dry_run: bool = Tru
 
     # get full periodic table pandas dataframe from mendeleev
     # DEVNOTE: breaking change in mendeleev v0.7.0: replaced get_table with fetch.fetch_table.
-    version = aiida.__version__
-    version_info = tuple([int(num) for num in version.split(".")])
+    version = _aiida.__version__
+    version_info = tuple(int(num) for num in version.split("."))
     is_aiida_v160_plus = version_info >= (1, 6, 0)
 
     if is_aiida_v160_plus:
@@ -345,7 +357,7 @@ def delete_groups_with_nodes(group_labels: typing.List[str], dry_run: bool = Tru
     print("Deleting nodes in groups...")
 
     # get the groups of all stated group labels
-    groups = [aiida.orm.Group.get(label=label) for label in group_labels]
+    groups = [_orm.Group.get(label=label) for label in group_labels]
 
     # get the pks of all nodes in all groups
     pks = []
@@ -366,15 +378,17 @@ def delete_groups_with_nodes(group_labels: typing.List[str], dry_run: bool = Tru
         else:
             are_empty = {group.label: group.is_empty for group in groups}
             print(f"Groups are now empty: {are_empty}")
+    elif dry_run:
+        print("Dry run: Skipping deleting groups.")
     else:
-        if dry_run:
-            print("Dry run: Skipping deleting groups.")
-        else:
-            delete_groups(group_labels=group_labels)
+        delete_groups(group_labels=group_labels)
 
 
-def get_nodes_by_group(group_label: str = None, node_type: aiida.orm.Node = aiida.orm.Node, return_query: bool = False,
-                       return_iter: bool = True, node_tag: str = ""):
+def get_nodes_by_group(group_label: str = None,
+                       node_type: _typing.Type[_orm.Node] = _orm.Node,
+                       return_query: bool = False,
+                       return_iter: bool = True,
+                       node_tag: str = "") -> _typing.List[_orm.Node]:
     """Get all nodes from given group (or subgroup) by label (path).
 
     DEVNOTE: this is how it is done on the aiida cheatsheet, via query.
@@ -387,14 +401,14 @@ def get_nodes_by_group(group_label: str = None, node_type: aiida.orm.Node = aiid
     :param node_tag: if return_query, can add tag to node_type for further query building.
     :return: nodes
     """
-    qb = aiida.orm.QueryBuilder()
+    qb = _orm.QueryBuilder()
 
-    qb.append(aiida.orm.Group, filters={'label': group_label}, tag='group')
+    qb.append(_orm.Group, filters={'label': group_label}, tag='group')
     qb.append(node_type, with_group='group', tag=node_tag, project='*')
 
     # DEVNOTE: equivalent:
     # qb.append(node_type, tag="nodes", project="*")
-    # qb.append(aiida.orm.Group, with_node="nodes", filters={"label": group_label})
+    # qb.append(_orm.Group, with_node="nodes", filters={"label": group_label})
 
     if return_query:
         return qb
