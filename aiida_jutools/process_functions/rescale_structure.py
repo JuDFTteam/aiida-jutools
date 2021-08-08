@@ -15,12 +15,13 @@
 # DEVNOTE: AiiDA best practice for process functions: one module per function.
 # Reference: https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/processes/functions.html#provenance
 
-from aiida.engine import calcfunction
-from aiida.orm import StructureData, Float
+import aiida.engine as _aiida_engine
+import aiida.orm as _orm
 
 
-@calcfunction
-def rescale_structure(input_structure: StructureData, scale_factor: Float) -> StructureData:
+@_aiida_engine.calcfunction
+def rescale_structure(input_structure: _orm.StructureData,
+                      scale_factor: _orm.Float) -> _orm.StructureData:
     """
     Rescales a crystal structure. Keeps the provenance in the database.
 
@@ -35,6 +36,4 @@ def rescale_structure(input_structure: StructureData, scale_factor: Float) -> St
     the_ase = input_structure.get_ase()
     new_ase = the_ase.copy()
     new_ase.set_cell(the_ase.get_cell() * float(scale_factor), scale_atoms=True)
-    rescaled_structure = StructureData(ase=new_ase)
-
-    return rescaled_structure
+    return _orm.StructureData(ase=new_ase)
