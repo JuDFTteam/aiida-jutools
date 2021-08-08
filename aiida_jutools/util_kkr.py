@@ -12,30 +12,26 @@
 ###############################################################################
 """Tools for working with aiida-kkr nodes."""
 
-from typing import Union as _Union, Dict as _Dict, List as _List
-from collections import OrderedDict as _OrderedDict
+import collections as _collections
+import datetime as _datetime
 import enum as _enum
 import os as _os
-import datetime as _datetime
-import pytz as _pytz
+import typing as _typing
 
+import aiida.engine as _aiida_engine
+import aiida.orm as _orm
+import aiida_kkr.calculations as _kkr_calculations
+import aiida_kkr.workflows as _kkr_workflows
+import masci_tools.util.chemical_elements as _masci_chemical_elements
+import masci_tools.util.constants as _masci_constants
+import masci_tools.util.python_util as _masci_python_util
 import numpy as _np
 import pandas as _pd
-import aiida.orm
-from aiida.orm import CalcJobNode as _CalcJobNode, WorkChainNode as _WorkChainNode
-from aiida.orm import QueryBuilder as _QueryBuilder, Group as _Group, RemoteData as _RemoteData, \
-    StructureData as _StructureData
-from aiida_kkr.calculations import VoronoiCalculation as _VoronoiCalculation
-from aiida_kkr.workflows import kkr_imp_wc as _kkr_imp_wc, kkr_scf_wc as _kkr_scf_wc, \
-    kkr_startpot_wc as _kkr_startpot_wc
-
-from masci_tools.util import math_util as _math_util
-from masci_tools.util.chemical_elements import ChemicalElements as _ChemicalElements
-from masci_tools.util.constants import ANG_BOHR_KKR as _ANG_BOHR_KKR
-from masci_tools.util import python_util as _python_util
+import pytz as _pytz
+from masci_tools.util import math_util as _masci_math_util
 
 
-def check_if_kkr_calc_converged(kkr_calc: _CalcJobNode):
+def has_kkr_calc_converged(kkr_calc: _orm.CalcJobNode) -> bool:
     """Assert (fail if false) that kkr calculation has converged.
 
     DEVNOTE: used aiida base node type for argument type so it works with all kkr calc node types.
@@ -45,15 +41,18 @@ def check_if_kkr_calc_converged(kkr_calc: _CalcJobNode):
     Reference: https://aiida-kkr.readthedocs.io/en/stable/user_guide/calculations.html#special-run-modes-host-gf-writeout-for-kkrimp
 
     :param kkr_calc: performed kkr calculation
+    :return: True if converged, else False.
     """
     try:
-        assert kkr_calc.outputs.output_parameters.get_dict()["convergence_group"]["calculation_converged"] == True
+        return kkr_calc.outputs.output_parameters.get_dict()["convergence_group"]["calculation_converged"] is True
     except KeyError as err:
         print("Error: calculation is not a kkr calculation.")
         raise err
 
 
-def query_kkr_wc(cls=_kkr_imp_wc, symbols: list = ['H', 'H'], group=None) -> _QueryBuilder:
+def query_kkr_wc(cls: _typing.Type[_aiida_engine.WorkChain],
+                 symbols: _typing.List[str] = ['H', 'H'],
+                 group: _orm.Group = None) -> _orm.QueryBuilder:
     """Query kkr workchains based on their input structures.
 
     Constraints:
@@ -63,74 +62,67 @@ def query_kkr_wc(cls=_kkr_imp_wc, symbols: list = ['H', 'H'], group=None) -> _Qu
 
     For general workchain queries, use :py:func:`~aiida_jutools.util_process.query_processes` instead.
 
-    :param cls: kkr workchain class
-    :type cls: kkr_scf_wc or kkr_imp_wc
-    :param group: given: search in group, not: search in database
-    :type group: aiido.orm.Group
+    :param cls: kkr workchain class. kkr_scf_wc or kkr_imp_wc.
     :param symbols: list of chemical element symbols.
-    :type symbols: list of str
+    :param group: given: search in group, not: search in database
     :return: the built query for matching workchains
     """
     if isinstance(symbols, str):
         symbols = [symbols]
 
-    qb = _QueryBuilder()
+    qb = _orm.QueryBuilder()
     if group:
-        qb.append(_Group, filters={'label': group.label}, tag='group')
-    if issubclass(cls, _kkr_scf_wc):
+        qb.append(_orm.Group, filters={'label': group.label}, tag='group')
+    if issubclass(cls, _kkr_workflows.kkr_scf_wc):
         if group:
-            qb.append(_kkr_scf_wc, with_group='group', tag='workchain', project='*')
+            qb.append(_kkr_workflows.kkr_scf_wc, with_group='group', tag='workchain', project='*')
         else:
-            qb.append(_kkr_scf_wc, tag='workchain', project='*')
+            qb.append(_kkr_workflows.kkr_scf_wc, tag='workchain', project='*')
         if symbols:
-            qb.append(_StructureData, with_outgoing='workchain',
+            qb.append(_orm.StructureData, with_outgoing='workchain',
                       filters={'attributes.kinds.0.name': symbols[0]})
             # # alternative: require extras
-            # qb.append(_StructureData, with_outgoing='workchain', filters={"extras.symbol": symbols[0]})
-    elif issubclass(cls, _kkr_imp_wc):
+            # qb.append(_orm.StructureData, with_outgoing='workchain', filters={"extras.symbol": symbols[0]})
+    elif issubclass(cls, _kkr_workflows.kkr_imp_wc):
         if not symbols:
             raise KeyError("No symbols supplied.")
-        if len(symbols) == 2:
-            elmts = _ChemicalElements()
-            imp_number = elmts[symbols[0]]
-            # wc.inputs.impurity_info.attributes['Zimp']
-            if group:
-                qb.append(_kkr_imp_wc, with_group='group', tag='imp_wc', project='*')
-            else:
-                qb.append(_kkr_imp_wc, tag='imp_wc', project='*')
-            qb.append(aiida.orm.Dict, with_outgoing='imp_wc', filters={'attributes.Zimp': imp_number})
-            qb.append(_RemoteData, with_outgoing='imp_wc', tag='remotedata')
-            qb.append(_kkr_scf_wc, with_outgoing='remotedata', tag='scf_wc')
-            qb.append(_StructureData, with_outgoing='scf_wc',
-                      filters={'attributes.kinds.0.name': symbols[1]})
-            # # alternative: require extras
-            # qb.append(_StructureData, with_outgoing='scf_wc', filters={"extras.symbol": symbols[1]})
-
-            # # alternative: require extras
-            # # note: don't set symbol in workchain extras anymore, so this is deprecated.
-            # imp_symbol = ":".join(symbols)
-            # if group:
-            #     qb.append(_kkr_imp_wc, with_group='group', filters={"extras.embedding_symbol": imp_symbol})
-            # else:
-            #     qb.append(_kkr_imp_wc, filters={"extras.embedding_symbol": imp_symbol})
-        else:
+        if len(symbols) != 2:
             raise NotImplementedError(f"query not implemented for kkr_imp_wc with no. of symbols other than 2.")
+        elmts = _masci_chemical_elements.ChemicalElements()
+        imp_number = elmts[symbols[0]]
+        # wc.inputs.impurity_info.attributes['Zimp']
+        if group:
+            qb.append(_kkr_workflows.kkr_imp_wc, with_group='group', tag='imp_wc', project='*')
+        else:
+            qb.append(_kkr_workflows.kkr_imp_wc, tag='imp_wc', project='*')
+        qb.append(_orm.Dict, with_outgoing='imp_wc', filters={'attributes.Zimp': imp_number})
+        qb.append(_orm.RemoteData, with_outgoing='imp_wc', tag='remotedata')
+        qb.append(_kkr_workflows.kkr_scf_wc, with_outgoing='remotedata', tag='scf_wc')
+        qb.append(_orm.StructureData, with_outgoing='scf_wc',
+                  filters={'attributes.kinds.0.name': symbols[1]})
+
+        # # alternative: require extras
+        # qb.append(_orm.StructureData, with_outgoing='scf_wc', filters={"extras.symbol": symbols[1]})
+
+        # # alternative: require extras
+        # # note: don't set symbol in workchain extras anymore, so this is deprecated.
+        # imp_symbol = ":".join(symbols)
+        # if group:
+        #     qb.append(_kkr_workflows.kkr_imp_wc, with_group='group', filters={"extras.embedding_symbol": imp_symbol})
+        # else:
+        #     qb.append(_kkr_workflows.kkr_imp_wc, filters={"extras.embedding_symbol": imp_symbol})
     else:
         raise NotImplementedError(f"workchain query not implemented for class {cls}.")
     return qb  # .all(flat=True)
 
 
-def query_structure_from(wc: _WorkChainNode) -> _StructureData:
+def query_structure_from(wc: _orm.WorkChainNode) -> _orm.StructureData:
     """Get structure from kkr workchain.
 
     :param wc: workchain
-    :type wc: WorkChainNode of subtype kkr_scf_wc or kkr_imp_wc
     :return: structure if found else None
-    :rtype: StructureData
     """
-    from aiida.orm import WorkChainNode
-    from aiida.engine import WorkChain
-    assert isinstance(wc, WorkChain) or isinstance(wc, WorkChainNode)
+    assert isinstance(wc, (_aiida_engine.WorkChain, _orm.WorkChainNode))
 
     wc_cls_str = wc.attributes['process_label']
     if wc_cls_str == 'kkr_scf_wc':
@@ -140,44 +132,44 @@ def query_structure_from(wc: _WorkChainNode) -> _StructureData:
         # return VoronoiCalculation.find_parent_structure(wc)
     elif wc_cls_str == 'kkr_imp_wc':
         # solution1: timing 18 ms
-        qb = _QueryBuilder()
-        qb.append(_StructureData, tag='struc', project='*')
-        qb.append(_kkr_scf_wc, with_incoming='struc', tag='scf_wc')
-        qb.append(_RemoteData, with_incoming='scf_wc', tag='remotedata')
-        qb.append(_kkr_imp_wc, with_incoming='remotedata', filters={'uuid': wc.uuid})
+        qb = _orm.QueryBuilder()
+        qb.append(_orm.StructureData, tag='struc', project='*')
+        qb.append(_kkr_workflows.kkr_scf_wc, with_incoming='struc', tag='scf_wc')
+        qb.append(_orm.RemoteData, with_incoming='scf_wc', tag='remotedata')
+        qb.append(_kkr_workflows.kkr_imp_wc, with_incoming='remotedata', filters={'uuid': wc.uuid})
         res = qb.all(flat=True)
         return res[0] if res else None
 
         # # solution2: timing 23ms
-        # scf = wci.inputs.remote_data_host.get_incoming(node_class=_kkr_scf_wc).all_nodes()
+        # scf = wci.inputs.remote_data_host.get_incoming(node_class=_kkr_workflows.kkr_scf_wc).all_nodes()
         # return scf[0].inputs.structure if scf else None
     else:
         raise NotImplementedError(f"workchain query not implemented for class {wc_cls_str}.")
 
 
-def find_Rcut(structure: _StructureData, shell_count: int = 2, rcut_init: float = 7.0) -> float:
+def find_Rcut(structure: _orm.StructureData,
+              shell_count: int = 2,
+              rcut_init: float = 7.0) -> float:
     """For GF writeout / impurity workflows: find radius such that only nearest-neighbor shells are included.
 
     :param structure: structure.
-    :param shell_count: include this many nearest-neighbor shells around intended impurity site.
-    :param rcut_init: initial maximal rcut value, will be iteratively decreased until fit.
+    :param shell_count: include this many nearest-neighbor shells around intended impurity site (cluster size).
+    :param rcut_init: initial maximal rcut value, will be iteratively decreased until fit to shell count.
     :return: rcut radius
     """
-    import numpy as np
-
     struc_pmg = structure.get_pymatgen()
 
     rcut = rcut_init
     nc = 0
     while nc < shell_count:
         dists = struc_pmg.get_neighbor_list(rcut, sites=[struc_pmg.sites[0]])[-1]
-        dists = [np.round(i, 5) for i in dists]
+        dists = [_np.round(i, 5) for i in dists]
         dists.sort()
         nc = len(set(dists))
         rcut += 5
 
     if nc > shell_count:
-        n3start = dists.index(np.sort(list(set(dists)))[shell_count])
+        n3start = dists.index(_np.sort(list(set(dists)))[shell_count])
         d0, d1 = dists[n3start - 1:n3start + 1]
         rcut = d0 + (d1 - d0) / 2.
 
@@ -239,7 +231,7 @@ class KkrConstantsVersion(_enum.Enum):
     UNDECISIVE = 4
 
     @property
-    def description(self) -> _Union[_Dict[str, _Union[str, _datetime.datetime]], str]:
+    def description(self) -> _typing.Union[_typing.Dict[str, _typing.Union[str, _datetime.datetime]], str]:
         """Describe constants versions.
 
         Returns either a dictionary or a string, depending on the enum.
@@ -262,7 +254,7 @@ class KkrConstantsVersion(_enum.Enum):
                     'valid_from': _datetime.datetime(year=2021, month=4, day=28,
                                                      hour=14, minute=2, second=0,
                                                      microsecond=0, tzinfo=_pytz.UTC),
-                    'valid_until': _python_util.now()
+                    'valid_until': _masci_python_util.now()
                     }
         elif self.name == KkrConstantsVersion.INTERIM.name:
             return {'commit': "c171563",
@@ -289,7 +281,8 @@ class KkrConstantsVersion(_enum.Enum):
 
 
 class KkrConstantsVersionChecker:
-    """Find out with which version of constants ``ANG_BOHR_KKR``, ``RY_TO_EV_KKR`` finished aiida-kkr workchain were run.
+    """Find out with which version of constants ``ANG_BOHR_KKR``, ``RY_TO_EV_KKR`` finished aiida-kkr
+    workchain were run.
 
     Between 2021-02-16 and 2021-04-28, the values of the conversion constants ``ANG_BOHR_KKR`` and
     ``RY_TO_EV_KKR`` in :py:mod:`~masci_tools.util.constants` were changed from previous values to a set of
@@ -308,7 +301,8 @@ class KkrConstantsVersionChecker:
     The ``RY_TO_EV_KKR`` constant is not used.
     """
 
-    def __init__(self, check_env: bool = True):
+    def __init__(self,
+                 check_env: bool = True):
         """Initialization reads the constants' runtime versions and cross-checks with environment settings.
 
         :param check_env: True: check found runtime version against expected environment variable setting,
@@ -363,11 +357,11 @@ class KkrConstantsVersionChecker:
         msg_suffix = "This could indicate an implementation change. " \
                      "As a result, this function might not work correctly anymore."
 
-        if _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.NEW]:
+        if _masci_constants.ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.NEW]:
             self._runtime_version = KkrConstantsVersion.NEW
-        elif _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.INTERIM]:
+        elif _masci_constants.ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.INTERIM]:
             self._runtime_version = KkrConstantsVersion.INTERIM
-        elif _ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.OLD]:
+        elif _masci_constants.ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.OLD]:
             self._runtime_version = KkrConstantsVersion.OLD
         else:
             self._runtime_version = KkrConstantsVersion.NEITHER
@@ -429,16 +423,14 @@ class KkrConstantsVersionChecker:
                     f"Based on environment variable {env_var_key}={env_var_val}, I expected constant values to "
                     f"be of type {KkrConstantsVersion.OLD}, but they are of type {runtime_version}. "
                     f"{msg_suffix}")
-            else:
-                pass
 
     @property
-    def ANG_BOHR_KKR(self) -> dict:
+    def ANG_BOHR_KKR(self) -> _typing.Dict[KkrConstantsVersion, float]:
         """All constants versions of the conversion constant ``ANG_BOHR_KKR`` (Angstrom to Bohr radius)."""
         return self._ANG_BOHR_KKR
 
     @property
-    def RY_TO_EV_KKR(self) -> dict:
+    def RY_TO_EV_KKR(self) -> _typing.Dict[KkrConstantsVersion, float]:
         """All constants versions of the conversion constant ``RY_TO_EV_KKR`` (Rydberg to electron Volt)."""
         return self._RY_TO_EV_KKR
 
@@ -456,11 +448,12 @@ class KkrConstantsVersionChecker:
         """Drop the records from previous workchain checks from memory."""
         self._records = self._records.drop(labels=self._records.index)
 
-    def check_single_workchain(self, wc: _WorkChainNode,
+    def check_single_workchain(self,
+                               wc: _orm.WorkChainNode,
                                record: bool = False,
                                set_extra: bool = False,
                                zero_threshold: float = 1e-15,
-                               group_label: str = None) -> _Union[KkrConstantsVersion, None]:
+                               group_label: str = None) -> _typing.Optional[KkrConstantsVersion]:
         """Classify a finished workchain by its used KKR constants version by reverse-calculation.
 
         Current implementation only works with aiida-kkr workflows which have a ``kkr_startpot_wc`` descendant.
@@ -498,35 +491,37 @@ class KkrConstantsVersionChecker:
         structure = query_structure_from(wc)
 
         structure_cell = _np.array(structure.cell)
-        _math_util.set_zero_below_threshold(structure_cell, threshold=zero_threshold)
+        _masci_math_util.set_zero_below_threshold(structure_cell, threshold=zero_threshold)
 
         structure_positions = []
         for sites in structure.sites:
             structure_positions.append(sites.position)
         structure_positions = _np.array(structure_positions)
-        _math_util.set_zero_below_threshold(structure_positions, threshold=zero_threshold)
+        _masci_math_util.set_zero_below_threshold(structure_positions, threshold=zero_threshold)
 
         #######################
         # 2) Read original alat and bravais from first inputcard
         # For now, this is implemented for aiida-kkr workchains with a single
         #  kkr_startpot_wc > VoronoiCalculation descendant only.
 
-        startpots = wc.get_outgoing(node_class=_kkr_startpot_wc).all_nodes()
+        startpots = wc.get_outgoing(node_class=_kkr_workflows.kkr_startpot_wc).all_nodes()
 
         msg_prefix = f"Warning: skipping Workchain {wc}"
         msg_suffix = f"Method not implemented for such workchains"
         if not startpots:
-            print(f"{msg_prefix}: Does not have a {_kkr_startpot_wc.__name__} descendant. {msg_suffix}.")
+            print(f"{msg_prefix}: Does not have a {_kkr_workflows.kkr_startpot_wc.__name__} descendant. {msg_suffix}.")
             return
         else:
             vorocalcs = None
             # workchain might have several startpot descendants, one of which should hava a vorocalc descendant.
             for startpot in startpots:
-                vorocalcs = startpot.get_outgoing(node_class=_VoronoiCalculation).all_nodes()
+                vorocalcs = startpot.get_outgoing(node_class=_kkr_calculations.VoronoiCalculation).all_nodes()
                 if vorocalcs:
                     break
             if not vorocalcs:
-                print(f"{msg_prefix}: Does not have a {_VoronoiCalculation.__name__} descendant. {msg_suffix}.")
+                print(
+                    f"{msg_prefix}: Does not have a {_kkr_calculations.VoronoiCalculation.__name__} descendant. "
+                    f"{msg_suffix}.")
                 return
             else:
                 vorocalc = vorocalcs[0]
@@ -543,7 +538,7 @@ class KkrConstantsVersionChecker:
                         print(f"{msg_prefix}: Could not read 'ALATBASIS' value from inputcard file. {msg_suffix}.")
                         return
 
-                    def read_field(keyword: str):
+                    def read_field(keyword: str) -> _np.ndarray:
                         lines = []
                         reading = False
                         for i, line in enumerate(inputcard):
@@ -570,13 +565,15 @@ class KkrConstantsVersionChecker:
 
                 except FileNotFoundError as err:
                     print(f"{msg_prefix}: {FileNotFoundError.__name__}: Could not retrieve inputcard from its "
-                          f"{_VoronoiCalculation.__name__} {vorocalc}.")
+                          f"{_kkr_calculations.VoronoiCalculation.__name__} {vorocalc}.")
                     return
 
         #######################
         # 3) Recalculate ANG_BOHR_KKR from inputcard alat and bravais
-        def reverse_calc_ANG_BOHR_KKR(inp_arr: _np.ndarray, struc_arr: _np.ndarray):
-            def reverse_calc_single_ANG_BOHR_KKR(x: float, y: float):
+        def reverse_calc_ANG_BOHR_KKR(inp_arr: _np.ndarray,
+                                      struc_arr: _np.ndarray):
+            def reverse_calc_single_ANG_BOHR_KKR(x: float,
+                                                 y: float) -> float:
                 # print(f'calc ALATBASIS * {x} / {y}')
                 return ALATBASIS * x / y if (y != 0.0 and x != 0.0) else 0.0
 
@@ -594,7 +591,7 @@ class KkrConstantsVersionChecker:
         a2b_list.extend(reverse_calc_ANG_BOHR_KKR(POSITIONS, structure_positions))
         a2b_list = _np.array(a2b_list)
 
-        a2b_list = _math_util.drop_values(a2b_list, 'zero', 'nan')
+        a2b_list = _masci_math_util.drop_values(a2b_list, 'zero', 'nan')
 
         # print('a2b_list')
         # print(a2b_list)
@@ -604,7 +601,7 @@ class KkrConstantsVersionChecker:
         #######################
         # 4) Determine constant type from reverse-calculated constant
 
-        difference = _OrderedDict()
+        difference = _collections.OrderedDict()
         # difference = {}
         for ctype, value in self.ANG_BOHR_KKR.items():
             difference[ctype] = abs(ANG_BOHR_KKR - value)
@@ -654,8 +651,9 @@ class KkrConstantsVersionChecker:
         else:
             return constants_version
 
-    def check_workchain_group(self, group: _Group,
-                              process_labels: list = [],
+    def check_workchain_group(self,
+                              group: _orm.Group,
+                              process_labels: _typing.List[str] = [],
                               set_extra: bool = False,
                               zero_threshold: float = 1e-15):
         """Classify a group of finished workchains by their used KKR constants versions by reverse-calculation.
@@ -679,16 +677,18 @@ class KkrConstantsVersionChecker:
                   "a 'kkr_startpot_wc' descendant. Valid example: ['kkr_scf_wc', 'kkr_imp_wc'].")
         else:
             for node in group.nodes:
-                if isinstance(node, _WorkChainNode) and node.process_label in process_labels:
+                if isinstance(node, _orm.WorkChainNode) and node.process_label in process_labels:
                     self.check_single_workchain(wc=node,
                                                 record=True,
                                                 set_extra=set_extra,
                                                 zero_threshold=zero_threshold,
                                                 group_label=group.label)
 
-    def filter_using_runtime_version(self, wcs: _List[_WorkChainNode],
+    def filter_using_runtime_version(self,
+                                     wcs: _typing.List[_orm.WorkChainNode],
                                      select: bool = True,
-                                     set_extra: bool = False) -> _Union[_List[bool], _List[_WorkChainNode]]:
+                                     set_extra: bool = False) -> _typing.Union[
+        _typing.List[bool], _typing.List[_orm.WorkChainNode]]:
         """Filter workchains by which of them are using the same KKR constants version as the interpreter at runtime.
 
         This method is useful for selecting those workchains which can be reused at runtime for new calculations.
@@ -729,7 +729,8 @@ class KkrConstantsVersionChecker:
         else:
             return mask
 
-    def check_single_workchain_provenance(self, wc: _WorkChainNode):
+    @staticmethod
+    def check_single_workchain_provenance(wc: _orm.WorkChainNode):
         """Check whether the workchain and all its ancestors of a workchain used the same KKR constants versions.
 
         This requires that the constants version on the workchain AND its ancestors was set as extra before with either
@@ -748,17 +749,21 @@ class KkrConstantsVersionChecker:
         # TODO: Include intermediate kkr_imp_wc in provenance path check (e.g. GF writeout kkr_imp_wc).
         # TODO: store findings in dataframe or dict
 
-        if not wc.process_label == 'kkr_imp_wc':
-            print(f"Workchain '{wc.label}', pk={wc.pk} is not a {_kkr_imp_wc.__name__}. Currently not supported.")
+        if wc.process_label != 'kkr_imp_wc':
+            print(
+                f"Workchain '{wc.label}', pk={wc.pk} is not a {_kkr_workflows.kkr_imp_wc.__name__}. "
+                f"Currently not supported.")
         else:
             try:
                 imp_version = wc.extras['kkr_constants_version']['constants_version']
 
-                scf_wcs = wc.get_incoming(node_class=_RemoteData,
+                scf_wcs = wc.get_incoming(node_class=_orm.RemoteData,
                                           link_label_filter='remote_data_host').all_nodes()[0].get_incoming(
-                    node_class=_kkr_scf_wc).all_nodes()
+                    node_class=_kkr_workflows.kkr_scf_wc).all_nodes()
                 if not scf_wcs:
-                    print(f"Workchain '{wc.label}', pk={wc.pk} does not have a {_kkr_scf_wc.__name__} ancestor.")
+                    print(
+                        f"Workchain '{wc.label}', pk={wc.pk} does not have a "
+                        f"{_kkr_workflows.kkr_scf_wc.__name__} ancestor.")
                 else:
                     try:
                         scf_version = scf_wcs[0].extras['kkr_constants_version']['constants_version']
@@ -770,8 +775,9 @@ class KkrConstantsVersionChecker:
             except KeyError as err:
                 print(f"Workchain '{wc.label}', pk={wc.pk} is missing 'kkr_constants_version' extra.")
 
-    def check_workchain_group_provenance(self, group: _Group,
-                                         process_labels: list = ['kkr_imp_wc']):
+    def check_workchain_group_provenance(self,
+                                         group: _orm.Group,
+                                         process_labels: _typing.List[str] = ['kkr_imp_wc']):
         """Check whether the workchain and all its ancestors of a workchain used the same KKR constants versions.
 
         This requires that the constants version on the workchain AND its ancestors was set as extra before with either
@@ -794,5 +800,5 @@ class KkrConstantsVersionChecker:
             print("Warning: Unsupported process_labels list. I will do nothing. Currently supported: ['kkr_imp_wc'].")
         else:
             for node in group.nodes:
-                if isinstance(node, _WorkChainNode) and node.process_label in process_labels:
+                if isinstance(node, _orm.WorkChainNode) and node.process_label in process_labels:
                     self.check_single_workchain_provenance(node)
