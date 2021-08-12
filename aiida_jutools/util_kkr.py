@@ -692,7 +692,13 @@ class KkrConstantsVersionChecker:
         """Filter workchains by which of them are using the same KKR constants version as the interpreter at runtime.
 
         This method is useful for selecting those workchains which can be reused at runtime for new calculations.
-        The ones would throw an error, unless the runtime is reset to the KKR constants version which they are using.
+        Using one which was performed with a constants version different from the runtime version would fail with an
+        error after submission, unless the runtime is reset to match its KKR constants version.
+
+        For instance, submitting a kkr_imp_wc with a parent GF writeout kkr_imp_wc with a different constants version
+        would result in the error kkr_imp_wc [144] > kkr_imp_sub_wc [130] > KkrimpCalculation [302], with the
+        log file ``_scheduler-stderr.txt`` containing the error message
+        ``[read_potential] error ALAT value in potential is does not match``.
 
         This method assumes that each workchain has the KKR constants version which it uses set as an extra via
         :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_single_workchain` or

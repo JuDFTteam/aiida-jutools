@@ -260,7 +260,8 @@ class _OptionsConfig:
             self._log("Info", None, f"Call {self.initialize.__name__}() before use.")
 
     def _log(self, level: str = None,
-             func=None, msg: str = "",
+             func=None,
+             msg: str = "",
              name: bool = True):
         """Basic logging.
 
