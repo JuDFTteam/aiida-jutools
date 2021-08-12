@@ -28,10 +28,11 @@
         "masci-tools",
         "aiida-kkr",
         "numpy",
-        "scipy",
         "pycifrw",
         "spglib",
+        "pymatgen",
         "pandas",
+        "pytz",
         "humanfriendly"
     ],
     "extras_require": {

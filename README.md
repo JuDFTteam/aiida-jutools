@@ -24,6 +24,11 @@ Until further notice, install either by cloning the repository and use locally,
 or by doing an editable install via `pip.`
 
 ```bash
+# install dependencies
+pip install aiida-core numpy pandas humanfriendly pytz
+pip install pycifrw spglib pymatgen
+pip install masci-tools aiida-kkr
+# finally:
 pip install -e git+https://github.com/JuDFTteam/aiida-jutools@develop#egg=aiida-jutools
 ```
 
