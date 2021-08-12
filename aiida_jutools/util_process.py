@@ -35,6 +35,8 @@ from aiida.engine.processes import ProcessState as _PS
 
 import aiida_jutools.util_computer as _jutools_computer
 import aiida_jutools.util_group as _jutools_group
+from aiida_jutools import _LogLevel
+from aiida_jutools import _log
 
 
 def get_process_states(terminated: bool = None,
@@ -211,28 +213,65 @@ def query_processes(label: str = None,
 
 
 class ProcessClassifier:
-    """Classifies processes by process_state and exit_status."""
+    """Classifies processes by process_state and exit_status.
+
+    Developer's note: TODO: replace internal storage dict with dataframe.
+    """
     _TMP_GROUP_LABEL_PREFIX = "process_classification"
 
+    # DEVNOTE TODO: replace internal storage dict with dataframe.
+    # Template see util_kkr > KkrConstantsVersionChecker
+    # dataframe should have uuid, ctime, group, ..., process_state, exit_status, process_label, ...
+    # then can also replace init parameter group with list of groups.
+    # a dataframe is simply much better for sorting, slicing, statistical summaries, visualization of this kind of data.
+    
     def __init__(self,
-                 processes: _typing.List[_typing.Union[_orm.ProcessNode, _aiida_processes.Process]] = None):
-        """Classifies processes by process_state and exit_status.
+                 processes: _typing.List[_typing.Union[_orm.ProcessNode, _aiida_processes.Process]] = None,
+                 group: _orm.Group = None,
+                 id: str = 'uuid'):
+        """Classifies processes by process state and optionally other attributes.
 
         Use e.g. :py:meth:`~aiida_jutools.util_process.query_processes` to get a list of processes to classify.
 
+        Alternatively, supply a group of process nodes.
+
         :param processes: list of processes or process nodes to classify.
+        :param group: Group of processes. If supplied, ``processes`` list will be ignored.
+        :param id: Representation of processes in classification. None: node object. Other options: 'pk', 'uuid', ...
         """
 
+        # reduce 2x2 possible input space to 2.
+        if not (processes or group):
+            _log(l=_LogLevel.ERROR, e=ValueError, o=self, f=self.__init__,
+                 m="I require either a list of processes or a group of processes.")
+
+        # validate processes / group
+        self._group_based = group is not None
+        self._group = group
         self._unclassified_processes = processes
 
-        self.classified_by_state = {}
+        if processes and group:
+            _log(l=_LogLevel.WARNING, o=self, f=self.__init__,
+                 m=f"Supplied both list and group of processes. Parameters are "
+                   f"mutually exclusive. I will take the group and ignore the process list.")
+            self._unclassified_processes = None
 
-        self.classified_by_type = {
-            'type': {},
-            'process_class': {},
-            'process_label': {},
-            'process_type': {}
-        }
+        # validate id
+        self._unique_ids = {None, 'pk', 'uuid'}
+        self._nonunique_ids = {'label', 'ctime', 'mtime'}
+        self._allowed_ids = self._unique_ids.union(self._nonunique_ids)
+        if id not in self._allowed_ids:
+            _log(l=_LogLevel.WARNING, o=self, f=self.__init__,
+                 m=f"Chosen id '{id}' is not in allowed {self._allowed_ids}. Will choose id='pk' instead.")
+            id = 'pk'
+        if id in self._nonunique_ids:
+            _log(l=_LogLevel.WARNING, o=self, f=self.__init__,
+                 m=f"Chosen id '{id}' is a nonunique id. No override checks will be performed.")
+        self._id = id
+
+        # containers for results (public read via @property)
+        self._classified = {}
+        self._counted = {}
 
         # check if temporary groups from previous instances have not been cleaned up.
         # if so, delete them.
@@ -241,25 +280,40 @@ class ProcessClassifier:
                                      filters={"label": {"like": ProcessClassifier._TMP_GROUP_LABEL_PREFIX + "%"}}).all(
             flat=True)
         if temporary_groups:
-            print(f"Info: Found temporary classification groups, most likely not cleaned up from a previous "
-                  f"{ProcessClassifier.__name__} instance. I will delete them now.")
+            _log(l=_LogLevel.INFO, o=self, f=self.__init__,
+                 m=f"Found temporary classification groups, most likely not cleaned up from a previous "
+                   f"{ProcessClassifier.__name__} instance. I will delete them now.")
             _jutools_group.delete_groups(group_labels=[group.label for group in temporary_groups],
                                          skip_nonempty_groups=False,
                                          silent=False)
+
+    @property
+    def classified(self) -> dict:
+        """Classification result."""
+        return self._classified
+
+    @property
+    def counted(self) -> dict:
+        """Classification count result."""
+        return self._counted
 
     def _group_for_classification(self) -> _orm.Group:
         """Create a temporary group to help in classification. delete group after all classified.
 
         :return: temporary classification group
         """
+        if self._group_based:
+            return self._group
 
         exists_already = True
+        tmp_classification_group = None
+        # create random group names until found one for which no such group exists already.
         while exists_already:
             group_label = "_".join([ProcessClassifier._TMP_GROUP_LABEL_PREFIX,
                                     _datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
                                     _masci_python_util.random_string(length=16)])
             try:
-                _orm.Group.get(label=group_label)
+                tmp_classification_group = _orm.Group.get(label=group_label)
             except _aiida.common.exceptions.NotExistent as err:
                 tmp_classification_group = _orm.Group(label=group_label)
                 tmp_classification_group.store()
@@ -268,16 +322,35 @@ class ProcessClassifier:
         tmp_classification_group.add_nodes(nodes=self._unclassified_processes)
         return tmp_classification_group
 
-    def classify(self):
-        """Call all classify methods."""
-        self.classify_by_type()
-        self.classify_by_state()
+    def classify(self,
+                 type_attr: str = 'process_label'):
+        """Run the classification.
 
-    def classify_by_state(self) -> None:
+        Will run two classifications: 1) by ``process_state`` and 2) optionally by a type attribute.
+
+        For 1), ``finished`` processes will further be subclassified by ``exit_status``.
+
+        For the latter, the default is ``process_label``. Other options are None, ``process_class``, ``process_type``.
+
+        When finished, the classifications becomes available as class attribute
+        :py:class:`~aiida_jutools.util_process.ProcessClassifier.classified`, a dictionary.
+
+        :param type_attr: type attribute to use for the type classification.
+        """
+        _log(l=_LogLevel.INFO, o=self, f=self.classify,
+             m=f"Starting classification ...")
+
+        # # classify
+        self._classify_by_state()
+        self._classify_by_type(type_attr=type_attr)
+        # # count results
+        total = self._count()
+
+        _log(l=_LogLevel.INFO, o=self, f=self.classify,
+             m=f"Classified {total} processes.")
+
+    def _classify_by_state(self) -> None:
         """Classify processes / process nodes (here: interchangeable) by process state.
-
-        Result stored as class attribute. It is a dict process_state : processes. process_state 'finished' is further
-        subdivided into exit_status : processes.
         """
 
         tmp_classification_group = self._group_for_classification()
@@ -285,127 +358,155 @@ class ProcessClassifier:
         def _get_processes(state):
             return query_processes(group=tmp_classification_group, process_states=[state]).all(flat=True)
 
-        self.classified_by_state = {}
+        # container for results
+        attr = 'process_state'
+        by_attr = {}
 
+        # get all states string representations
         states = get_process_states(terminated=None, as_string=True, with_legend=False)
         finished = _PS.FINISHED.value
         states.pop(states.index(finished))
 
+        # classify by all states except finished
         for state in states:
             processes_of_state = _get_processes(state)
-            self.classified_by_state[state] = processes_of_state if processes_of_state else []
+            if self._id:
+                by_attr[state] = [getattr(process, self._id) for process in processes_of_state]
+            else:
+                by_attr[state] = processes_of_state
 
-        self.classified_by_state[finished] = {}
+        # subclassify finished processes by exit_status
+        by_attr[finished] = {}
         finished_processes = _get_processes(finished)
         if finished_processes:
             for process in finished_processes:
                 exit_status = process.exit_status
-                if not self.classified_by_state[finished].get(exit_status, None):
-                    self.classified_by_state[finished][exit_status] = []
-                self.classified_by_state[finished][exit_status].append(process)
+                if not by_attr[finished].get(exit_status, None):
+                    by_attr[finished][exit_status] = []
+                if self._id:
+                    by_attr[finished][exit_status].append(getattr(process, self._id))
+                else:
+                    by_attr[finished][exit_status].append(process)
 
-        # classification done.
-        # cleanup:
-        _jutools_group.delete_groups(group_labels=[tmp_classification_group.label],
-                                     skip_nonempty_groups=False,
-                                     silent=True)
+        # save result
+        self._classified[attr] = by_attr
 
-    def classify_by_type(self) -> None:
-        """Classify processes / process nodes (here: interchangeable) by various type indicators.
+        # cleanup.
+        if not self._group_based:
+            _jutools_group.delete_groups(group_labels=[tmp_classification_group.label],
+                                         skip_nonempty_groups=False,
+                                         silent=True)
 
-        Classifies by type, process_class, process_label, process_type.
+    def _classify_by_type(self, type_attr: str = 'process_label'):
+        """Classify processes by a valid type attribute.
 
-        Result stored as class attributes. They are dict type/label/... : processes.
+        :param type_attr: type attribute to use for the type classification.
         """
-        d = {
-            'type': {},
-            'process_class': {},
-            'process_label': {},
-            'process_type': {}
-        }
-        for process in self._unclassified_processes:
-            typ = type(process)
-            pcls = process.process_class
-            plabel = process.process_label
-            ptype = process.process_type
-            if typ not in d['type']:
-                d['type'][typ] = []
-            if pcls not in d['process_class']:
-                d['process_class'][pcls] = []
-            if plabel not in d['process_label']:
-                d['process_label'][plabel] = []
-            if ptype not in d['process_type']:
-                d['process_type'][ptype] = []
-            d['type'][typ].append(process)
-            d['process_class'][pcls].append(process)
-            d['process_label'][plabel].append(process)
-            d['process_type'][ptype].append(process)
-        self.classified_by_type = d
+        attr = type_attr
+        allowed_attrs = ['process_label', 'process_class', 'process_type']
+        if attr not in allowed_attrs:
+            _log(l=_LogLevel.WARNING, o=self, f=self.classify_by_type,
+                 m=f"Type Attribute {attr} not one of allowed {allowed_attrs}. Will use 'process_label' instead.")
+            attr = 'process_label'
 
-    def count(self,
-              process_states: _typing.List[str] = None) -> int:
-        """Count processes classified under specified process states.
+        # container for results
+        by_attr = {}
 
-        :param process_states: process states. keys of classified processes dict. If None, count all.
-        :return: sum of counts of processes of specified process states.
+        iterator = self._group.nodes if self._group_based else self._unclassified_processes
+
+        for process in iterator:
+            value = getattr(process, attr)
+            if value not in by_attr:
+                by_attr[value] = []
+            if self._id:
+                by_attr[value].append(getattr(process, self._id))
+            else:
+                by_attr[value].append(process)
+
+        # save result
+        self._classified[attr] = by_attr
+
+    def _count(self) -> int:
+        """Count classified processes.
+
+        When finished, the count becomes available as class attribute
+        :py:class:`~aiida_jutools.util_process.ProcessClassifier.counted`, a dictionary.
+
+        :return: total count of all classified processes.
         """
 
-        _process_states = process_states or get_process_states(
-            terminated=None, as_string=True, with_legend=False
-        )
-
+        # tmp results storage
+        counted = {attr: {} for attr in self._classified}
         total = 0
+
+        # prep for process states subdict
+        states = get_process_states(terminated=None, as_string=True, with_legend=False)
         finished = _PS.FINISHED.value
-        for process_state in _process_states:
-            if process_state != finished:
-                total += len(self.classified_by_state.get(process_state, []))
-            elif self.classified_by_state.get(process_state, None):
-                total += sum(len(v) for v in self.classified_by_state[process_state].values())
+        states.pop(states.index(finished))
+
+        # start counting
+        for attr, by_attr in self._classified.items():
+            if attr != 'process_state':
+                for key, value in by_attr.items():
+                    counted[attr][key] = len(by_attr.get(key, []))
+            else:
+                # for process states, include all states in account even if not present.
+                # so don't iterate over key:value of subdict, but states:value.
+                # also, do the total count here. we only need to do it in one subdict.
+                for state in states:
+                    num = len(by_attr.get(state, []))
+                    total += num
+                    counted[attr][state] = num
+                if by_attr.get(finished, None):
+                    # for state finished, have a subsubdict exit_status:processes, so special treatment here.
+                    counted[attr][finished] = {exit_status: None for exit_status in by_attr[finished]}
+                    for exit_status, processes in by_attr[finished].items():
+                        num = len(by_attr[finished].get(exit_status, []))
+                        total += num
+                        counted[attr][finished][exit_status] = num
+
+        self._counted = counted
         return total
 
-    def print_statistitics(self,
-                           title: str = "",
-                           with_legend: bool = True,
-                           type_classification: str = 'process_label'):
+    def print_statistics(self,
+                         title: str = "",
+                         with_legend: bool = True):
         """Pretty-print classification statistics.
 
         :param title: A title.
         :param with_legend: True: with process states legend.
-        :param type_classification: One of 'type', 'process_class', 'process_label', 'process_type'.
         """
 
         _title = "" if not title else "\n" + title
-        print(f"Process classification statistics{_title}:")
+        print(f"Process classification counts {_title}:")
 
-        print(40 * '-' + "\nClassification by type:")
-        type_clfctn = type_classification if type_classification in self.classified_by_type.keys() else "process_label"
-        if type_classification not in self.classified_by_type.keys():
-            print(f"Warning: selected type classifiction '{type_classification}' is invalid. Valid choices are: "
-                  f"{list(self.classified_by_type.keys())}. Choosing '{type_clfctn}' instead.")
+        # print count of terminated / non-terminated classified processes
+        attr = 'process_state'
+        by_attr = self.counted[attr]
+        states = get_process_states(terminated=True, as_string=True, with_legend=False)
+        finished = _PS.FINISHED.value
+        states.pop(states.index(finished))
+        total = sum(by_attr.get(state, 0) for state in states)
+        if by_attr.get(finished, None):
+            total += sum(by_attr[finished].values())
+        print(f"\nTotal terminated: {total}.")
 
-        statistics = {ptyp: len(processes) for ptyp, processes in self.classified_by_type[type_clfctn].items()}
-        print(_json.dumps(statistics, indent=4))
+        states = get_process_states(terminated=False, as_string=True, with_legend=False)
+        total = sum(by_attr.get(state, 0) for state in states)
+        print(f"Total not terminated: {total}.")
+        print()
 
-        print(40 * '-' + "\nClassfication by process state:")
+        # print detailed count
+        print(_json.dumps(self.counted, indent=4))
+
+        # print legend
         if with_legend:
             _, legend = get_process_states(with_legend=True)
             print(legend)
-        states = get_process_states(terminated=True, as_string=True, with_legend=False)
-        print(f"\nTotal terminated: {self.count(states)}.")
-        states = get_process_states(terminated=False, as_string=True, with_legend=False)
-        print(f"Total not terminated: {self.count(states)}.")
-
-        print(f"\nFull classification by process state:")
-        finished = _PS.FINISHED.value
-        statistics = {process_state: len(processes) for process_state, processes in self.classified_by_state.items()
-                      if process_state != finished}
-        if self.classified_by_state.get(finished, None):
-            statistics[finished] = {exit_status: len(processes)
-                                    for exit_status, processes in self.classified_by_state[finished].items()}
-        print(_json.dumps(statistics, indent=4))
 
     def subgroup_classified_results(self,
-                                    group: _orm.Group,
+                                    group: _orm.Group = None,
+                                    require_is_subset: bool = True,
                                     dry_run: bool = True,
                                     silent: bool = False):
         """Subgroup classified processes.
@@ -414,23 +515,45 @@ class ProcessClassifier:
         Current subgroup classification distinguishes 'finished_ok' ('finished' and exit_status 0)
         and 'failed' (all others).
 
-        :param group: Group of which the passed-in unclassified processes are part of.
+        :param group: Base group under which to add the subgroups. Will be ignored if group was supplied at
+                      initialization.
+        :param require_is_subset: True: abort if subgroups already contain processes which are not in group.
         :param dry_run: True: Perform dry run, show what I *would* do.
         :param silent: True: Do not print any information.
         """
+        if not (group or self._group_based):
+            _log(l=_LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
+                 m=f"Missing 'group' argument. I will do nothing.")
+            return
+        if self._id not in self._unique_ids:
+            _log(l=_LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
+                 m=f"Chose classification by nonunique id {self._id}. Cannot load unique processes. I will do nothing.")
+            return
+
+        _group = self._group if self._group_based else group
 
         # check if all unclassified processes are really part of passed-in group.
-        proc_ids = {proc.uuid for proc in self._unclassified_processes}
-        group_ids = {node.uuid for node in group.nodes}
+        iterator = self._group.nodes if self._group_based else self._unclassified_processes
+        proc_ids = {proc.uuid for proc in iterator}
+        group_ids = {node.uuid for node in _group.nodes}
         if not proc_ids.issubset(group_ids):
-            print(f"Warning: The classified process nodes are not a subset of the specified group '{group.label}'.")
+            msg_suffix = " You required that they are a subset. I will do nothing." if require_is_subset else ""
+            _log(l=_LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
+                 m=f"The classified process nodes are not a subset "
+                   f"of the specified group '{_group.label}'.{msg_suffix}")
+            if require_is_subset:
+                return
 
-        if not self.classified_by_state:
-            print("INFO: No classification performed. Nothing to subgroup.")
+        # use the process_state classification result for grouping
+        by_attr = self.classified.get('process_state', None)
+
+        if not by_attr:
+            _log(l=_LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
+                 m="No classification performed. Nothing to subgroup.")
         failed_exit_statuses = []
         finished = _PS.FINISHED.value
-        if self.classified_by_state.get(finished, None):
-            failed_exit_statuses = [exit_status for exit_status in self.classified_by_state[finished] if exit_status]
+        if by_attr.get(finished, None):
+            failed_exit_statuses = [exit_status for exit_status in by_attr[finished] if exit_status]
 
         subgroups_classification = {
             'finished_ok': [{finished: [0]}],
@@ -445,30 +568,45 @@ class ProcessClassifier:
                                                            process_states
                                                            if isinstance(process_state, dict)]
 
-            group_info = f"subgroups of group {group.label}" if group else "groups"
-            print(f"INFO: I will try to group classified states into subgroups as follows. In the displayed dict, the "
-                  f"keys are the names of the '{group_info}' which I will load or create, while the values depict "
-                  f"which sets of classified processes will be added to that group.")
-            print(_json.dumps(subgroups_classification, cls=_masci_python_util.JSONEncoderTailoredIndent, indent=4))
-            print("This was a dry run. I will exit now.")
+            group_info = f"subgroups of group '{_group.label}'" if _group else "groups"
+            dump = _json.dumps(subgroups_classification, cls=_masci_python_util.JSONEncoderTailoredIndent, indent=4)
+            _log(l=_LogLevel.INFO, o=self, f=self.subgroup_classified_results,
+                 m=f"I will try to group classified states into subgroups as follows. In the displayed dict, the "
+                   f"keys are the names of the {group_info} which I will load or create, while the values depict "
+                   f"which sets of classified processes will be added to that group.\n"
+                   f"{dump}\n"
+                   f"This was a dry run. I will exit now.")
         else:
-            group_path_prefix = group.label + "/" if group else ""
+            if not silent:
+                _log(l=_LogLevel.INFO, o=self, f=self.subgroup_classified_results,
+                     m=f"Starting subgrouping processes by process state beneath base group '{_group.label}'...")
+
+            group_path_prefix = _group.label + "/" if _group else ""
             for subgroup_name, process_states in subgroups_classification.items():
                 count = 0
                 group_path = _aiida_groups.GroupPath(group_path_prefix + subgroup_name)
                 subgroup, created = group_path.get_or_create_group()
                 for process_state in process_states:
                     if isinstance(process_state, str):
-                        processes = self.classified_by_state[process_state]
+                        processes = by_attr[process_state]
+                        if self._id:
+                            processes = [_orm.load_node(**{self._id: identifier}) for identifier in processes]
                         subgroup.add_nodes(processes)
                         count += len(processes)
                     if isinstance(process_state, dict):
                         for exit_status in process_state[finished]:
-                            processes = self.classified_by_state[finished].get(exit_status, [])
+                            processes = by_attr[finished].get(exit_status, [])
+                            if self._id:
+                                processes = [_orm.load_node(**{self._id: identifier}) for identifier in processes]
                             subgroup.add_nodes(processes)
                             count += len(processes)
                 if not silent:
-                    print(f"Added {count} processes to subgroup '{subgroup.label}'")
+                    _log(l=_LogLevel.INFO, o=self, f=self.subgroup_classified_results,
+                         m=f"Added {count} processes to subgroup '{subgroup.label}'")
+
+            if not silent:
+                _log(l=_LogLevel.INFO, o=self, f=self.subgroup_classified_results,
+                     m=f"Finished subgrouping processes beneath base group '{_group.label}'.")
 
 
 def find_partially_excepted_processes(processes: _typing.List[_orm.ProcessNode],
@@ -490,7 +628,8 @@ def find_partially_excepted_processes(processes: _typing.List[_orm.ProcessNode],
     :return: dict of process : list of excepted descendants.
     """
     if to_depth > 1:
-        raise NotImplementedError("Currently, to_depth > 1 not supported.")  # TODO
+        _log(l=_LogLevel.ERROR, e=NotImplementedError, f=find_partially_excepted_processes,
+             m="Currently, to_depth > 1 not supported.")  # TODO
 
     processes_excepted = {}
     for process in processes:
@@ -649,8 +788,8 @@ class SubmissionSupervisor:
         """Submit calculation but wait if more than limit_running processes are running already.
 
         Note: processes are identified by their label (builder.metadata.label). Meaning: if the supervisor
-        finds a process node labeled 'A' in one of the groups with state 'finished_ok', it will load and return
-        that node instead of submitting.
+        finds a process node labeled 'A' in one of the groups with state 'finished_ok' (process state 'finished',
+        exit status 0), it will load and return that node instead of submitting.
 
         Note: if quota_querier is set, computer of main code of builder must be the same as computer set in
         quota_querier. This is not checked as a builder may have several codes using different computers.
@@ -719,7 +858,7 @@ class SubmissionSupervisor:
         else:
             # not found A:B in db with state finished_ok. try submitting
             if workchains_terminated and not s.resubmit_failed:
-                # found A:B in db with state terminated and not_finished_ok, and no 'retry'
+                # found A:B in db with state terminated and not_finished_ok, and no 'resubmit_failed'
                 next_process_is_from_db = True
                 next_process = _orm.load_node(workchains_terminated[0].pk)
                 info = f"process state {next_process.attributes['process_state']}"
@@ -741,7 +880,7 @@ class SubmissionSupervisor:
                 _builder = builder
 
                 info = f"staging submit '{wc_label}' "
-                if s.resubmit_failed:
+                if workchains_terminated and s.resubmit_failed:
                     info_failed = [f"pk {wc.pk}, state {wc.attributes['process_state']}, " \
                                    f"exit status {wc.attributes.get('exit_status', None)}"
                                    for wc in workchains_terminated]
