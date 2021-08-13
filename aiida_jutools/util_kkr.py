@@ -191,14 +191,14 @@ class KkrConstantsVersion(_enum.Enum):
 
     Here is an overview of their values from the commit history timespan when the values underwent change.
 
-    ==========  ===========  =====  ===================  ====================  ==================
-    date        commit hash  type   ang 2 bohr constant  bohr to ang constant  ry to ev constant
-    ==========  ===========  =====  ===================  ====================  ==================
-    2018-10-26  04d55ea             1.8897261254578281   0.5291772106700000    13.605693009000000
-    2021-02-16  c171563             1.8897261249935897   0.5291772108000000    13.605693122994000
-    2021-04-28  66953f8      'old'  1.8897261254578281   0.5291772106700000    13.605693009000000
-    2021-04-28  66953f8      'new'  1.8897261246257702   0.5291772109030000    13.605693122994000
-    ==========  ===========  =====  ===================  ====================  ==================
+    ==========  ===========  =========  ===================  ====================  ==================
+    date        commit hash  type       ang 2 bohr constant  bohr to ang constant  ry to ev constant
+    ==========  ===========  =========  ===================  ====================  ==================
+    2018-10-26  04d55ea      'old'      1.8897261254578281   0.5291772106700000    13.605693009000000
+    2021-02-16  c171563      'interim'  1.8897261249935897   0.5291772108000000    13.605693122994000
+    2021-04-28  66953f8      'old'      1.8897261254578281   0.5291772106700000    13.605693009000000
+    2021-04-28  66953f8      'new'      1.8897261246257702   0.5291772109030000    13.605693122994000
+    ==========  ===========  =========  ===================  ====================  ==================
 
     Use :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersion.OLD.description` (or on any other enum) to get a
     machine-readable version of this table.
@@ -368,7 +368,7 @@ class KkrConstantsVersionChecker:
             print(f"Warning: The KKR constants version the runtime is using could not be determined: "
                   f"The runtime value of constant ANG_BOHR_KKR matches no expected value. {msg_suffix}")
 
-        # env var cases: 4: None, 'Interim', 'True', not {None, 'True', 'Interim'}.
+        # env var cases: 4: None, 'interim', 'old', not {None, 'old', 'interim'}.
         # const type cases: 4: NEW, OLD, INTERIM, NEITHER.
         # cross-product: 4 x 4 = 16.
         # this assumes that current masci-tools version supports the environment switch WITH the 'Interim' option,
@@ -381,17 +381,17 @@ class KkrConstantsVersionChecker:
         # | None                          | OLD        | no    | no      | exception | A    |
         # | None                          | NEITHER    | no    | no      | exception | A    |
         # | 'Interim                      | New        | no    | no      | exception | B    |
-        # | 'Interim'                     | INTERIM    | yes   | yes     | pass      | E    |
-        # | 'Interim'                     | OLD        | yes   | yes     | exception | B    |
-        # | 'Interim'                     | NEITHER    | no    | no      | exception | B    |
-        # | 'True'                        | New        | no    | no      | exception | C    |
-        # | 'True'                        | INTERIM    | no    | no      | exception | C    |
-        # | 'True'                        | OLD        | yes   | yes     | pass      | E    |
-        # | 'True'                        | NEITHER    | no    | no      | exception | C    |
-        # | not {None, 'True', 'Interim'} | NEW        | no    | no      | pass(1)   | E    |
-        # | not {None, 'True', 'Interim'} | INTERIM    | no    | no      | exception | D    |
-        # | not {None, 'True', 'Interim'} | OLD        | no    | no      | exception | D    |
-        # | not {None, 'True', 'Interim'} | NEITHER    | no    | no      | exception | D    |
+        # | 'interim'                     | INTERIM    | yes   | yes     | pass      | E    |
+        # | 'interim'                     | OLD        | yes   | yes     | exception | B    |
+        # | 'interim'                     | NEITHER    | no    | no      | exception | B    |
+        # | 'old'                         | New        | no    | no      | exception | C    |
+        # | 'old'                         | INTERIM    | no    | no      | exception | C    |
+        # | 'old'                         | OLD        | yes   | yes     | pass      | E    |
+        # | 'old'                         | NEITHER    | no    | no      | exception | C    |
+        # | not {None, 'old', 'interim'}  | NEW        | no    | no      | pass(1)   | E    |
+        # | not {None, 'old', 'interim'}  | INTERIM    | no    | no      | exception | D    |
+        # | not {None, 'old', 'interim'}  | OLD        | no    | no      | exception | D    |
+        # | not {None, 'old', 'interim'}  | NEITHER    | no    | no      | exception | D    |
         # Annotations:
         # - case 'D' = 'else' = 'pass'.
         # - (1): passes with warning, from const type NEITHER above.
@@ -404,9 +404,9 @@ class KkrConstantsVersionChecker:
 
             cases = {
                 'A': (runtime_version != KkrConstantsVersion.NEW and env_var_val is None),
-                'B': (runtime_version != KkrConstantsVersion.INTERIM and env_var_val == 'Interim'),
-                'C': (runtime_version != KkrConstantsVersion.OLD and env_var_val == 'True'),
-                'D': (runtime_version != KkrConstantsVersion.NEW and env_var_val not in [None, 'True', 'Interim'])
+                'B': (runtime_version != KkrConstantsVersion.INTERIM and env_var_val == 'interim'),
+                'C': (runtime_version != KkrConstantsVersion.OLD and env_var_val == 'old'),
+                'D': (runtime_version != KkrConstantsVersion.NEW and env_var_val not in [None, 'old', 'interim'])
             }
             if cases['A'] or cases['D']:
                 raise ValueError(
