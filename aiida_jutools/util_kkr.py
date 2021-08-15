@@ -459,7 +459,7 @@ class KkrConstantsVersionChecker:
         Current implementation only works with aiida-kkr workflows which have a ``kkr_startpot_wc`` descendant.
         These are: ``kkr_scf_wc``, ``kkr_eos_wc``, ``kkr_imp_wc``.
 
-        If ``record`` is False, the constants version used by the workchain is returned. If ``record`` is False,
+        If ``record`` is False, the constants version used by the workchain is returned. If ``record`` is True,
         the result is appended to the dataframe  :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.records`.
 
         Will always check constants version by recalculating it, even if it may have already been set as an
@@ -776,9 +776,9 @@ class KkrConstantsVersionChecker:
                         if imp_version != scf_version:
                             print(f"Mismatch in {KkrConstantsVersion.__name__} extras for kkr_imp_wc pk={wc.pk}, "
                                   f"label='{wc.label}': parent kkr_scf_wc {scf_version}, kkr_imp_wc {imp_version}.")
-                    except KeyError as err:
+                    except (KeyError, TypeError) as err:
                         print(f"Workchain '{wc.label}', pk={wc.pk} is missing 'kkr_constants_version' extra.")
-            except KeyError as err:
+            except (KeyError, TypeError) as err:
                 print(f"Workchain '{wc.label}', pk={wc.pk} is missing 'kkr_constants_version' extra.")
 
     def check_workchain_group_provenance(self,
