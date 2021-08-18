@@ -34,5 +34,5 @@ pip install -e git+https://github.com/JuDFTteam/aiida-jutools@develop#egg=aiida-
 
 ## Usage and Documentation
 
-under construction
+Under construction. For the time being, see the extensive docstring documentation.
 
