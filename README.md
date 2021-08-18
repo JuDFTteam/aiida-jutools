@@ -12,12 +12,12 @@ This package offers
 1. tools for simpler management of larger [AiiDA](https://aiida.net) (thousands of nodes and up).
 These can be found in the modules `util_*`, like `util_process`  for managing large numbers of AiiDA processes and process nodes.
 2. science tools:
-  * `structure_analyzer`
+  - `structure_analyzer`
 3. common plugin developer tools for
-  * [aiida-fleur](https://github.com/JuDFTteam/aiida-kkr/)
-  * [aiida-kkr](https://github.com/JuDFTteam/aiida-fleur)
-  * [aiida-spex](https://iffgit.fz-juelich.de/chand/aiida-spex)
-  * [aiida-spirit](https://github.com/JuDFTteam/aiida-spirit)
+  - [aiida-fleur](https://github.com/JuDFTteam/aiida-kkr/)
+  - [aiida-kkr](https://github.com/JuDFTteam/aiida-fleur)
+  - [aiida-spex](https://iffgit.fz-juelich.de/chand/aiida-spex)
+  - [aiida-spirit](https://github.com/JuDFTteam/aiida-spirit)
 ## Installation
 
 Until further notice, install either by cloning the repository and use locally, 
