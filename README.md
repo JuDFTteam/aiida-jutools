@@ -9,8 +9,7 @@
 
 This package offers
 
-1. tools for simpler management of larger [AiiDA databases](https://aiida.net) (thousands of nodes and up).
-These can be found in the modules `util_*`, like `util_process`  for managing large numbers of AiiDA processes and process nodes.
+1. tools for managing high-throughput experiments (thousands or millions of database nodes) with [AiiDA](https://aiida.net). They can be found in the modules `util_*`, like `util_process`  for managing large numbers of AiiDA processes and process nodes.
 2. science tools:
   - `structure_analyzer`
 3. common plugin developer tools for
