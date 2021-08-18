@@ -21,9 +21,19 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "0.0.1",
+    "version": "0.1.0-dev1",
     "reentry_register": true,
     "install_requires": [
+        "aiida-core",
+        "masci-tools",
+        "aiida-kkr",
+        "numpy",
+        "pycifrw",
+        "spglib",
+        "pymatgen",
+        "pandas",
+        "pytz",
+        "humanfriendly"
     ],
     "extras_require": {
         "pre-commit": [
