@@ -781,6 +781,11 @@ class SubmissionSupervisor:
         # queue for submitted workchains, k=wc, v=run_time in min
         self._submitted_top_processes = []
 
+    @property
+    def submitted_top_processes(self) -> _typing.List[_orm.ProcessNode]:
+        """Database nodes of top processes submitted to the verdi daemon."""
+        return self._submitted_top_processes
+
     def blocking_submit(self,
                         builder: _aiida_processes.ProcessBuilder,
                         groups: _typing.Union[_orm.Group, _typing.List[_orm.Group]] = None) -> _typing.Tuple[
