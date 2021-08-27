@@ -12,6 +12,7 @@
 ###############################################################################
 """Tools for working with aiida Code nodes."""
 
+import copy as _copy
 import inspect as _inspect
 import typing as _typing
 
@@ -93,10 +94,30 @@ def get_code(computer_name_pattern: str = "",
                     f"All available codes: {all_codestrings}"
 
         codestring = None
-        if len(filtered_codestrings) >= 1:
-            if len(filtered_codestrings) > 1:
+        cs_filtered = _copy.copy(filtered_codestrings)
+        if cs_filtered:  # found at least one match
+            if len(cs_filtered) > 1:  # found more than one match
+
+                # # try to narrow the matches list down by stricter matching
+                # try again, but this time not with substring match ('in') but full string equality ('==')
+                cs_filtered2 = [f"{code.label}@{code.computer.label}" for code in _orm.Code.objects.all() if
+                                computer_name_pattern.lower() == code.computer.label.lower()
+                                and code_name_pattern.lower() == code.label.lower()]
+                if cs_filtered2:
+                    if len(cs_filtered2) < len(cs_filtered):
+                        cs_filtered = cs_filtered2
+                    else:
+                        # try again, but this time with case sensitive
+                        cs_filtered3 = [f"{code.label}@{code.computer.label}" for code in _orm.Code.objects.all() if
+                                        computer_name_pattern == code.computer.label
+                                        and code_name_pattern == code.label]
+                        if cs_filtered3 and len(cs_filtered3) < len(cs_filtered):
+                            cs_filtered = cs_filtered3
+
+            # okay, now take what we have and run with it
+            if len(cs_filtered) > 1:
                 print(warning_msg)
-            codestring = filtered_codestrings[0]
+            codestring = cs_filtered[0]
             error_msg = None
 
         return codestring, error_msg
