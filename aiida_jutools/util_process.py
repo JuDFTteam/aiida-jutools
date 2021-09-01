@@ -749,14 +749,14 @@ class SubmissionSupervisorSettings:
     :param delete_if_stalling_dry_run: True: if delete_if_stalling, simulate delete_if_stalling to 'try it out'.
     :param max_wait_for_stalling: delete top process (node & descendants) if running this long. To avoid congestion.
     """
-    dry_run: bool = False
-    max_top_processes_running: int = 10
-    max_all_processes_running: int = 100
+    dry_run: bool = True
+    max_top_processes_running: int = 30
+    max_all_processes_running: int = 60
     wait_for_submit: int = 5
-    max_wait_for_submit: int = 120
+    max_wait_for_submit: int = 240
     wait_after_submit: int = 2
-    resubmit_failed: bool = True
-    resubmit_failed_as_restart: bool = True
+    resubmit_failed: bool = False
+    resubmit_failed_as_restart: bool = False
     delete_if_stalling: bool = False
     delete_if_stalling_dry_run: bool = False
     max_wait_for_stalling: int = 240
