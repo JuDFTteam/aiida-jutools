@@ -21,7 +21,7 @@ import pandas as _pd
 from aiida import orm as _orm
 from masci_tools.util import python_util as _masci_python_util
 
-from computer import shell_command
+import aiida_jutools as _jutools
 
 
 @_dc.dataclass
@@ -64,7 +64,8 @@ class QuotaQuerier:
         """
         s = self.settings
 
-        exit_code, stdout, stderr = shell_command(self.computer, s.command)
+        exit_code, stdout, stderr = _jutools.computer.shell_command(computer=self.computer,
+                                                                    command=s.command)
 
         # strip away the header lines:
         # # stdout is a single string, lines sep. by '\n'

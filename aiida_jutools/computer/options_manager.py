@@ -19,10 +19,10 @@ import typing as _typing
 import aiida as _aiida
 from aiida import orm as _orm, schedulers as _aiida_schedulers, engine as _aiida_engine, tools as _aiida_tools
 from aiida.schedulers.plugins import lsf as _aiida_lsf_schedulers, slurm as _aiida_slurm_schedulers
-from masci_tools.util import python_util as _masci_python_util
 
 import util_group as _jutools_group
-from computer import get_computers, get_queues
+import aiida_jutools as _jutools
+from masci_tools.util import python_util as _masci_python_util
 
 
 @_dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
@@ -171,7 +171,7 @@ class _OptionsConfig:
         if self._computers:
             return self._computers
         else:
-            return get_computers(computer_name_pattern=self.name)
+            return _jutools.computer.get_computers(computer_name_pattern=self.name)
 
     @property
     def groups(self) -> _typing.List[_orm.Group]:
@@ -411,7 +411,7 @@ class _OptionsConfig:
             if mandatory_key == "queue_name":
                 if not silent:
                     print(f"Missing mandatory argument 'queue_name'. Try find matching computer and "
-                          f"call {get_queues.__name__}().")
+                          f"call {_jutools.computer.get_queues.__name__}().")
                     # query the currently least occupied queue and return options for that.
                     # but for that, need the associated computer node
                 queue_names = None
@@ -424,11 +424,14 @@ class _OptionsConfig:
                 while (not queue_names) and (idx_computer < len(self._computers)):
                     computer = self._computers[idx_computer]
                     try:
-                        queue_names = get_queues(computer=computer, gpu=gpu, with_node_count=False, silent=silent)
+                        queue_names = _jutools.computer.get_queues(computer=computer,
+                                                                   gpu=gpu,
+                                                                   with_node_count=False,
+                                                                   silent=silent)
                     except NotImplementedError as err:
                         self._log('Warning', self.get_options,
                                   f"Config's computer {computer.label} is not compatible with this config. "
-                                  f"Reason: {get_queues.__name__} not implemented for this type "
+                                  f"Reason: {_jutools.computer.get_queues.__name__} not implemented for this type "
                                   f"of computer). I will remove it from the config.")
                         idx_remove_computer.append(idx_computer)
                     idx_computer += 1
@@ -439,13 +442,13 @@ class _OptionsConfig:
                     computer_name_pattern = computer_name if computer_name else self.name
                     if not silent:
                         print(f"Try to get computer from name pattern '{computer_name_pattern}'.")
-                    computers = get_computers(computer_name_pattern=computer_name_pattern)
+                    computers = _jutools.computer.get_computers(computer_name_pattern=computer_name_pattern)
                     if not computers:
                         # next, try decomposing config name into words and get computer from words
                         confwords = (" ".join(_re.findall("[a-zA-Z]+", self.name))).split(" ")
                         idx_words = 0
                         while (not computers) and (idx_words < len(confwords)):
-                            computers = get_computers(computer_name_pattern=confwords[idx_words])
+                            computers = _jutools.computer.get_computers(computer_name_pattern=confwords[idx_words])
                             idx_words += 1
                     if not computers:
                         raise _aiida.common.exceptions.NotExistent(
@@ -456,7 +459,10 @@ class _OptionsConfig:
                         idx_computer = 0
                         while (not queue_names) and (idx_computer < len(computers)):
                             computer = computers[idx_computer]
-                            queue_names = get_queues(computer=computer, gpu=gpu, with_node_count=False, silent=silent)
+                            queue_names = _jutools.computer.get_queues(computer=computer,
+                                                                       gpu=gpu,
+                                                                       with_node_count=False,
+                                                                       silent=silent)
                             if queue_names:
                                 self._computers.append(computer)
                             idx_computer += 1
@@ -884,9 +890,9 @@ class ComputerOptionsManager:
     The manager is basically a collection of named :py:class:`~aiida_jutools.util_computer._OptionsConfig` instances.
 
     >>> import aiida
+    >>> import aiida_jutools as jutools
     >>> aiida.load_profile()
-    >>> from aiida_jutools import util_computer
-    >>> optman = util_computer.ComputerOptionsManager()
+    >>> optman = jutools.computer.ComputerOptionsManager()
     >>> optman.initialize()
     >>> optman.iffslurm.get_options()
     >>> optman.claix18.get_help()

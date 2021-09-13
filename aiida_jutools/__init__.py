@@ -7,6 +7,8 @@ __version__ = "0.1.0-dev1"
 import typing as _typing
 import enum as _enum
 
+import computer
+
 class _LogLevel(_enum.Enum):
     INFO = 0
     WARNING = 1
