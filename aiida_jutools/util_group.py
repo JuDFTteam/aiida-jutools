@@ -42,19 +42,19 @@ class GroupsFromDict:
             }  # subgroups
         }  # group
     }
-    _ignore_labels = ["TEMPLATE", "INSERT_IN_ALL"]
-    _insert_label = "INSERT_IN_ALL"
+    _ignored_keys = ["TEMPLATE", "INSERT_IN_ALL"]
+    _insert_key = "INSERT_IN_ALL"
 
     @staticmethod
-    def get_template_dict(with_example_group: bool = True,
-                          print_dict: bool = True,
-                          indent: int = 4) -> dict:
-        """Print a valid example dict with nested groups as input for load_or_create().
+    def get_template(with_example_group: bool = True,
+                     print_dict: bool = True,
+                     indent: int = 4) -> dict:
+        """Print a valid example group structure with nested groups as input for load_or_create().
 
-        :param with_example_group: add a valid example group structure to template dict
-        :param print_dict: pretty print dict as well as returning it
-        :param indent: indent for the printed dict
-        :return: template dict
+        :param with_example_group: add a valid example group entry to template structure
+        :param print_dict: pretty print the template as well as returning it
+        :param indent: indent for the printed template
+        :return: valid example group structure
         """
         template = _copy.deepcopy(GroupsFromDict.TEMPLATE)
         if with_example_group:
@@ -63,7 +63,10 @@ class GroupsFromDict:
                 "SUBGROUPS": {
                     "my_subgroupA": {
                         "description": "Short description of this group.",
-
+                        "extras": {
+                            "local_extra" : ["only set for this subgroup, ",
+                                             "as opposed to global extras in 'INSERT_IN_ALL'."]
+                        }
                     },  # subgroup
                     "my_subgroupB": {
                         "description": "Short description of this group.",
@@ -75,37 +78,44 @@ class GroupsFromDict:
         return template
 
     def load_or_create(self,
-                       group_labeling: dict,
-                       overwrite_extras: bool = True) -> list:
+                       template: dict,
+                       overwrite_extras: bool = True) -> _typing.List[_orm.Group]:
         """Given a dict describing a group structure, create or load these groups.
 
         If group(s), exist, will just be loaded. But extras will be modified according to dict.
 
-        :param group_labeling: group structure. See GroupFromDict.TEMPLATE for valid template.
+        :param template: group structure. See GroupsFromDict.TEMPLATE for valid template.
         :param overwrite_extras: replace if True, add if False
         :return: list of created or loaded groups
         """
-        # TODO validate dict structure against template dict
-        self._to_insert = group_labeling[GroupsFromDict._insert_label]["INSERT"]
-        self._insert_to_depth = group_labeling[GroupsFromDict._insert_label]["TO_DEPTH"]
+        # TODO validate dict: group structure against class TEMPLATE
+
+        self._to_insert = None
+        self._insert_to_depth = None
+        if template.get(GroupsFromDict._insert_key, None):
+            self._to_insert = template[GroupsFromDict._insert_key].get("INSERT", None)
+            self._insert_to_depth = template[GroupsFromDict._insert_key].get("TO_DEPTH", None)
         self._overwrite_extras = overwrite_extras
 
         depth = 0
         group_path_str = ""
         groups = []
-        self._create_or_load(depth, group_path_str, group_labeling, groups)
+        self._create_or_load(depth=depth,
+                             group_path_str=group_path_str,
+                             group_structure=template,
+                             groups=groups)
         return groups
 
     def _create_or_load(self,
                         depth: int,
                         group_path_str: str,
-                        dict_of_groups: dict,
-                        groups: list):
+                        group_structure: dict,
+                        groups: _typing.List[_orm.Group]):
         """Recursively creates groups from possibly nested dict according to GroupFromDict.TEMPLATE.
         """
         base_path = group_path_str
-        for group_label, attrs in dict_of_groups.items():
-            if group_label in GroupsFromDict._ignore_labels:
+        for group_label, attrs in group_structure.items():
+            if group_label in GroupsFromDict._ignored_keys:
                 continue
             group_path_str = base_path + group_label
             group_path = _aiida_groups.GroupPath(group_path_str)
@@ -125,7 +135,10 @@ class GroupsFromDict:
                     for k, v in attrs["extras"].items():
                         group.set_extra(k, v)
             if "SUBGROUPS" in attrs:
-                self._create_or_load(depth + 1, group_path_str + "/", attrs["SUBGROUPS"], groups)
+                self._create_or_load(depth=depth + 1,
+                                     group_path_str=group_path_str + "/",
+                                     group_structure=attrs["SUBGROUPS"],
+                                     groups=groups)
             groups.append(group)
 
 
@@ -140,21 +153,21 @@ def verdi_group_list(projection: _typing.List[str] = ['label', 'id', 'type_strin
     :return: list of lists, one entry per projection value, for each group
     """
     qb = _orm.QueryBuilder()
-    group_list = qb.append(_orm.Group, project=projection).all()
+    groups = qb.append(_orm.Group, project=projection).all()
 
     if 'label' in projection and label_filter:
         index_of_label = projection.index('label')
-        group_list = [item for item in group_list if label_filter in item[index_of_label]]
+        groups = [item for item in groups if label_filter in item[index_of_label]]
 
-    group_list.sort(key=lambda item: item[0].lower())
+    groups.sort(key=lambda item: item[0].lower())
 
     if with_header:
-        group_list.insert(0, projection)
+        groups.insert(0, projection)
 
     if len(projection) == 1:
-        group_list = [singlelist[0] for singlelist in group_list]
+        groups = [singlelist[0] for singlelist in groups]
 
-    return group_list
+    return groups
 
 
 def get_subgroups(group: _orm.Group) -> _typing.List[_orm.Group]:
@@ -384,7 +397,7 @@ def delete_groups_with_nodes(group_labels: _typing.List[str],
         delete_groups(group_labels=group_labels)
 
 
-def get_nodes_by_group(group_label: str = None,
+def get_nodes_by_query(group_label: str,
                        node_type: _typing.Type[_orm.Node] = _orm.Node,
                        return_query: bool = False,
                        return_iter: bool = True,
