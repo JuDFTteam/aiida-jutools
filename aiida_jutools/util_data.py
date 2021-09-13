@@ -19,8 +19,7 @@ import aiida as _aiida
 import aiida.orm as _orm
 import aiida.tools.groups as _aiida_groups
 
-import aiida_jutools.process_functions.rescale_structure as _jutools_rescale_structure
-
+import aiida_jutools as _jutools
 
 def query_elemental_structure(symbol: str,
                               group: _orm.Group = None) -> _typing.List[_orm.StructureData]:
@@ -407,7 +406,7 @@ def load_or_rescale_structures(input_structure_group: _orm.Group,
             f"rescaled and added to this output target previously.")
     if not dry_run:
         for inp_structure in inp_structures.values():
-            out_structure = _jutools_rescale_structure.rescale_structure(input_structure=inp_structure,
+            out_structure = _jutools.process_functions.rescale_structure(input_structure=inp_structure,
                                                                          scale_factor=scale_factor)
             if set_extra:
                 out_structure.set_extra("scale_factor", scale_factor.value)
