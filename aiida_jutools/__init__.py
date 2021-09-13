@@ -7,7 +7,9 @@ __version__ = "0.1.0-dev1"
 import typing as _typing
 import enum as _enum
 
+import code
 import computer
+import process_functions
 
 class _LogLevel(_enum.Enum):
     INFO = 0
