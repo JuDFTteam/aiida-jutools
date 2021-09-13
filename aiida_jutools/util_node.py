@@ -16,18 +16,47 @@ import pprint as _pprint
 import typing as _typing
 
 import aiida.orm as _orm
+import aiida.engine as _aiida_engine
 
-simple_types = [int, bool, float, complex, list, tuple, set]
-# define attribute lists of some aiida types. of course these lists are non-exhaustive.
+from masci_tools.io.kkr_params import kkrparams as _kkrparams
+
+_SIMPLE_TYPES = [
+    bool,
+    complex,
+    float,
+    int,
+    list,
+    set,
+    tuple,
+]
+# define class member lists of some aiida entity types. of course these lists are non-exhaustive.
 # selected for interesting stuff, inspired by aiida cheat sheet / this tutorial.
-attribute_string_lists: _typing.Dict[str, _typing.List[str]] = {
-    "StructureData": ["cell", "sites", "kinds", "pbc", "get_formula", "get_cell_volume",
-                      "cell_angles", "cell_lengths",
-                      "attributes"],
-    "CifData": ["get_content"
-                ],
-    "kkrparams": ["get_all_mandatory", "get_missing_keys"],
-    "ProcessBuilder": ["metadata", "parameters", "parent_KKR", "potential_overwrite", "structure"]
+MEMBER_LISTS: _typing.Dict[object, _typing.List[str]] = {
+    _orm.StructureData: [
+        "attributes",
+        "cell",
+        "cell_angles",
+        "cell_lengths",
+        "get_cell_volume",
+        "get_formula",
+        "kinds",
+        "pbc",
+        "sites",
+    ],
+    _orm.CifData: [
+        "get_content",
+    ],
+    _kkrparams: [
+        "get_all_mandatory",
+        "get_missing_keys",
+    ],
+    _aiida_engine.ProcessBuilder: [
+        "metadata",
+        "parameters",
+        "parent_KKR",
+        "potential_overwrite",
+        "structure",
+    ]
 }
 
 
@@ -92,14 +121,12 @@ def intersection(nodes: _typing.List[_orm.Node],
     return intersection
 
 
-def print_attributes(obj: _orm.EntityAttributesMixin,
-                     obj_name: str,
-                     attr_str_list: str):
-    """easily print-inspect the values of an aiida object we created.
+def print_attributes(aiida_object: object,
+                     member_list: _typing.List[str]):
+    """Easily print-inspect the values of an aiida object.
 
-    :param obj: aiida object
-    :param obj_name: name
-    :param attr_str_list: attributes
+    :param aiida_object: aiida object
+    :param member_list: attributes or callables (methods) without parameters
 
     :example:
 
@@ -108,46 +135,58 @@ def print_attributes(obj: _orm.EntityAttributesMixin,
     >>> StructureData = DataFactory('structure')
     >>> # fill in values for copper...
     >>> Cu29 = StructureData()
-    >>> print_attributes(Cu29, "Cu", attribute_string_lists["StructureData"])
+    >>> print_attributes(Cu29, "Cu", MEMBER_LISTS["StructureData"])
     """
+    label = getattr(aiida_object, 'label', None)
+    pk = getattr(aiida_object, 'pk', None)
+    full_identifier = f"type {type(aiida_object)}"
+    full_identifier += f", pk={pk}" if pk else ""
+    full_identifier += f", label='{label}'" if label else ""
+    identifier = f"'{label}'" if label else f"{type(aiida_object)}"
+
     pp = _pprint.PrettyPrinter(indent=4)
     sep = "-------------------------------"
     print(sep)
-    print(f"Attributes of object '{obj_name}' of type {type(obj)}:")
+    print(f"Attributes of entity {full_identifier}:")
     print(sep)
-    for attr_str in attr_str_list:
+    for attr_str in member_list:
         try:
-            attr = getattr(obj, attr_str)
+            attr = getattr(aiida_object, attr_str)
             if callable(attr):
                 try:
-                    print(f"{obj_name}.{attr_str}: {attr()}")
+                    print(f"{identifier}.{attr_str}: {attr()}")
                 except TypeError as err:
-                    print(f"{obj_name}.{attr_str}: needs additional input arguments")
-            elif type(attr) in simple_types:
-                print(f"{obj_name}.{attr_str}: {attr}")
+                    print(f"{identifier}.{attr_str}: needs additional input arguments")
+            elif type(attr) in _SIMPLE_TYPES:
+                print(f"{identifier}.{attr_str}: {attr}")
             else:
-                print(f"{obj_name}.{attr_str}:")
+                print(f"{identifier}.{attr_str}:")
                 pp.pprint(attr)
         except AttributeError as err:
-            print(f"{obj_name}.{attr_str}: no such attribute")
+            print(f"{identifier}.{attr_str}: no such attribute")
     print(sep)
 
 
-def list_differences(calculation_sequence: _typing.List[_orm.CalcJobNode],
-                     node_type: _typing.Type[_orm.Node],
+def list_differences(nodes: _typing.List[_orm.Node],
+                     subnode_type: _typing.Type[_orm.Node],
                      member_name: str,
                      outgoing: bool = True):
-    """Print attributes (e.g. output files) of nodes in list, and only differences in list between subsequent nodes.
+    """Print attributes (e.g. output files of calculations) for first node in list, and only differences from this
+    list for subsequent nodes.
 
-    Note for comparing Dict nodes, prefer library DeepDiff.
+    Example: nodes are a list of calculations, and want to see differences in their generated output files lists.
+
+    Note: for comparing Dict nodes, prefer library DeepDiff.
+
+    Note: currently only picks first
 
     DEVNOTE: TODO redo as tree algorithm navigating via `get_incoming(KkrCalculation)` / `get_outgoing(RemoteData)`
-    given a sinlge node instead of via node list.
+    given a single node instead of via node list.
 
-    :param calculation_sequence:
-    :param node_type:
-    :param member_name:
-    :param outgoing:
+    :param nodes: list of nodes with incoming or outoing subnodes, e.g. process nodes
+    :param subnode_type: incoming or outgoing node type whose member to inspect for differences
+    :param member_name: member name of incoming or outgoing node type. attribute or method without parameters.
+    :param outgoing: True: outgoing node, else incoming.
 
     :example:
 
@@ -162,7 +201,7 @@ def list_differences(calculation_sequence: _typing.List[_orm.CalcJobNode],
     >>> list_differences(calcs, Dict, "attributes")              # outputs.output_parameters
     """
 
-    def print_items(items):
+    def _print_items(items):
         if type(items) == list:
             for item in items:
                 print(f"\t{item}")
@@ -171,34 +210,35 @@ def list_differences(calculation_sequence: _typing.List[_orm.CalcJobNode],
                 print(f"\t{k} : {v}")
 
     items = {}
-    title = f"Output {node_type}.{member_name} items:"
+    title = f"Output {subnode_type}.{member_name} items:"
     sep = "-"
     print("{}\n{:{fill}^{w}}".format(title, sep, fill=sep, w=len(title)))
 
-    for i, calc in enumerate(calculation_sequence):
+    for i, node in enumerate(nodes):
         if not outgoing:
-            node = calc.get_incoming(node_type).all_nodes()[0]
+            subnode = node.get_incoming(subnode_type).all_nodes()[0]
         else:
-            node = calc.get_outgoing(node_type).all_nodes()[0]
-        return_items = getattr(node, member_name)
+            subnode = node.get_outgoing(subnode_type).all_nodes()[0]
+        return_items = getattr(subnode, member_name)
         if callable(return_items):  # i.e. member is a method, not an attribute
             return_items = return_items()
         if type(return_items) == list:
             return_items = sorted(return_items)
-        items[calc] = return_items
+        items[node] = return_items
+
         if i == 0:
-            print(f"...of calc. no.{i} '{calc.label}':")
-            print_items(items[calc])
+            print(f"...of node no.{i} '{node.label}':")
+            _print_items(items[node])
             continue
 
-        parent_calc = calculation_sequence[i - 1]
-        print(f"additional items of calc. no.{i} '{calc.label}':")
-        difference = sorted(list(set(items[calc]) - set(items[parent_calc])))
-        if type(items[calc]) == dict:
+        previous_node = nodes[i - 1]
+        print(f"additional items of node no.{i} '{node.label}':")
+        difference = sorted(list(set(items[node]) - set(items[previous_node])))
+        if type(items[node]) == dict:
             keys = difference.copy()
             # get all k,v pairs from difference list
             difference = {}
             for k in keys:
-                difference[k] = items[calc][k]
-        print_items(difference)
+                difference[k] = items[node][k]
+        _print_items(difference)
     print("\n")
