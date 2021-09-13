@@ -19,8 +19,7 @@ import typing as _typing
 import aiida as _aiida
 import aiida.orm as _orm
 
-from aiida_jutools import util_computer as _jutools_computer
-
+from aiida_jutools import computer as _jutools_computer
 
 def get_code(computer_name_pattern: str = "",
              code_name_pattern: str = "",
@@ -142,8 +141,10 @@ def get_code(computer_name_pattern: str = "",
 
         # first try to get queue_name from computer
         try:
-            queue_name = _jutools_computer.get_least_occupied_queue(computer=computer, gpu=None,
-                                                                    with_node_count=False, silent=True)
+            queue_name = _jutools_computer.get_least_occupied_queue(computer=computer,
+                                                                    gpu=None,
+                                                                    with_node_count=False,
+                                                                    silent=True)
         except NotImplementedError as err:
             # if that failed, only determine by computer_name and code_name_pattern, select first found
             codestring, error_msg = _select_codestring_from_filtered(codestrings_by_computer_code=cs_by_computer_code,
@@ -186,7 +187,9 @@ def get_code(computer_name_pattern: str = "",
                           f"Will choose first one. If this is a problem, contact developer.")
 
             queues_harcoded = list(computer_queue_architectures.keys())
-            queues_queried = _jutools_computer.get_queues(computer=computer, gpu=None, with_node_count=False)
+            queues_queried = _jutools_computer.get_queues(computer=computer,
+                                                          gpu=None,
+                                                          with_node_count=False)
             if not set(queues_harcoded) == set(queues_queried):
                 raise ValueError(
                     f"Computer '{computer_name_pattern}' hardcoded queues {queues_harcoded} do not "

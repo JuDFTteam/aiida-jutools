@@ -33,7 +33,7 @@ import masci_tools.util.python_util as _masci_python_util
 import pandas as _pd
 from aiida.engine.processes import ProcessState as _PS
 
-import aiida_jutools.util_computer as _jutools_computer
+from aiida_jutools.computer.quota_querier import QuotaQuerier as _QuotaQuerier
 import aiida_jutools.util_group as _jutools_group
 from aiida_jutools import _LogLevel
 from aiida_jutools import _log
@@ -768,7 +768,7 @@ class SubmissionSupervisor:
     # TODO check if outdated because of https://github.com/aiidateam/aiida-submission-controller
     def __init__(self,
                  settings: SubmissionSupervisorSettings,
-                 quota_querier: _jutools_computer.QuotaQuerier = None):
+                 quota_querier: _QuotaQuerier = None):
         """Class for supervised process submission to daemon.
 
         :param settings: supervisor settings
