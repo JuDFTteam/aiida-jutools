@@ -15,5 +15,8 @@
 For developers: Place each function into its own module in accordance with AiiDA developer guidelines.
 """
 
+# DEVNOTE: AiiDA best practice for process functions: one module per function.
+# Reference: https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/processes/functions.html#provenance
+
 from .itemize_list import itemize_list
 from .rescale_structure import rescale_structure
