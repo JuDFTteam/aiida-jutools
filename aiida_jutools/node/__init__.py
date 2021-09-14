@@ -12,8 +12,8 @@
 ###############################################################################
 """Tools for working with aiida Node objects."""
 
-# define class member lists of some aiida entity types. of course these lists are non-exhaustive.
-# selected for interesting stuff, inspired by aiida cheat sheet / this tutorial.
-
-
-
+from .util import \
+    intersection, \
+    is_same_node, \
+    list_differences, \
+    print_attributes
