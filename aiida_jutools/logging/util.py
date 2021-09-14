@@ -1,18 +1,32 @@
+# -*- coding: utf-8 -*-
+###############################################################################
+# Copyright (c), Forschungszentrum Jülich GmbH, IAS-1/PGI-1, Germany.         #
+#                All rights reserved.                                         #
+# This file is part of the aiida-jutools package.                             #
+# (AiiDA JuDFT tools)                                                         #
+#                                                                             #
+# The code is hosted on GitHub at https://github.com/judftteam/aiida-jutools. #
+# For further information on the license, see the LICENSE.txt file.           #
+# For further information please visit http://judft.de/.                      #
+#                                                                             #
+###############################################################################
+"""AiiDA JuTools: logging: utils."""
+
 import enum as _enum
 import typing as _typing
 
 
-class _LogLevel(_enum.Enum):
+class LogLevel(_enum.Enum):
     INFO = 0
     WARNING = 1
     ERROR = 2
 
 
-def _log(l: _LogLevel = None,
-         e: _typing.Type[Exception] = None,
-         o: _typing.Any = None,
-         f=None,
-         m: str = "") -> _typing.Optional[Exception]:
+def log(l: LogLevel = None,
+        e: _typing.Type[Exception] = None,
+        o: _typing.Any = None,
+        f=None,
+        m: str = "") -> _typing.Optional[Exception]:
     """Basic logging. Prints to standard sys.stdout.
 
     Schema: [l: ][c][.][f][: ][msg]
@@ -44,3 +58,4 @@ def _log(l: _LogLevel = None,
     if e:
         return e(m)
     print(m)
+

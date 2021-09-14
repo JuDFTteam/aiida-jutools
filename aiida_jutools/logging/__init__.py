@@ -13,5 +13,5 @@
 """AiiDA JuTools: logging."""
 
 from .util import \
-    _LogLevel, \
-    _log
+    LogLevel, \
+    log

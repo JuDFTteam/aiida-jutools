@@ -240,8 +240,8 @@ class ProcessClassifier:
 
         # reduce 2x2 possible input space to 2.
         if not (processes or group):
-            _jutools.logging._log(l=_jutools.logging._LogLevel.ERROR, e=ValueError, o=self, f=self.__init__,
-                                  m="I require either a list of processes or a group of processes.")
+            _jutools.logging.log(l=_jutools.logging.LogLevel.ERROR, e=ValueError, o=self, f=self.__init__,
+                                 m="I require either a list of processes or a group of processes.")
 
         # validate processes / group
         self._group_based = group is not None
@@ -249,8 +249,8 @@ class ProcessClassifier:
         self._unclassified_processes = processes
 
         if processes and group:
-            _jutools.logging._log(l=_jutools.logging._LogLevel.WARNING, o=self, f=self.__init__,
-                                  m=f"Supplied both list and group of processes. Parameters are "
+            _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.__init__,
+                                 m=f"Supplied both list and group of processes. Parameters are "
                                     f"mutually exclusive. I will take the group and ignore the process list.")
             self._unclassified_processes = None
 
@@ -259,13 +259,13 @@ class ProcessClassifier:
         self._nonunique_ids = {'label', 'ctime', 'mtime'}
         self._allowed_ids = self._unique_ids.union(self._nonunique_ids)
         if id not in self._allowed_ids:
-            _jutools.logging._log(l=_jutools.logging._LogLevel.WARNING, o=self, f=self.__init__,
-                                  m=f"Chosen id '{id}' is not in allowed {self._allowed_ids}. "
+            _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.__init__,
+                                 m=f"Chosen id '{id}' is not in allowed {self._allowed_ids}. "
                                     f"Will choose id='pk' instead.")
             id = 'pk'
         if id in self._nonunique_ids:
-            _jutools.logging._log(l=_jutools.logging._LogLevel.WARNING, o=self, f=self.__init__,
-                                  m=f"Chosen id '{id}' is a nonunique id. No override checks will be performed.")
+            _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.__init__,
+                                 m=f"Chosen id '{id}' is a nonunique id. No override checks will be performed.")
         self._id = id
 
         # containers for results (public read via @property)
@@ -279,8 +279,8 @@ class ProcessClassifier:
                                      filters={"label": {"like": ProcessClassifier._TMP_GROUP_LABEL_PREFIX + "%"}}).all(
             flat=True)
         if temporary_groups:
-            _jutools.logging._log(l=_jutools.logging._LogLevel.INFO, o=self, f=self.__init__,
-                                  m=f"Found temporary classification groups, most likely not cleaned up from a "
+            _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.__init__,
+                                 m=f"Found temporary classification groups, most likely not cleaned up from a "
                                     f"previous {ProcessClassifier.__name__} instance. I will delete them now.")
             _jutools_group.delete_groups(group_labels=[group.label for group in temporary_groups],
                                          skip_nonempty_groups=False,
@@ -336,8 +336,8 @@ class ProcessClassifier:
 
         :param type_attr: type attribute to use for the type classification.
         """
-        _jutools.logging._log(l=_jutools.logging._LogLevel.INFO, o=self, f=self.classify,
-                              m=f"Starting classification ...")
+        _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.classify,
+                             m=f"Starting classification ...")
 
         # # classify
         self._classify_by_state()
@@ -345,8 +345,8 @@ class ProcessClassifier:
         # # count results
         total = self._count()
 
-        _jutools.logging._log(l=_jutools.logging._LogLevel.INFO, o=self, f=self.classify,
-                              m=f"Classified {total} processes.")
+        _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.classify,
+                             m=f"Classified {total} processes.")
 
     def _classify_by_state(self) -> None:
         """Classify processes / process nodes (here: interchangeable) by process state.
@@ -404,8 +404,8 @@ class ProcessClassifier:
         attr = type_attr
         allowed_attrs = ['process_label', 'process_class', 'process_type']
         if attr not in allowed_attrs:
-            _jutools.logging._log(l=_jutools.logging._LogLevel.WARNING, o=self, f=self._classify_by_type,
-                                  m=f"Type Attribute {attr} not one of allowed {allowed_attrs}. "
+            _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self._classify_by_type,
+                                 m=f"Type Attribute {attr} not one of allowed {allowed_attrs}. "
                                     f"Will use 'process_label' instead.")
             attr = 'process_label'
 
@@ -522,12 +522,12 @@ class ProcessClassifier:
         :param silent: True: Do not print any information.
         """
         if not (group or self._group_based):
-            _jutools.logging._log(l=_jutools.logging._LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
-                                  m=f"Missing 'group' argument. I will do nothing.")
+            _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
+                                 m=f"Missing 'group' argument. I will do nothing.")
             return
         if self._id not in self._unique_ids:
-            _jutools.logging._log(l=_jutools.logging._LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
-                                  m=f"Chose classification by nonunique id {self._id}. Cannot load unique processes. "
+            _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
+                                 m=f"Chose classification by nonunique id {self._id}. Cannot load unique processes. "
                                     f"I will do nothing.")
             return
 
@@ -539,8 +539,8 @@ class ProcessClassifier:
         group_ids = {node.uuid for node in _group.nodes}
         if not proc_ids.issubset(group_ids):
             msg_suffix = " You required that they are a subset. I will do nothing." if require_is_subset else ""
-            _jutools.logging._log(l=_jutools.logging._LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
-                                  m=f"The classified process nodes are not a subset "
+            _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
+                                 m=f"The classified process nodes are not a subset "
                                     f"of the specified group '{_group.label}'.{msg_suffix}")
             if require_is_subset:
                 return
@@ -549,8 +549,8 @@ class ProcessClassifier:
         by_attr = self.classified.get('process_state', None)
 
         if not by_attr:
-            _jutools.logging._log(l=_jutools.logging._LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
-                                  m="No classification performed. Nothing to subgroup.")
+            _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
+                                 m="No classification performed. Nothing to subgroup.")
         failed_exit_statuses = []
         finished = _PS.FINISHED.value
         if by_attr.get(finished, None):
@@ -571,8 +571,8 @@ class ProcessClassifier:
 
             group_info = f"subgroups of group '{_group.label}'" if _group else "groups"
             dump = _json.dumps(subgroups_classification, cls=_masci_python_util.JSONEncoderTailoredIndent, indent=4)
-            _jutools.logging._log(l=_jutools.logging._LogLevel.INFO, o=self, f=self.subgroup_classified_results,
-                                  m=f"I will try to group classified states into subgroups as follows. In the "
+            _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.subgroup_classified_results,
+                                 m=f"I will try to group classified states into subgroups as follows. In the "
                                     f"displayed dict, the keys are the names of the {group_info} which I will load or "
                                     f"create, while the values depict which sets of classified processes will be added "
                                     f"to that group.\n"
@@ -580,8 +580,8 @@ class ProcessClassifier:
                                     f"This was a dry run. I will exit now.")
         else:
             if not silent:
-                _jutools.logging._log(l=_jutools.logging._LogLevel.INFO, o=self, f=self.subgroup_classified_results,
-                                      m=f"Starting subgrouping processes by process state beneath base group "
+                _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.subgroup_classified_results,
+                                     m=f"Starting subgrouping processes by process state beneath base group "
                                         f"'{_group.label}'...")
 
             group_path_prefix = _group.label + "/" if _group else ""
@@ -604,12 +604,12 @@ class ProcessClassifier:
                             subgroup.add_nodes(processes)
                             count += len(processes)
                 if not silent:
-                    _jutools.logging._log(l=_jutools.logging._LogLevel.INFO, o=self, f=self.subgroup_classified_results,
-                                          m=f"Added {count} processes to subgroup '{subgroup.label}'")
+                    _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.subgroup_classified_results,
+                                         m=f"Added {count} processes to subgroup '{subgroup.label}'")
 
             if not silent:
-                _jutools.logging._log(l=_jutools.logging._LogLevel.INFO, o=self, f=self.subgroup_classified_results,
-                                      m=f"Finished subgrouping processes beneath base group '{_group.label}'.")
+                _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.subgroup_classified_results,
+                                     m=f"Finished subgrouping processes beneath base group '{_group.label}'.")
 
 
 def find_partially_excepted_processes(processes: _typing.List[_orm.ProcessNode],
@@ -631,9 +631,9 @@ def find_partially_excepted_processes(processes: _typing.List[_orm.ProcessNode],
     :return: dict of process : list of excepted descendants.
     """
     if to_depth > 1:
-        _jutools.logging._log(l=_jutools.logging._LogLevel.ERROR, e=NotImplementedError,
-                              f=find_partially_excepted_processes,
-                              m="Currently, to_depth > 1 not supported.")  # TODO
+        _jutools.logging.log(l=_jutools.logging.LogLevel.ERROR, e=NotImplementedError,
+                             f=find_partially_excepted_processes,
+                             m="Currently, to_depth > 1 not supported.")  # TODO
 
     processes_excepted = {}
     for process in processes:
