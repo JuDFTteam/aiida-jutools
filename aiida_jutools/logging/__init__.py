@@ -10,24 +10,8 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""AiiDA JuTools.
+"""AiiDA JuTools: logging."""
 
-For users:
-
-We recommended to use this package with the import statement ``import aiida_jutools as jutools``. In your code,
-you can then call all available tools like so: ``jutools.module.tool()``.
-
-For developers:
-
-- Place larger classes in separate modules, smaller functions in respective ``module/util.py``.
-- Make all available at module level via import in ``module/__init__.py``. See existing files as templates.
-- Also import each new module in the top-level ``__init__.py``.
-"""
-__version__ = "0.1.0-dev1"
-
-# module-level imports
-import code
-import computer
-import logging
-import process_functions
-
+from .util import \
+    _LogLevel, \
+    _log
