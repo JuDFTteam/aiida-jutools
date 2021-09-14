@@ -12,4 +12,12 @@
 ###############################################################################
 """Tools for working with aiida-kkr nodes."""
 
+from .constants import \
+    KkrConstantsVersion, \
+    KkrConstantsVersionChecker
 
+from .util import \
+    find_Rcut, \
+    has_kkr_calc_converged, \
+    query_kkr_wc, \
+    query_structure_from

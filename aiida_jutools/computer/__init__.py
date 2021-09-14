@@ -12,13 +12,13 @@
 ###############################################################################
 """Tools for working with aiida Computer nodes."""
 
-from .options import \
-    ComputerOptionsManager
-
 from .disk_quota import \
     QuotaQuerier, \
     QuotaQuerierBuilder, \
     QuotaQuerierSettings
+
+from .options import \
+    ComputerOptionsManager
 
 from .util import \
     get_computers, \

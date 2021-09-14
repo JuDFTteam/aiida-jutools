@@ -37,6 +37,7 @@ import code
 import computer
 import group
 import io
+import kkr
 import logging
 import process_functions
 import structure
