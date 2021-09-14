@@ -20,7 +20,6 @@ import aiida as _aiida
 from aiida import orm as _orm, schedulers as _aiida_schedulers, engine as _aiida_engine, tools as _aiida_tools
 from aiida.schedulers.plugins import lsf as _aiida_lsf_schedulers, slurm as _aiida_slurm_schedulers
 
-import util_group as _jutools_group
 import aiida_jutools as _jutools
 from masci_tools.util import python_util as _masci_python_util
 
@@ -1120,7 +1119,7 @@ class ComputerOptionsManager:
                         stored_groups.append(stored_group)
                     except _aiida.common.exceptions.NotExistent as err:
                         pass
-                _jutools_group.delete_groups_with_nodes(group_labels=[group.label for group in stored_groups],
+                _jutools.group.delete_groups_with_nodes(group_labels=[group.label for group in stored_groups],
                                                         dry_run=delete_dry_run, verbosity=delete_verbosity,
                                                         leave_groups=False)
 

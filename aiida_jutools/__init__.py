@@ -34,6 +34,7 @@ __version__ = "0.1.0-dev1"
 # module-level imports
 import code
 import computer
+import group
 import io
 import logging
 import process_functions

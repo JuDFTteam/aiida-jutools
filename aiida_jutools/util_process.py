@@ -15,6 +15,7 @@
 import dataclasses as _dc
 import datetime as _datetime
 import errno as _errno
+
 import io as _io
 import json as _json
 import shutil as _shutil
@@ -34,7 +35,6 @@ import pandas as _pd
 from aiida.engine.processes import ProcessState as _PS
 
 import aiida_jutools as _jutools
-import aiida_jutools.util_group as _jutools_group
 
 
 def get_process_states(terminated: bool = None,
@@ -251,7 +251,7 @@ class ProcessClassifier:
         if processes and group:
             _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.__init__,
                                  m=f"Supplied both list and group of processes. Parameters are "
-                                    f"mutually exclusive. I will take the group and ignore the process list.")
+                                   f"mutually exclusive. I will take the group and ignore the process list.")
             self._unclassified_processes = None
 
         # validate id
@@ -261,7 +261,7 @@ class ProcessClassifier:
         if id not in self._allowed_ids:
             _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.__init__,
                                  m=f"Chosen id '{id}' is not in allowed {self._allowed_ids}. "
-                                    f"Will choose id='pk' instead.")
+                                   f"Will choose id='pk' instead.")
             id = 'pk'
         if id in self._nonunique_ids:
             _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.__init__,
@@ -281,8 +281,8 @@ class ProcessClassifier:
         if temporary_groups:
             _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.__init__,
                                  m=f"Found temporary classification groups, most likely not cleaned up from a "
-                                    f"previous {ProcessClassifier.__name__} instance. I will delete them now.")
-            _jutools_group.delete_groups(group_labels=[group.label for group in temporary_groups],
+                                   f"previous {ProcessClassifier.__name__} instance. I will delete them now.")
+            _jutools.group.delete_groups(group_labels=[group.label for group in temporary_groups],
                                          skip_nonempty_groups=False,
                                          silent=False)
 
@@ -392,7 +392,7 @@ class ProcessClassifier:
 
         # cleanup.
         if not self._group_based:
-            _jutools_group.delete_groups(group_labels=[tmp_classification_group.label],
+            _jutools.group.delete_groups(group_labels=[tmp_classification_group.label],
                                          skip_nonempty_groups=False,
                                          silent=True)
 
@@ -406,7 +406,7 @@ class ProcessClassifier:
         if attr not in allowed_attrs:
             _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self._classify_by_type,
                                  m=f"Type Attribute {attr} not one of allowed {allowed_attrs}. "
-                                    f"Will use 'process_label' instead.")
+                                   f"Will use 'process_label' instead.")
             attr = 'process_label'
 
         # container for results
@@ -528,7 +528,7 @@ class ProcessClassifier:
         if self._id not in self._unique_ids:
             _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
                                  m=f"Chose classification by nonunique id {self._id}. Cannot load unique processes. "
-                                    f"I will do nothing.")
+                                   f"I will do nothing.")
             return
 
         _group = self._group if self._group_based else group
@@ -541,7 +541,7 @@ class ProcessClassifier:
             msg_suffix = " You required that they are a subset. I will do nothing." if require_is_subset else ""
             _jutools.logging.log(l=_jutools.logging.LogLevel.WARNING, o=self, f=self.subgroup_classified_results,
                                  m=f"The classified process nodes are not a subset "
-                                    f"of the specified group '{_group.label}'.{msg_suffix}")
+                                   f"of the specified group '{_group.label}'.{msg_suffix}")
             if require_is_subset:
                 return
 
@@ -573,16 +573,16 @@ class ProcessClassifier:
             dump = _json.dumps(subgroups_classification, cls=_masci_python_util.JSONEncoderTailoredIndent, indent=4)
             _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.subgroup_classified_results,
                                  m=f"I will try to group classified states into subgroups as follows. In the "
-                                    f"displayed dict, the keys are the names of the {group_info} which I will load or "
-                                    f"create, while the values depict which sets of classified processes will be added "
-                                    f"to that group.\n"
-                                    f"{dump}\n"
-                                    f"This was a dry run. I will exit now.")
+                                   f"displayed dict, the keys are the names of the {group_info} which I will load or "
+                                   f"create, while the values depict which sets of classified processes will be added "
+                                   f"to that group.\n"
+                                   f"{dump}\n"
+                                   f"This was a dry run. I will exit now.")
         else:
             if not silent:
                 _jutools.logging.log(l=_jutools.logging.LogLevel.INFO, o=self, f=self.subgroup_classified_results,
                                      m=f"Starting subgrouping processes by process state beneath base group "
-                                        f"'{_group.label}'...")
+                                       f"'{_group.label}'...")
 
             group_path_prefix = _group.label + "/" if _group else ""
             for subgroup_name, process_states in subgroups_classification.items():

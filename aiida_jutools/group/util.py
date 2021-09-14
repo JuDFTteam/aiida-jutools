@@ -10,18 +10,20 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with aiida Group entities."""
+"""Tools for working with AiiDA Group entities: utils."""
+
 import copy as _copy
 import datetime as _datetime
 import json as _json
-import logging as _logging
 import sys as _sys
 import typing as _typing
 
 import aiida as _aiida
-import aiida.orm as _orm
-import aiida.tools.groups as _aiida_groups
 import pytz as _pytz
+from aiida import orm as _orm
+from aiida.tools import groups as _aiida_groups
+
+import logging as _logging
 
 
 class GroupHierarchyMaker:
