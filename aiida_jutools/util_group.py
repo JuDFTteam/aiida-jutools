@@ -24,7 +24,17 @@ import aiida.tools.groups as _aiida_groups
 import pytz as _pytz
 
 
-class GroupsFromDict:
+class GroupHierarchyMaker:
+    """Load or create a nested group hierarchy from a dictionary. Useful for organizing large data collections.
+
+    TODO: Create a ``GroupHierarchy`` class which takes the top group of a group hierarchy as input, then
+          recursively builds a nested runtime object whose attributes are the respective subgroups, with
+          attribute name = group label, which supports tab completion (e.g. NameTuples or dataclasses).
+          With that object, user can navigate to every desired group instantly. For subgroup labels with
+          numeric values in label, offer option to access desired subgroup via method taking resp. numeric
+          value. That way, can navigate to subgroup also programmatically. Then HierarchyMaker can return
+          such an object on load or create.
+    """
     TEMPLATE = {
         "INSERT_IN_ALL": {
             "TO_DEPTH": _sys.maxsize,
@@ -49,14 +59,14 @@ class GroupsFromDict:
     def get_template(with_example_group: bool = True,
                      print_dict: bool = True,
                      indent: int = 4) -> dict:
-        """Print a valid example group structure with nested groups as input for load_or_create().
+        """Print a valid example group hierarchy with nested groups as input for load or create method.
 
-        :param with_example_group: add a valid example group entry to template structure
+        :param with_example_group: add a valid example group entry to template.
         :param print_dict: pretty print the template as well as returning it
         :param indent: indent for the printed template
         :return: valid example group structure
         """
-        template = _copy.deepcopy(GroupsFromDict.TEMPLATE)
+        template = _copy.deepcopy(GroupHierarchyMaker.TEMPLATE)
         if with_example_group:
             template["my_base_group1"] = {
                 "description": "Short description of this group.",
@@ -80,21 +90,21 @@ class GroupsFromDict:
     def load_or_create(self,
                        template: dict,
                        overwrite_extras: bool = True) -> _typing.List[_orm.Group]:
-        """Given a dict describing a group structure, create or load these groups.
+        """Given a dictionary describing a group hierarchy, create or load the latter in the database.
 
-        If group(s), exist, will just be loaded. But extras will be modified according to dict.
+        If a group in the hierarchy exists, will just be loaded. But extras will be modified according to dict.
 
-        :param template: group structure. See GroupsFromDict.TEMPLATE for valid template.
+        :param template: group hierarchy. See GroupHierarchyMaker.TEMPLATE for valid template.
         :param overwrite_extras: replace if True, add if False
         :return: list of created or loaded groups
         """
-        # TODO validate dict: group structure against class TEMPLATE
+        # TODO validate dict: group hierarchy against class TEMPLATE
 
         self._to_insert = None
         self._insert_to_depth = None
-        if template.get(GroupsFromDict._insert_key, None):
-            self._to_insert = template[GroupsFromDict._insert_key].get("INSERT", None)
-            self._insert_to_depth = template[GroupsFromDict._insert_key].get("TO_DEPTH", None)
+        if template.get(GroupHierarchyMaker._insert_key, None):
+            self._to_insert = template[GroupHierarchyMaker._insert_key].get("INSERT", None)
+            self._insert_to_depth = template[GroupHierarchyMaker._insert_key].get("TO_DEPTH", None)
         self._overwrite_extras = overwrite_extras
 
         depth = 0
@@ -111,11 +121,11 @@ class GroupsFromDict:
                         group_path_str: str,
                         group_structure: dict,
                         groups: _typing.List[_orm.Group]):
-        """Recursively creates groups from possibly nested dict according to GroupFromDict.TEMPLATE.
+        """Recursively creates groups from possibly nested dict according to GroupHierarchyMaker.TEMPLATE.
         """
         base_path = group_path_str
         for group_label, attrs in group_structure.items():
-            if group_label in GroupsFromDict._ignored_keys:
+            if group_label in GroupHierarchyMaker._ignored_keys:
                 continue
             group_path_str = base_path + group_label
             group_path = _aiida_groups.GroupPath(group_path_str)
@@ -145,7 +155,7 @@ class GroupsFromDict:
 def verdi_group_list(projection: _typing.List[str] = ['label', 'id', 'type_string'],
                      with_header: bool = True,
                      label_filter: str = None) -> _typing.List[_typing.List]:
-    """Equivalent to CLI "verdi group list -a" (minus user mail address).
+    """Equivalent to CLI ``verdi group list -a`` (minus user mail address).
 
     :param projection: query projection
     :param with_header: True: first list in return argument is the projection argument
