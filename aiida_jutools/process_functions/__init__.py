@@ -10,7 +10,10 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""AiiDA process functions."""
+"""AiiDA process functions, i.e. functions with IO provenance support.
+
+For developers: Place each function into its own module in accordance with AiiDA developer guidelines.
+"""
 
 from .itemize_list import itemize_list
 from .rescale_structure import rescale_structure
