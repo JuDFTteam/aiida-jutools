@@ -22,7 +22,9 @@ from aiida.engine import processes as _aiida_processes
 from masci_tools.util import python_util as _masci_python_util
 
 import aiida_jutools as _jutools
-from process.util import query_processes, get_process_states
+
+
+# from process.util import query_processes, get_process_states
 
 
 @_dc.dataclass
@@ -129,7 +131,9 @@ class BlockingSubmissionController:
         workchains = []
         for group in groups:
             workchains.extend(
-                query_processes(label=wc_label, process_label=wc_process_label, group=group).all(flat=True))
+                _jutools.process.query_processes(label=wc_label,
+                                                 process_label=wc_process_label,
+                                                 group=group).all(flat=True))
         # remove duplicates (ie if same wc in several groups)
         _wc_uuids = []
 
@@ -157,10 +161,12 @@ class BlockingSubmissionController:
 
         def num_running(granularity: int):
             if granularity == 0:  # top processes
-                return query_processes(process_label=wc_process_label,
-                                       process_states=get_process_states(terminated=False)).count()
+                return _jutools.process.query_processes(process_label=wc_process_label,
+                                                        process_states=_jutools.process.get_process_states(
+                                                            terminated=False)).count()
             if granularity == 1:  # all processes
-                return query_processes(process_states=get_process_states(terminated=False)).count()
+                return _jutools.process.query_processes(
+                    process_states=_jutools.process.get_process_states(terminated=False)).count()
 
         # load or submit workchain/calc
         # (in the following comments, 'A:B' is used as exemplary wc_label value)
