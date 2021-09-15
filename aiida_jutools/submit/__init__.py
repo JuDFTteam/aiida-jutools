@@ -10,6 +10,8 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with aiida Process and ProcessNode objects."""
+"""Tools for working with AiiDA process submission."""
 
-
+from .blocking import \
+    BlockingSubmissionController, \
+    BlockingSubmissionControllerSettings

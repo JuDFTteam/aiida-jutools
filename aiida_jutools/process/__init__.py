@@ -10,6 +10,19 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with aiida Process and ProcessNode objects."""
+"""Tools for working with AiiDA ``Process`` and ``ProcessNode`` objects."""
 
+from .classifiers import \
+    ProcessClassifier
 
+from .util import \
+    copy_metadata_options, \
+    find_partially_excepted_processes, \
+    get_exit_codes, \
+    get_process_states, \
+    get_runtime, \
+    get_runtime_statistics, \
+    query_processes, \
+    validate_exit_statuses, \
+    validate_process_states, \
+    verdi_calcjob_outputcat
