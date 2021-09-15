@@ -12,23 +12,8 @@
 ###############################################################################
 """AiiDA JuTools.
 
-For users:
-
 We recommended to use this package with the import statement ``import aiida_jutools as jutools``. In your code,
-you can then call all available tools like so: ``jutools.module.tool()``.
-
-For developers:
-
-- Place larger classes in a subpackage (subfolder) in a separate module (file), smaller functions in the respective
-  subpackage's ``util.py``.
-- Make all available at subpackage level via import in ``subpackage/__init__.py``. See existing files as templates.
-- Also import each new subpackage in the package's top-level ``__init__.py``.
-- Prefix non-user tools with ``_`` to keep user namespace clean and organized.
-- Prefix all imports inside modules with ``_`` to keep user namespace clean and organized. See existing modules
-  for conventions, e.g. w.r.t. AiiDA imports.
-- Add ``typing`` hints wherever possible and sensible. See existing files for examples.
-- When manipulating AiiDA nodes, implement with 'load or create' pattern: load nodes if already exist, otherwise create.
-  Provide a ``dry_run:bool=True`` and verbosity options (``verbosity:int``, ``verbose:bool``, or ``silent:bool``).
+you can then call all available tools like so: ``jutools.subpackage.tool()``.
 """
 __version__ = "0.1.0-dev1"
 
