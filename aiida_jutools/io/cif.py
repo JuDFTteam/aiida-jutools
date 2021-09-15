@@ -20,9 +20,8 @@ import aiida as _aiida
 from aiida import orm as _orm
 from aiida.tools import groups as _aiida_groups
 
-from _dev.terminal_colors import CC1, CEND, CC2
-from structure import analyze_symmetry
-
+from aiida_jutools._dev.terminal_colors import *
+from aiida_jutools.structure import analyze_symmetry
 
 class CifImporter:
     DEFAULT_CONVERSION_SETTINGS = {

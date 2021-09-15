@@ -54,8 +54,6 @@ __version__ = "0.1"
 __contributors__ = u"Roman Kováčik"
 
 # aiida DataFactory
-from _dev.terminal_colors import CEND
-
 StructureData = DataFactory('structure')
 DictData = DataFactory('dict')
 CifData = DataFactory('cif')

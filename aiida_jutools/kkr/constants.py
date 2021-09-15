@@ -26,8 +26,7 @@ from aiida_kkr import workflows as _kkr_workflows, calculations as _kkr_calculat
 from masci_tools.util import python_util as _masci_python_util, constants as _masci_constants, \
     math_util as _masci_math_util
 
-from kkr import query_structure_from
-
+import aiida_jutools as _jutools
 
 class KkrConstantsVersion(_enum.Enum):
     """Enum for labeling different KKR constants version.
@@ -341,7 +340,7 @@ class KkrConstantsVersionChecker:
         ANG_BOHR_KKR = None
         constants_version = None
 
-        structure = query_structure_from(wc)
+        structure = _jutools.kkr.query_structure_from(wc)
 
         structure_cell = _np.array(structure.cell)
         _masci_math_util.set_zero_below_threshold(structure_cell, threshold=zero_threshold)
