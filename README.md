@@ -9,14 +9,19 @@
 
 This package offers
 
-1. tools for managing high-throughput experiments (thousands or millions of database nodes) with [AiiDA](https://aiida.net). They can be found in the modules `util_*`, like `util_process`  for managing large numbers of AiiDA processes and process nodes.
-2. science tools:
-  - `structure_analyzer`
+1. Tools for managing high-throughput experiments (thousands or millions of database nodes) with [AiiDA]
+   (https://aiida.net).
+2. Science tools:
+  - `jutools.structure.analyze_symmetry`
 3. common plugin developer tools for
   - [aiida-fleur](https://github.com/JuDFTteam/aiida-kkr/)
   - [aiida-kkr](https://github.com/JuDFTteam/aiida-fleur)
   - [aiida-spex](https://iffgit.fz-juelich.de/chand/aiida-spex)
   - [aiida-spirit](https://github.com/JuDFTteam/aiida-spirit)
+
+Just import with ``import aiida_jutools as jutools``. Then you can call all tools like so: ``jutools.subpackage.tool
+()``.
+
 ## Installation
 
 Until further notice, install either by cloning the repository and use locally, 
@@ -34,11 +39,6 @@ pip install -e git+https://github.com/JuDFTteam/aiida-jutools@develop#egg=aiida-
 ## Documentation
 
 Under construction. For the time being, see the extensive docstring documentation.
-
-### For users
-
-We recommended to use this package with the import statement ``import aiida_jutools as jutools``. In your code,
-you can then call all available tools like so: ``jutools.subpackage.tool()``.
 
 ### For developers
 
