@@ -25,7 +25,6 @@ import string
 from datetime import datetime
 from fractions import gcd
 from sympy import nsimplify
-from pprint import pprint
 
 # aiida imports
 from aiida.plugins import DataFactory
@@ -55,7 +54,7 @@ __version__ = "0.1"
 __contributors__ = u"Roman Kováčik"
 
 # aiida DataFactory
-from _dev.terminal_colors import CC1, CEND, CC2
+from _dev.terminal_colors import CEND
 
 StructureData = DataFactory('structure')
 DictData = DataFactory('dict')
@@ -1284,27 +1283,3 @@ def analyze_symmetry(dd):
     return output
 
 
-def cif2astr(cifpath):
-    """Runs :py:meth:`~analyze_symmetry` on a CIF file and prints color-coded summary."""
-    prompt = ""
-
-    dd = {
-        'fmt': 'cif',
-        'cifpath': cifpath,
-        'outmode': ['a_conv']
-    }
-
-    structure = analyze_symmetry(dd)
-
-    if structure.get('aiida_structure_conventional'):
-        print(prompt + structure['aiida_structure_conventional'].extras['check_cif']['message'] + '\n')
-        print(prompt + 'label:           ' + CC1 + structure['aiida_structure_conventional'].label + CEND)
-        print(prompt + 'description:     ' + structure['aiida_structure_conventional'].description)
-        print(prompt + 'prototype:       ' + CC2 + structure['aiida_structure_conventional'].extras['prototype'][
-            'nprot'] + CEND +
-              ' : ' + CC2 + structure['aiida_structure_conventional'].extras['prototype']['nrw'] + CEND)
-        print(
-            prompt + 'specification:   ' + structure['aiida_structure_conventional'].extras['system']['specification'])
-
-        print('\n' + 'extras:' + '\n')
-        pprint(structure['aiida_structure_conventional'].extras, width=256)

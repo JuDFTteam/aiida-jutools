@@ -13,4 +13,5 @@
 """Tools for working with AiiDA IO (input / output files)."""
 
 from .cif import \
+    cif2astr, \
     CifImporter

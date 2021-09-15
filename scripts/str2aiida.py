@@ -30,4 +30,4 @@ __version__ = "0.1"
 __contributors__ = u"Roman Kováčik"
 
 if __name__ == '__main__':
-    jutools.structure.cif2astr('/path/to/cif/file.cif')
+    jutools.io.cif2astr('/path/to/cif/file.cif')
