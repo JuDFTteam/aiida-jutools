@@ -10,27 +10,19 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""CalcFunction for rescaling StructureData."""
+"""Tools for working with AiiDA ``Process`` and ``ProcessNode`` objects."""
 
-import aiida.engine as _aiida_engine
-import aiida.orm as _orm
+from .classifiers import \
+    ProcessClassifier
 
-
-@_aiida_engine.calcfunction
-def rescale_structure(input_structure: _orm.StructureData,
-                      scale_factor: _orm.Float) -> _orm.StructureData:
-    """
-    Rescales a crystal structure. Keeps the provenance in the database.
-
-    :param input_structure, a StructureData node (pk, or uuid)
-    :param scale_factor, float scaling factor for the cell
-    :return: New StrcutureData node with rescalled structure, which is linked to input Structure
-              and None if inp_structure was not a StructureData
-
-    copied and modified from aiida_fleur.tools.StructureData_util
-    """
-
-    the_ase = input_structure.get_ase()
-    new_ase = the_ase.copy()
-    new_ase.set_cell(the_ase.get_cell() * float(scale_factor), scale_atoms=True)
-    return _orm.StructureData(ase=new_ase)
+from .util import \
+    copy_metadata_options, \
+    find_partially_excepted_processes, \
+    get_exit_codes, \
+    get_process_states, \
+    get_runtime, \
+    get_runtime_statistics, \
+    query_processes, \
+    validate_exit_statuses, \
+    validate_process_states, \
+    verdi_calcjob_outputcat

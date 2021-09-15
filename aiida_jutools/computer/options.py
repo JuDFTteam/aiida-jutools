@@ -10,142 +10,18 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with aiida Computer nodes."""
+"""Tools for managing AiiDA Computer options nodes."""
 
 import dataclasses as _dc
-import io as _io
 import re as _re
 import typing as _typing
 
 import aiida as _aiida
-import aiida.engine as _aiida_engine
-import aiida.orm as _orm
-import aiida.schedulers as _aiida_schedulers
-import aiida.schedulers.plugins.lsf as _aiida_lsf_schedulers
-import aiida.schedulers.plugins.slurm as _aiida_slurm_schedulers
-import aiida.tools as _aiida_tools
-import humanfriendly as _humanfriendly
-import masci_tools.util.python_util as _masci_python_util
-import pandas as _pd
+from aiida import orm as _orm, schedulers as _aiida_schedulers, engine as _aiida_engine, tools as _aiida_tools
+from aiida.schedulers.plugins import lsf as _aiida_lsf_schedulers, slurm as _aiida_slurm_schedulers
 
-from aiida_jutools import util_group as _jutools_group
-
-
-def get_computers(computer_name_pattern: str = "") -> _typing.List[_orm.Computer]:
-    """Query computer.
-
-    :param computer_name_pattern: (sub)string of computer name, case-insensitive, no regex. default = "":
-           get all computers.
-    :return: aiida Computer if unique, list of Computers if not, empty list if no match
-    """
-    # version compatibility check: old: computer.name, new: computer.label. else error.
-    qb = _orm.QueryBuilder()
-    computer = None
-    return qb.append(
-        _orm.Computer,
-        filters={'name': {'ilike': f"%{computer_name_pattern}%"}},
-    ).all(flat=True)
-
-
-def shell_command(computer: _orm.Computer,
-                  command: str) -> _typing.Tuple[str, str, str]:
-    """Get output of shell command on aiida computer.
-
-    Assume aiida computer is remote. so execute remote command via get_transport().
-
-    Note: if you get a port error, you probably forgot to open an ssh tunnel to the remote computer on the
-    specified ports first.
-
-    Note: if stderr is NotExistent, the computer is probably not configured, eg imported.
-
-    :param computer: aiida computer
-    :param command: shell command to execute
-    :return: tuple of strings exit_code, stdout, stderr. Use only stdout like: _,stdout,_ = shell_command(...).
-    """
-
-    assert isinstance(computer, _orm.Computer), "computer is not a Computer, but a %r" % type(computer)
-    # import signal
-    # signal.alarm(maxwait)
-    try:
-        with computer.get_transport() as connection:
-            exit_code, stdout, stderr = connection.exec_command_wait(command)
-    except _aiida.common.exceptions.AiidaException as err:
-        # common error: NotExistent. often cause computer not configured, eg imported.
-        exit_code = type(err)
-        stdout = ''
-        stderr = err.args[0]
-    # signal.alarm(0)
-
-    return exit_code, stdout, stderr
-
-
-def get_queues(computer: _orm.Computer,
-               gpu: bool = None,
-               with_node_count: bool = True,
-               silent: bool = False) -> _typing.List[_typing.List[_typing.Union[str, int]]]:
-    """Get list of the remote computer (cluster's) queues (slurm: partitions) sorted by highest number of idle nodes
-    descending.
-
-    Implementations available for these computers:
-    - 'iffslurm': FZJ PGI-1 iffslurm cluster.
-
-    :param computer: aiida computer.
-    :param gpu: False: exclude gpu queues. True exclude non-gpu partitions. None: ignore this option.
-    :param with_node_count: True: return queue names with resp. idle nodes count, False: just queue names.
-    :param silent: True: do not print out any info.
-    :return: list of [queue/partition name, idle nodes count] or just list of queue names
-    :raise: NotImplementedError if get queues not implemented for that type (by label substring) of computer.
-
-    DEVNOTES: TODO: replace filter by shell command with sinfo -> pandas.Dataframe -> apply filters.
-    """
-    if 'iffslurm' not in computer.label:
-        raise NotImplementedError(f"{get_queues.__name__} not implemented for computer {computer.label}")
-    iffslurm_cmd_sorted_partitions_list = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r"""
-    iffslurm_partition_max_idle_nodes = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r | awk 'NR == 1 { print $1 }'"""
-
-    exit_code, stdout, stderr = shell_command(computer=computer, command=iffslurm_cmd_sorted_partitions_list)
-    # turn into list of strings
-    idle_nodes = stdout.split('\n')
-    # split into partition and idle_nodes_count, filter out empty entries
-    idle_nodes = [partition_nodes.split(' ') for partition_nodes in idle_nodes if partition_nodes]
-    # filter out 'gpu' partitions
-    if gpu is None:
-        idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes]
-    elif not gpu:
-        idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes if 'gpu' not in pn[0]]
-    else:
-        idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes if 'gpu' in pn[0]]
-        # print out info about total remaining idle nodes
-    if not silent:
-        sum_idle_nodes = sum(pn[1] for pn in idle_nodes)
-        print(f"Idle nodes left on computer '{computer.label}': {sum_idle_nodes}")
-
-    if not with_node_count:
-        idle_nodes = [pn[0] for pn in idle_nodes]
-
-    return idle_nodes
-
-
-def get_least_occupied_queue(computer: _orm.Computer,
-                             gpu: bool = None,
-                             with_node_count: bool = True,
-                             silent: bool = False) -> _typing.Union[_typing.Tuple[str, int], str]:
-    """Get name of the remote computer (cluster's) queue (slurm: partition) with the highest number of idle nodes.
-
-    Implementations available for these computers:
-    - 'iffslurm': FZJ PGI-1 iffslurm cluster.
-
-    :param computer: aiida computer.
-    :param gpu: False: exclude gpu queues. True exclude non-gpu queues. None: ignore this option.
-    :param with_node_count: True: queue name with idle nodes count, False: just queue name.
-    :param silent: True: do not print out any info.
-    :return: tuple of queue name, idle nodes count, or just queue name
-    :raise: NotImplementedError if get queues not implemented for that type (by label substring) of computer.
-    """
-    idle_nodes = get_queues(computer=computer, gpu=gpu, with_node_count=True, silent=silent)
-    # if anything is left, get the first queue (ie the one with most idle nodes)
-    queue_name, idle_nodes_count = idle_nodes[0] if idle_nodes else (None, None)
-    return (queue_name, idle_nodes_count) if with_node_count else queue_name
+import aiida_jutools as _jutools
+from masci_tools.util import python_util as _masci_python_util
 
 
 @_dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
@@ -294,7 +170,7 @@ class _OptionsConfig:
         if self._computers:
             return self._computers
         else:
-            return get_computers(computer_name_pattern=self.name)
+            return _jutools.computer.get_computers(computer_name_pattern=self.name)
 
     @property
     def groups(self) -> _typing.List[_orm.Group]:
@@ -534,7 +410,7 @@ class _OptionsConfig:
             if mandatory_key == "queue_name":
                 if not silent:
                     print(f"Missing mandatory argument 'queue_name'. Try find matching computer and "
-                          f"call {get_queues.__name__}().")
+                          f"call {_jutools.computer.get_queues.__name__}().")
                     # query the currently least occupied queue and return options for that.
                     # but for that, need the associated computer node
                 queue_names = None
@@ -547,11 +423,14 @@ class _OptionsConfig:
                 while (not queue_names) and (idx_computer < len(self._computers)):
                     computer = self._computers[idx_computer]
                     try:
-                        queue_names = get_queues(computer=computer, gpu=gpu, with_node_count=False, silent=silent)
+                        queue_names = _jutools.computer.get_queues(computer=computer,
+                                                                   gpu=gpu,
+                                                                   with_node_count=False,
+                                                                   silent=silent)
                     except NotImplementedError as err:
                         self._log('Warning', self.get_options,
                                   f"Config's computer {computer.label} is not compatible with this config. "
-                                  f"Reason: {get_queues.__name__} not implemented for this type "
+                                  f"Reason: {_jutools.computer.get_queues.__name__} not implemented for this type "
                                   f"of computer). I will remove it from the config.")
                         idx_remove_computer.append(idx_computer)
                     idx_computer += 1
@@ -562,13 +441,13 @@ class _OptionsConfig:
                     computer_name_pattern = computer_name if computer_name else self.name
                     if not silent:
                         print(f"Try to get computer from name pattern '{computer_name_pattern}'.")
-                    computers = get_computers(computer_name_pattern=computer_name_pattern)
+                    computers = _jutools.computer.get_computers(computer_name_pattern=computer_name_pattern)
                     if not computers:
                         # next, try decomposing config name into words and get computer from words
                         confwords = (" ".join(_re.findall("[a-zA-Z]+", self.name))).split(" ")
                         idx_words = 0
                         while (not computers) and (idx_words < len(confwords)):
-                            computers = get_computers(computer_name_pattern=confwords[idx_words])
+                            computers = _jutools.computer.get_computers(computer_name_pattern=confwords[idx_words])
                             idx_words += 1
                     if not computers:
                         raise _aiida.common.exceptions.NotExistent(
@@ -579,7 +458,10 @@ class _OptionsConfig:
                         idx_computer = 0
                         while (not queue_names) and (idx_computer < len(computers)):
                             computer = computers[idx_computer]
-                            queue_names = get_queues(computer=computer, gpu=gpu, with_node_count=False, silent=silent)
+                            queue_names = _jutools.computer.get_queues(computer=computer,
+                                                                       gpu=gpu,
+                                                                       with_node_count=False,
+                                                                       silent=silent)
                             if queue_names:
                                 self._computers.append(computer)
                             idx_computer += 1
@@ -1007,9 +889,9 @@ class ComputerOptionsManager:
     The manager is basically a collection of named :py:class:`~aiida_jutools.util_computer._OptionsConfig` instances.
 
     >>> import aiida
+    >>> import aiida_jutools as jutools
     >>> aiida.load_profile()
-    >>> from aiida_jutools import util_computer
-    >>> optman = util_computer.ComputerOptionsManager()
+    >>> optman = jutools.computer.ComputerOptionsManager()
     >>> optman.initialize()
     >>> optman.iffslurm.get_options()
     >>> optman.claix18.get_help()
@@ -1237,7 +1119,7 @@ class ComputerOptionsManager:
                         stored_groups.append(stored_group)
                     except _aiida.common.exceptions.NotExistent as err:
                         pass
-                _jutools_group.delete_groups_with_nodes(group_labels=[group.label for group in stored_groups],
+                _jutools.group.delete_groups_with_nodes(group_labels=[group.label for group in stored_groups],
                                                         dry_run=delete_dry_run, verbosity=delete_verbosity,
                                                         leave_groups=False)
 
@@ -1400,145 +1282,3 @@ class ComputerOptionsManager:
         setattr(self, config.name, config)
         if not silent:
             print(f"Added computer options config: {config.name}.")
-
-
-@_dc.dataclass
-class QuotaQuerierSettings:
-    """Settings for QuotaQuerier.
-
-    :param command: computer-specific, full 'quota' command, including optons etc. username or groupname
-    :param header_line_count: no. of lines of header before quota table in quota output string.
-    :param column_space_used: column label for space used in table in quota output string.
-    :param column_space_hard: column label for space hard limit in table in quota output string.
-    :param dirname_pattern: uniquely identifying (sub)string of path to return quota for. Else first table entry.
-    :param min_free_space: memory space too stay away from hard limit. string like "10G" = 10 gigabyte = default.
-    :param comment: optional comment on usage, e.g. for different template instances.
-    """
-    command: str = "quota"
-    header_line_count: int = 1
-    column_space_used: str = "used"
-    column_space_hard: str = "hard"
-    dirname_pattern: str = ""
-    min_free_space: str = "10G"
-    comment: _typing.List[str] = _masci_python_util.dataclass_default_field([""])
-
-
-class QuotaQuerier:
-    def __init__(self,
-                 computer: _orm.Computer,
-                 settings: QuotaQuerierSettings):
-        """Convenience methods for getting the quota of aiida configured computer nodes.
-
-        Use this class' builder :py:class:`~aiida_jutools.util_computer.QuotaQuerierBuilder` to create an instance.
-
-        :param computer:  an aiida configured computer
-        :param settings: settings
-        """
-        self.computer = computer
-        self.settings = settings
-
-    def get_quota(self) -> _pd.DataFrame:
-        """Get quota as a pandas dataframe.
-        """
-        s = self.settings
-
-        exit_code, stdout, stderr = shell_command(self.computer, s.command)
-
-        # strip away the header lines:
-        # # stdout is a single string, lines sep. by '\n'
-        for _ in range(s.header_line_count):
-            stdout = stdout[stdout.find("\n") + 1:].lstrip()
-
-        return _pd.read_table(_io.StringIO(stdout), sep=r"\s+")
-
-    def is_min_free_space_left(self) -> bool:
-        """Check output of quota command on computer to see if more than 'buffer' space is available.
-
-        :return: True if used space > (hard limit - buffer) , False if not.
-        """
-        s = self.settings
-
-        if not s.dirname_pattern or not s.min_free_space:
-            raise ValueError("settings dirname_pattern and/or min_free_space not set!")
-
-        df = self.get_quota()
-
-        # extract row for user dirname we want to get quota of
-        row_mask = df.iloc[:, 0].str.contains(s.dirname_pattern)
-        row = df[row_mask]
-        row_idx = row.index[0]
-
-        # extract bytesize used, hard limit
-        used = _humanfriendly.parse_size(row[s.column_space_used][row_idx])
-        hard = _humanfriendly.parse_size(row[s.column_space_hard][row_idx])
-
-        # check if free space is big enough
-        min_free_space = _humanfriendly.parse_size(s.min_free_space)
-        is_min_free_space_left = (hard - used) > min_free_space
-        if not is_min_free_space_left:
-            print(
-                f"not enough space available on computer (used: {used}, hard limit: {hard}, requested free space:"
-                f" {s.min_free_space}). Try cleaning up the aiida computer's workdir "
-                f"(see verdi calcjob cleanworkdir -h).")
-        return is_min_free_space_left
-
-
-class QuotaQuerierBuilder:
-    templates = ["rwth_cluster", "iff_workstation"]
-
-    def __init__(self):
-        # check templates
-        assert self.templates[0] == "rwth_cluster"
-        assert self.templates[1] == "iff_workstation"
-
-    def print_available_templates(self):
-        print(self.templates)
-
-    def build(self,
-              template: str,
-              computer: _orm.Computer) -> QuotaQuerier:
-        """Build a QuotaQuerier for a given template and computer.
-
-        The template configures the settings such that the quota will return the desired
-        output for that computer.
-
-        Implementations available for these computers:
-        - 'rwth_cluster': RWTH claix18 cluster (should work for claix16 but untested).
-        - 'iff_workstation': FZJ PGI-1 desktop workstation.
-        - TODO: 'iffslurm'.
-
-        :param template: a valid template from this class
-        :param computer: configured aiida computer
-        :return: an instance of a quota querier for that computer.
-        """
-        print(f"Configuring {QuotaQuerierSettings.__name__} for template '{template}'.")
-
-        def _print_comment(qq):
-            for line in qq.settings.comment:
-                print(line)
-
-        qq = None
-        if template == self.templates[0]:
-            qqs = QuotaQuerierSettings()
-            qqs.command = "quota -u <USER_OR_GROUP>"
-            qqs.comment = ["Before usage, adjust 'settings' manually:",
-                           "1. (required) In 'command', replace user-or-group-name wildcard (x = x.replace(...)).",
-                           "2. (optional) Replace 'dirname_pattern'. Affects some not all methods behavior.", ]
-            qq = QuotaQuerier(computer, qqs)
-
-        elif template == self.templates[1]:
-            qqs = QuotaQuerierSettings()
-            qqs.command = "/usr/local/bin/quota.py"
-            qqs.column_space_used = "blocks"
-            qqs.column_space_hard = "limit"
-            qqs.comment = [
-                "Note: about command: 'quota' on iff workstations is an alias for the ",
-                "python script /usr/local/bin/quota.py. But calling 'quota -u <USER>'",
-                "*over* aiida instead will call the actual quota with different output,",
-                "which is not supported here.", ]
-            qq = QuotaQuerier(computer, qqs)
-        else:
-            raise NotImplementedError(f"No {QuotaQuerier.__name__} template '{template}' exists.")
-
-        _print_comment(qq)
-        return qq

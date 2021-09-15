@@ -12,9 +12,6 @@
 ###############################################################################
 """CalcFunction for itemizing Lists."""
 
-# DEVNOTE: AiiDA best practice for process functions: one module per function.
-# Reference: https://aiida.readthedocs.io/projects/aiida-core/en/latest/topics/processes/functions.html#provenance
-
 import typing as _typing
 
 import aiida.engine as _aiida_engine
