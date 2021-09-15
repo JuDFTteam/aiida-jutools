@@ -22,7 +22,7 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.1"
 __contributors__ = u"Roman Kováčik"
 
-ptable = {
+minimal_periodic_table = {
     'X': [0, 0, 100, 1000],
     'H': [1, 1, 1, 106],
     'He': [2, 1, 32, 7],

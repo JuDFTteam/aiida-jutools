@@ -10,13 +10,11 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with AiiDA StructureData nodes."""
+"""AiiDA-JuTools: dev tools. Non-public (prefix with ``_``)."""
 
-from .structure_analyzer import \
-    analyze_symmetry, \
-    cif2astr
+from .periodic_tables import \
+    minimal_periodic_table
 
-from .util import \
-    load_or_rescale_structures, \
-    query_elemental_structure, \
-    query_modified_input_structure
+# not importing constants from .terminal_colors to subpackage since large number of constants.
+# instead, import locally from module.
+# from .terminal_colors import *

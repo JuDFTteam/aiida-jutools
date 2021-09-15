@@ -17,7 +17,7 @@ you can then call all available tools like so: ``jutools.subpackage.tool()``.
 """
 __version__ = "0.1.0-dev1"
 
-# Import all subpackages.
+# Import all user subpackages.
 import code
 import computer
 import group
@@ -29,4 +29,6 @@ import process
 import process_functions
 import submit
 import structure
+# import developer subpackages.
+import _dev
 
