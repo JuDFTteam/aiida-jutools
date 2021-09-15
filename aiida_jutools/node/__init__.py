@@ -10,27 +10,10 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""CalcFunction for rescaling StructureData."""
+"""Tools for working with aiida Node objects."""
 
-import aiida.engine as _aiida_engine
-import aiida.orm as _orm
-
-
-@_aiida_engine.calcfunction
-def rescale_structure(input_structure: _orm.StructureData,
-                      scale_factor: _orm.Float) -> _orm.StructureData:
-    """
-    Rescales a crystal structure. Keeps the provenance in the database.
-
-    :param input_structure, a StructureData node (pk, or uuid)
-    :param scale_factor, float scaling factor for the cell
-    :return: New StrcutureData node with rescalled structure, which is linked to input Structure
-              and None if inp_structure was not a StructureData
-
-    copied and modified from aiida_fleur.tools.StructureData_util
-    """
-
-    the_ase = input_structure.get_ase()
-    new_ase = the_ase.copy()
-    new_ase.set_cell(the_ase.get_cell() * float(scale_factor), scale_atoms=True)
-    return _orm.StructureData(ase=new_ase)
+from .util import \
+    intersection, \
+    is_same_node, \
+    list_differences, \
+    print_attributes

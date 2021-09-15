@@ -10,15 +10,16 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with aiida Code nodes."""
+"""Tools for working with aiida Code nodes: utils."""
 
+import copy as _copy
 import inspect as _inspect
 import typing as _typing
 
 import aiida as _aiida
-import aiida.orm as _orm
+from aiida import orm as _orm
 
-from aiida_jutools import util_computer as _jutools_computer
+import aiida_jutools as _jutools
 
 
 def get_code(computer_name_pattern: str = "",
@@ -93,15 +94,35 @@ def get_code(computer_name_pattern: str = "",
                     f"All available codes: {all_codestrings}"
 
         codestring = None
-        if len(filtered_codestrings) >= 1:
-            if len(filtered_codestrings) > 1:
+        cs_filtered = _copy.copy(filtered_codestrings)
+        if cs_filtered:  # found at least one match
+            if len(cs_filtered) > 1:  # found more than one match
+
+                # # try to narrow the matches list down by stricter matching
+                # try again, but this time not with substring match ('in') but full string equality ('==')
+                cs_filtered2 = [f"{code.label}@{code.computer.label}" for code in _orm.Code.objects.all() if
+                                computer_name_pattern.lower() == code.computer.label.lower()
+                                and code_name_pattern.lower() == code.label.lower()]
+                if cs_filtered2:
+                    if len(cs_filtered2) < len(cs_filtered):
+                        cs_filtered = cs_filtered2
+                    else:
+                        # try again, but this time with case sensitive
+                        cs_filtered3 = [f"{code.label}@{code.computer.label}" for code in _orm.Code.objects.all() if
+                                        computer_name_pattern == code.computer.label
+                                        and code_name_pattern == code.label]
+                        if cs_filtered3 and len(cs_filtered3) < len(cs_filtered):
+                            cs_filtered = cs_filtered3
+
+            # okay, now take what we have and run with it
+            if len(cs_filtered) > 1:
                 print(warning_msg)
-            codestring = filtered_codestrings[0]
+            codestring = cs_filtered[0]
             error_msg = None
 
         return codestring, error_msg
 
-    computers = _jutools_computer.get_computers(computer_name_pattern)
+    computers = _jutools.computer.get_computers(computer_name_pattern)
     if not computers:
         raise _aiida.common.exceptions.NotExistent(f"No computer '{computer_name_pattern}' found.")
     else:
@@ -121,8 +142,10 @@ def get_code(computer_name_pattern: str = "",
 
         # first try to get queue_name from computer
         try:
-            queue_name = _jutools_computer.get_least_occupied_queue(computer=computer, gpu=None,
-                                                                    with_node_count=False, silent=True)
+            queue_name = _jutools.computer.get_least_occupied_queue(computer=computer,
+                                                                    gpu=None,
+                                                                    with_node_count=False,
+                                                                    silent=True)
         except NotImplementedError as err:
             # if that failed, only determine by computer_name and code_name_pattern, select first found
             codestring, error_msg = _select_codestring_from_filtered(codestrings_by_computer_code=cs_by_computer_code,
@@ -165,7 +188,9 @@ def get_code(computer_name_pattern: str = "",
                           f"Will choose first one. If this is a problem, contact developer.")
 
             queues_harcoded = list(computer_queue_architectures.keys())
-            queues_queried = _jutools_computer.get_queues(computer=computer, gpu=None, with_node_count=False)
+            queues_queried = _jutools.computer.get_queues(computer=computer,
+                                                          gpu=None,
+                                                          with_node_count=False)
             if not set(queues_harcoded) == set(queues_queried):
                 raise ValueError(
                     f"Computer '{computer_name_pattern}' hardcoded queues {queues_harcoded} do not "
@@ -178,9 +203,9 @@ def get_code(computer_name_pattern: str = "",
             if not architecture:
                 # since have just that hardcoded queues match actual queues, can conclude
                 # that user has specified non-existant queue
-                module_name = _inspect.getmodulename(_inspect.getfile(_jutools_computer.get_queues))
+                module_name = _inspect.getmodulename(_inspect.getfile(_jutools.computer.get_queues))
                 raise KeyError(f"Computer '{computer_name_pattern}' has no queue '{queue_name}'. Use "
-                               f"'{module_name}.{_jutools_computer.get_queues.__name__}()' to get list of queues.")
+                               f"'{module_name}.{_jutools.computer.get_queues.__name__}()' to get list of queues.")
 
             cs_by_computer_code_arch = [cs for cs in cs_by_computer_code if architecture in cs]
 

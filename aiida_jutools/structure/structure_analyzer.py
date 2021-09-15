@@ -19,7 +19,6 @@ To be extended for various data formats: aiida structure, POSCAR, ...
 
 # standard imports
 import os
-import sys, getopt
 import math
 import numpy
 import string
@@ -32,12 +31,11 @@ from pprint import pprint
 from aiida.plugins import DataFactory
 
 # CIF files
-import pymatgen
 from CifFile import ReadCif
 import spglib
 
 # local imports
-from terminal_colors import *
+from aiida_jutools._dev.terminal_colors import *
 # CSQ color for sequence
 # CDB color for structure database
 # CRC color for recipe
@@ -48,7 +46,7 @@ from terminal_colors import *
 # CER color for error messages
 # COK color for OK messages
 # CIN color for info messages
-from ptable import ptable
+from aiida_jutools._dev import minimal_periodic_table as ptable
 
 __copyright__ = (u"Copyright (c), 2019-2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -56,7 +54,9 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.1"
 __contributors__ = u"Roman Kováčik"
 
-# aiida DataFactory 
+# aiida DataFactory
+from _dev.terminal_colors import CC1, CEND, CC2
+
 StructureData = DataFactory('structure')
 DictData = DataFactory('dict')
 CifData = DataFactory('cif')
@@ -1282,3 +1282,29 @@ def analyze_symmetry(dd):
             output["aiida_cif"] =  cif_data
 
     return output
+
+
+def cif2astr(cifpath):
+    """Runs :py:meth:`~analyze_symmetry` on a CIF file and prints color-coded summary."""
+    prompt = ""
+
+    dd = {
+        'fmt': 'cif',
+        'cifpath': cifpath,
+        'outmode': ['a_conv']
+    }
+
+    structure = analyze_symmetry(dd)
+
+    if structure.get('aiida_structure_conventional'):
+        print(prompt + structure['aiida_structure_conventional'].extras['check_cif']['message'] + '\n')
+        print(prompt + 'label:           ' + CC1 + structure['aiida_structure_conventional'].label + CEND)
+        print(prompt + 'description:     ' + structure['aiida_structure_conventional'].description)
+        print(prompt + 'prototype:       ' + CC2 + structure['aiida_structure_conventional'].extras['prototype'][
+            'nprot'] + CEND +
+              ' : ' + CC2 + structure['aiida_structure_conventional'].extras['prototype']['nrw'] + CEND)
+        print(
+            prompt + 'specification:   ' + structure['aiida_structure_conventional'].extras['system']['specification'])
+
+        print('\n' + 'extras:' + '\n')
+        pprint(structure['aiida_structure_conventional'].extras, width=256)

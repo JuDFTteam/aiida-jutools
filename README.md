@@ -31,7 +31,33 @@ pip install masci-tools aiida-kkr
 pip install -e git+https://github.com/JuDFTteam/aiida-jutools@develop#egg=aiida-jutools
 ```
 
-## Usage and Documentation
+## Documentation
 
 Under construction. For the time being, see the extensive docstring documentation.
+
+### For users
+
+We recommended to use this package with the import statement ``import aiida_jutools as jutools``. In your code,
+you can then call all available tools like so: ``jutools.subpackage.tool()``.
+
+### For developers
+
+Written some AiiDA code potentially useful for others? Please add it here!
+
+Please adhere to the developer coding conventions:
+- Place larger classes in a subpackage (subfolder) in a separate module (file). Smaller stuff like functions go in the 
+  respective subpackage's ``subpackage/util.py``.
+- Make all tools available at subpackage level via import in ``subpackage/__init__.py``. See existing files for how 
+  to do that. Also import each new subpackage in the package's top-level ``__init__.py``. Together, this enables to 
+  access all tools with tab completion like ``jutools.subpackage.tool()`` instead of needing to import single modules. 
+  The former is better practice. For that purpose, keep subpackage and module names short but clear, preferably one 
+  word only, as opposed to tool names which should be as long as needed to be self-explanatory. 
+- Prefix non-user tools with ``_`` to keep user namespace clean and organized.
+- Prefix all imports inside modules with ``_`` to keep user namespace clean and organized. Prefer top namespace 
+  imports to avoid name conflicts and ambiguities. See existing modules for conventions, e.g. with respect to AiiDA 
+  imports.
+- Add docstring for every added tool. Add ``typing`` hints wherever possible and sensible. See existing modules for 
+  examples.
+- When manipulating AiiDA nodes, implement with 'load or create' pattern: load nodes if already exist, otherwise create.
+  Provide a ``dry_run:bool=True`` and verbosity options (``verbosity:int``, ``verbose:bool``, or ``silent:bool``).
 
