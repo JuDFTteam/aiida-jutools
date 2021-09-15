@@ -14,10 +14,14 @@
 
 import typing as _typing
 from pathlib import Path as _Path
+from pprint import pprint
 
 import aiida as _aiida
 from aiida import orm as _orm
 from aiida.tools import groups as _aiida_groups
+
+from _dev.terminal_colors import CC1, CEND, CC2
+from structure import analyze_symmetry
 
 
 class CifImporter:
@@ -324,3 +328,29 @@ class CifImporter:
             _post_conversion_check(cif_nodes=cif_nodes, struc_grouppath=struc_grouppath, structure_nodes=struc_nodes)
 
         return self.struc_group
+
+
+def cif2astr(cifpath):
+    """Runs :py:meth:`~analyze_symmetry` on a CIF file and prints color-coded summary."""
+    prompt = ""
+
+    dd = {
+        'fmt': 'cif',
+        'cifpath': cifpath,
+        'outmode': ['a_conv']
+    }
+
+    structure = analyze_symmetry(dd)
+
+    if structure.get('aiida_structure_conventional'):
+        print(prompt + structure['aiida_structure_conventional'].extras['check_cif']['message'] + '\n')
+        print(prompt + 'label:           ' + CC1 + structure['aiida_structure_conventional'].label + CEND)
+        print(prompt + 'description:     ' + structure['aiida_structure_conventional'].description)
+        print(prompt + 'prototype:       ' + CC2 + structure['aiida_structure_conventional'].extras['prototype'][
+            'nprot'] + CEND +
+              ' : ' + CC2 + structure['aiida_structure_conventional'].extras['prototype']['nrw'] + CEND)
+        print(
+            prompt + 'specification:   ' + structure['aiida_structure_conventional'].extras['system']['specification'])
+
+        print('\n' + 'extras:' + '\n')
+        pprint(structure['aiida_structure_conventional'].extras, width=256)

@@ -13,8 +13,7 @@
 """Tools for working with AiiDA StructureData nodes."""
 
 from .structure_analyzer import \
-    analyze_symmetry, \
-    cif2astr
+    analyze_symmetry
 
 from .util import \
     load_or_rescale_structures, \
