@@ -33,7 +33,7 @@ class ProcessClassifier:
     _TMP_GROUP_LABEL_PREFIX = "process_classification"
 
     # DEVNOTE TODO: replace internal storage dict with dataframe.
-    # Template see util_kkr > KkrConstantsVersionChecker
+    # Template for this approach, see kkr.KkrConstantsVersionChecker.
     # dataframe should have uuid, ctime, group, ..., process_state, exit_status, process_label, ...
     # then can also replace init parameter group with list of groups.
     # a dataframe is simply much better for sorting, slicing, statistical summaries, visualization of this kind of data.
@@ -44,7 +44,7 @@ class ProcessClassifier:
                  id: str = 'uuid'):
         """Classifies processes by process state and optionally other attributes.
 
-        Use e.g. :py:meth:`~aiida_jutools.util_process.query_processes` to get a list of processes to classify.
+        Use e.g. :py:meth:`~.process.query_processes` to get a list of processes to classify.
 
         Alternatively, supply a group of process nodes.
 
@@ -147,7 +147,7 @@ class ProcessClassifier:
         For the latter, the default is ``process_label``. Other options are None, ``process_class``, ``process_type``.
 
         When finished, the classifications becomes available as class attribute
-        :py:class:`~aiida_jutools.util_process.ProcessClassifier.classified`, a dictionary.
+        :py:attr:`~.classified`, a dictionary.
 
         :param type_attr: type attribute to use for the type classification.
         """
@@ -248,7 +248,7 @@ class ProcessClassifier:
         """Count classified processes.
 
         When finished, the count becomes available as class attribute
-        :py:class:`~aiida_jutools.util_process.ProcessClassifier.counted`, a dictionary.
+        :py:attr:`~.counted`, a dictionary.
 
         :return: total count of all classified processes.
         """

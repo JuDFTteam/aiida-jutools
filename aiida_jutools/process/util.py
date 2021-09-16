@@ -130,16 +130,18 @@ def query_processes(label: str = None,
 
     ``process_states`` can either be a list of process state strings ('created' 'running' 'waiting' 'finished'
     'excepted' 'killed'), or a list of :py:class:`~aiida.engine.processes.ProcessState` objects. See
-    :py:meth:`~aiida_jutools.util_process.get_process_states`.
+    :py:func:`~.get_process_states`.
 
     Examples:
-    >>> from process.util import get_process_states as ps    >>> from aiida_jutools.util_process import query_processes as qp
+
+    >>> import aiida_jutools as jutools
     >>> from aiida.orm import WorkChainNode
     >>> import datetime
-    >>> process_nodes = qp(label="Au:Cu", process_label='kkr_imp_wc').all(flat=True)
-    >>> states = ps(terminated=False)
-    >>> num_processes = qp(process_states=states).count()
-    >>> process_nodes = qp(node_types=[WorkChainNode], timedelta=datetime.timedelta(days=1)).all(flat=True)
+    >>> process_nodes = jutools.process.query_processes(label="Au:Cu", process_label='kkr_imp_wc').all(flat=True)
+    >>> states = jutools.process.get_process_states(terminated=False)
+    >>> num_processes = jutools.process.query_processes(process_states=states).count()
+    >>> process_nodes = jutools.process.query_processes(node_types=[WorkChainNode],
+    ...                                                 timedelta=datetime.timedelta(days=1)).all(flat=True)
 
     :param label: node label
     :param process_label: process label. for workflows of plugins, short name of workflow class.
@@ -161,7 +163,7 @@ def query_processes(label: str = None,
     In that case, prefer CalculationQueryBuilder. Memory size measurements of query results were taken with
     python_util.SizeEstimator.sizeof_via_whitelist().
 
-    Note: For kkr workchain queries based on input structures, see util_kkr.
+    Note: For kkr workchain queries based on input structures, see :py:func:`~.kkr.query_kkr_wc`.
 
     DEVNOTE: wasmer: filter by process label 'kkr_imp_wc' yields the correct result,
     filter by cls kkr_imp_wc (WorkChain, but qb resolves this) does not. dunno why.

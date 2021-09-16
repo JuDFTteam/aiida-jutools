@@ -28,10 +28,11 @@ from masci_tools.util import python_util as _masci_python_util, constants as _ma
 
 import aiida_jutools as _jutools
 
+
 class KkrConstantsVersion(_enum.Enum):
     """Enum for labeling different KKR constants version.
 
-    Used by :py:class:`~aiida_jutools.util_kkr.KkrConstantsChecker`.
+    Used by :py:class:`~.KkrConstantsVersionChecker`.
 
     The enum values represent the respective constants values from different time spans
 
@@ -52,7 +53,7 @@ class KkrConstantsVersion(_enum.Enum):
     2021-04-28  66953f8      'new'      1.8897261246257702   0.5291772109030000    13.605693122994000
     ==========  ===========  =========  ===================  ====================  ==================
 
-    Use :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersion.OLD.description` (or on any other enum) to get a
+    Use :py:attr:`~.KkrConstantsVersion.OLD.description` (or on any other enum) to get a
     machine-readable version of this table.
 
     So we have the following correspondence for ang 2 bohr constant / bohr to ang constant:
@@ -90,11 +91,11 @@ class KkrConstantsVersion(_enum.Enum):
 
         The returned dictionary describes from when to when the respective KKR constants
         version was defined in the respective masci-tools version, here denoted by
-        commit hashes, as they are more accurate than the librarie's version numbers.
+        commit hashes, as they are more accurate than the library's version numbers.
         The left and right time limits are denoted by datetime objects of year one, and now.
 
         This can be taken as a machine-readable indicator for comparison against classification results of
-        :py:class:`~aiida_jutools.util_kkr.KkrConstantsChecker` to validate whether the constants versions
+        :py:class:`~.KkrConstantsVersionChecker` to validate whether the constants versions
         there found for a workchain fit within the respective constants version's timefame described here.
 
         Keep in mind though that the respective inspected workchain might have been run with an older masci-tools
@@ -138,7 +139,7 @@ class KkrConstantsVersionChecker:
 
     Between 2021-02-16 and 2021-04-28, the values of the conversion constants ``ANG_BOHR_KKR`` and
     ``RY_TO_EV_KKR`` in :py:mod:`~masci_tools.util.constants` were changed from previous values to a set of
-    intermediate values, and then finally to NIST values. See :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersion`
+    intermediate values, and then finally to NIST values. See :py:class:`~.KkrConstantsVersion`
     docstring for a complete list. The ``constants`` module mentioned above offers an option to switch
     back to the older constants versions, see its documentation.
 
@@ -312,11 +313,11 @@ class KkrConstantsVersionChecker:
         These are: ``kkr_scf_wc``, ``kkr_eos_wc``, ``kkr_imp_wc``.
 
         If ``record`` is False, the constants version used by the workchain is returned. If ``record`` is True,
-        the result is appended to the dataframe  :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.records`.
+        the result is appended to the dataframe  :py:attr:`~.records`.
 
         Will always check constants version by recalculating it, even if it may have already been set as an
         extra. To filter workchains by this extra, assuming it has already been set for them, use the method
-        :py:meth:`~aiida_jutools.util_kkr.filter_using_runtime_version` instead.
+        :py:meth:`~.filter_using_runtime_version` instead.
 
         :param wc: finished aiida-kkr workchain.
         :param record: False: return constants version of workchain. True: record results in dataframe.
@@ -513,11 +514,11 @@ class KkrConstantsVersionChecker:
         Current implementation only works with aiida-kkr workflows which have a ``kkr_startpot_wc`` descendant.
         These are: ``kkr_scf_wc``, ``kkr_eos_wc``, ``kkr_imp_wc``.
 
-        The results are appended to the dataframe :py:attr:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.records`.
+        The results are appended to the dataframe :py:attr:`~.KkrConstantsVersionChecker.records`.
 
         Will always check constants version by recalculating it, even if it may have already been set as an
         extra. To filter workchains by this extra, assuming it has already been set for them, use the method
-        :py:meth:`~aiida_jutools.util_kkr.filter_using_runtime_version` instead.
+        :py:meth:`~.filter_using_runtime_version` instead.
 
         :param group: a group with aiida-kkr workchain nodes. Workchains must have a ``kkr_startpot_wc`` descendant.
         :param process_labels: list of valid aiida-kkr workchain process labels, e.g. ['kkr_scf_wc', ...].
@@ -553,8 +554,8 @@ class KkrConstantsVersionChecker:
         ``[read_potential] error ALAT value in potential is does not match``.
 
         This method assumes that each workchain has the KKR constants version which it uses set as an extra via
-        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_single_workchain` or
-        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_workchain_group`. If the extra cannot
+        :py:class:`~.KkrConstantsVersionChecker.check_single_workchain` or
+        :py:class:`~.KkrConstantsVersionChecker.check_workchain_group`. If the extra cannot
         be read, the constants version gets recalculated by the former method.
 
         :param wcs: list of workchains nodes.
@@ -592,8 +593,8 @@ class KkrConstantsVersionChecker:
         """Check whether the workchain and all its ancestors of a workchain used the same KKR constants versions.
 
         This requires that the constants version on the workchain AND its ancestors was set as extra before with either
-        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_single_workchain` or
-        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_workchain_group`.
+        :py:class:`~.KkrConstantsVersionChecker.check_single_workchain` or
+        :py:class:`~.KkrConstantsVersionChecker.check_workchain_group`.
 
         Currently, only ``kkr_imp_wc`` workchains supported.
 
@@ -639,8 +640,8 @@ class KkrConstantsVersionChecker:
         """Check whether the workchain and all its ancestors of a workchain used the same KKR constants versions.
 
         This requires that the constants version on the workchain AND its ancestors was set as extra before with either
-        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_single_workchain` or
-        :py:class:`~aiida_jutools.util_kkr.KkrConstantsVersionChecker.check_workchain_group`.
+        :py:class:`~.KkrConstantsVersionChecker.check_single_workchain` or
+        :py:class:`~.KkrConstantsVersionChecker.check_workchain_group`.
 
         Currently, only ``kkr_imp_wc`` workchains supported.
 

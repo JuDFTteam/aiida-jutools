@@ -48,7 +48,7 @@ def query_kkr_wc(cls: _typing.Type[_aiida_engine.WorkChain],
     - if kkr_scf_wc, and symbols given, queries with first symbol only (elemental crystal).
     - if kkr_imp_wc, requires symbols, queries with first symbol = impurity, second symbol = host crystal.
 
-    For general workchain queries, use :py:func:`~aiida_jutools.util_process.query_processes` instead.
+    For general workchain queries, use :py:func:`~.process.query_processes` instead.
 
     :param cls: kkr workchain class. kkr_scf_wc or kkr_imp_wc.
     :param symbols: list of chemical element symbols.
