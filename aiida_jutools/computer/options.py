@@ -26,7 +26,7 @@ from masci_tools.util import python_util as _masci_python_util
 
 @_dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
 class _OptionsQueryConfig:
-    """Database query configuration for :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options`.
+    """Database query configuration for :py:meth:`~._OptionsConfig.get_options`.
 
     :param: ignored: these options fields are ignored for querying options of this config.
     :param: mandatory: these options fields are mandatory for querying options of this config.
@@ -40,13 +40,13 @@ class _OptionsQueryConfig:
 
 @_dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
 class _OptionsDefaultCreationValues:
-    """Default options creation values for :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options`.
+    """Default options creation values for :py:meth:`~._OptionsConfig.get_options`.
 
     :param: conditional: options fields with values which depend on other fields.
     :param: unconditional: options fields with values which do not depend on other fields.
 
     Adding parameters with default values during runtime works for unconditional only. Adding conditional
-    values might require to adapt. :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options`.
+    values might require to adapt.
 
     Keys which begin with an underscore '_' are ignored.
     """
@@ -76,12 +76,12 @@ class _OptionsConfig:
     This class defines a 'config' of computer options. This is a group-managed set of option nodes.
 
     This class should not be used directly. Instead, use
-    :py:class:`~aiida_jutools.util_computer.ComputerOptionsManager`, which is a managed collection of instances of
+    :py:class:`~.ComputerOptionsManager`, which is a managed collection of instances of
     this class. There, default values for a particular config instance valid for a particular AiiDA computer can
     be defined.
 
     When an instance is created, the instances options and groups are unstored default options/groups. When
-    :py:meth:`~aiida_jutools.util_computer._OptionsConfig.initialize` is called, the instance will look for
+    :py:meth:`~._OptionsConfig.initialize` is called, the instance will look for
     corresponding groups with those nodes in the database. If present, it will load them. If not, it will create and
     store them.
     """
@@ -101,9 +101,9 @@ class _OptionsConfig:
 
     @_dc.dataclass(init=True, repr=True, eq=True, order=False, frozen=False)
     class _HelpConfig:
-        """Internal helper class for :py:class:`~aiida_jutools.util_computer._OptionsConfig`.
+        """Internal helper class for :py:class:`~._OptionsConfig`.
 
-        Defines input/output keywords used by :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help`.
+        Defines input/output keywords used by :py:meth:`~._OptionsConfig.get_help`.
 
         :param keys_mode: input keyword.
         :param desc_mode: input keyword.
@@ -150,7 +150,7 @@ class _OptionsConfig:
         print(f"{level}{cls_name}{config_name}{func_name}: {msg}")
 
     def _check_if_initalized(self) -> bool:
-        """Checks if :py:meth:`~aiida_jutools.util_computer._OptionsConfig.initialize` has been called.
+        """Checks if :py:meth:`~._OptionsConfig.initialize` has been called.
 
         Internal helper.
         """
@@ -165,7 +165,7 @@ class _OptionsConfig:
         Can optionally be set in defaults, or during runtime by user. Otherwise it is guessed by this instance
         when needed, and set.
 
-        To set manually, set underlying list :py:attr:`~aiida_jutools.util_computer.OptionsConfig._computers`.
+        To set manually, set underlying list :py:attr:`~._OptionsConfig._computers`.
         """
         if self._computers:
             return self._computers
@@ -176,10 +176,10 @@ class _OptionsConfig:
     def groups(self) -> _typing.List[_orm.Group]:
         """This config's groups (with options nodes).
 
-        The underlying list :py:attr:`~aiida_jutools.util_computer.OptionsConfig._groups` must be set
+        The underlying list :py:attr:`~._OptionsConfig._groups` must be set
         in defaults when instance is created. The groups do not have to exist yet.
 
-        When :py:meth:`~aiida_jutools.util_computer._OptionsConfig.initialize` is called, the specified groups
+        When :py:meth:`~._OptionsConfig.initialize` is called, the specified groups
         get loaded or created. We allow to specify several groups, e.g., to realize backwards compatibility with
         older config groups exports with different group names.
 
@@ -202,13 +202,13 @@ class _OptionsConfig:
     def options(self) -> _typing.List[_orm.Dict]:
         """All of this config's computer options (builder.metatdata.options) for AiiDA processes.
 
-        The underlying list :py:attr:`~aiida_jutools.util_computer.OptionsConfig._options` must be set
+        The underlying list :py:attr:`~._OptionsConfig._options` must be set
         in defaults when instance is created. The Dicts do not have to exist yet.
 
         To instead load or create a specific options node,
-        use :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options`.
+        use :py:meth:`~._OptionsConfig.get_options`.
 
-        When :py:meth:`~aiida_jutools.util_computer._OptionsConfig.initialize` is called, the specified options
+        When :py:meth:`~._OptionsConfig.initialize` is called, the specified options
         get loaded or created. They are searched in or added to the config's groups.
         """
         if self._check_if_initalized():
@@ -340,8 +340,8 @@ class _OptionsConfig:
                     **kwargs) -> _typing.Union[_typing.List[_orm.Dict], _typing.List[_typing.Dict]]:
         """Get matching options most closely matching given parameters.
 
-        This is the central method of both :py:class:`~aiida_jutools.util_computer._OptionsConfig`and its collection
-        class :py:class:`~aiida_jutools.util_computer.ComputerOptionsManager`. You can call it with no arguments
+        This is the central method of both :py:class:`~._OptionsConfig`and its collection
+        class :py:class:`~.ComputerOptionsManager`. You can call it with no arguments
         at all, and it will give you a valid options node based on best guesses from the default options and/or
         this config's associated computer. Or you can fully specify every valid available computer options field,
         and it will create an options node for that. And everything in between. The method first checks if a
@@ -352,7 +352,7 @@ class _OptionsConfig:
         behavior. For example, if you are unsure whether the specified options should be created and you first want
         to check what kind of options node the method would create. The remaining arguments are all defined computer
         options fields. You can get a full list or descriptions of them by calling
-        :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help`.
+        :py:meth:`~._OptionsConfig.get_help`.
 
         If you supply kwargs (i.e., additional options field values), do it like field_name=value, so e.g.
         get_options(..., scheduler_stderr='stderr.txt', ...).
@@ -366,7 +366,7 @@ class _OptionsConfig:
         :param queue_name: options field. Queue/partition name. If not given but needed, I will guess it.
         :param account: options field. For configs (computers) with account-based queue assignment (e.g., claix).
         :param kwargs: Optional: other options fields.
-               See :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help`.
+               See :py:meth:`~._OptionsConfig.get_help`.
         :return: list of options.
         """
         # DEVNOTE: adjust this if signature changes! (ie if other options keywords are moved from kwargs to named
@@ -820,7 +820,7 @@ class _OptionsConfig:
         """Delete some of the config's stored options from the database.
 
         This is useful, for instance, if you created and stored some undesired options via
-        :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options` by accident. Keeping them in the
+        :py:meth:`~._OptionsConfig.get_options` by accident. Keeping them in the
         config / database worsens the precision of what that method returns.
 
         :param options_nodes: list of stored option nodes you want to have deleted.
@@ -868,7 +868,7 @@ class ComputerOptionsManager:
     :param claix18: claix 2018 config
     :param claix16: claix 2016 config
 
-    Call :py:meth:`~aiida_jutools.util_computer.ComputerOptionsManager.initialize` after creating instance.
+    Call :py:meth:`~.ComputerOptionsManager.initialize` after creating instance.
 
     - sets of sensible defaults options for common computers called 'configs'
     - group-based options management which promotes load or create (reuse over redundancy)
@@ -886,7 +886,7 @@ class ComputerOptionsManager:
     of configs. Depending on the method, using the configs' method directly (e.g. get options), or using
     the manager's method (initialize all configs) is more useful.
 
-    The manager is basically a collection of named :py:class:`~aiida_jutools.util_computer._OptionsConfig` instances.
+    The manager is basically a collection of named :py:class:`~._OptionsConfig` instances.
 
     >>> import aiida
     >>> import aiida_jutools as jutools
@@ -1075,7 +1075,7 @@ class ComputerOptionsManager:
                    delete_verbosity: int = 1):
         """Initialize the manager's configs. Must be called before usage.
 
-        Each config is a :py:class:`~aiida_jutools.util_computer._OptionsConfig` instance. These
+        Each config is a :py:class:`~._OptionsConfig` instance. These
         contain a set of unstored default options nodes, a group for them. When this method is called,
         the manager checks for each config whether the group and nodes exist. Then it loads them from
         the database, or creates (stores) them. Then they are available for usage.
@@ -1160,11 +1160,11 @@ class ComputerOptionsManager:
         """Get matching options from specified configs most closely matching given parameters.
 
         Note: Often it is easier to address the desired config by manager attribute and call its
-        method :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options` directly. The
+        method :py:meth:`~._OptionsConfig.get_options` directly. The
         manager's method here calls each of these in turn and collects the result options in one list. Most of
         the time, one only wants options for a specific computer, i.e., from a specific config.
 
-        See :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_options` for details.
+        See :py:meth:`~._OptionsConfig.get_options` for details.
 
         :param config_names: Empty: on all configs. Subset: based on these configs.
         :param store_if_not_exist: True: if the matching options Dict doesn't exist yet, store it before returning it.
@@ -1176,7 +1176,7 @@ class ComputerOptionsManager:
         :param queue_name: options field. Queue/partition name. If not given but needed, I will guess it.
         :param account: options field. For configs (computers) with account-based queue assignment (e.g., claix).
         :param kwargs: Optional: other options fields.
-               See :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help`.
+               See :py:meth:`~._OptionsConfig.get_help`.
         :return: list of options from selected configs.
         """
         valid_config_names, _, _ = self._get_valid_config_names_from(config_names=config_names, silent=silent)
@@ -1203,7 +1203,7 @@ class ComputerOptionsManager:
                  *args) -> _typing.Dict[str, _typing.Any]:
         """Get help on valid computer options keywords.
 
-        This method calls the manager's configs' :py:meth:`~aiida_jutools.util_computer._OptionsConfig.get_help` method.
+        This method calls the manager's configs' :py:meth:`~._OptionsConfig.get_help` method.
         The only difference of what both return is in the keywords mode. In the keywords mode, this method returns
         all option keywords (fields), and all options 'resources' fields for each config. The latter may differ based
         on the config's associated computer/scheduler.
@@ -1249,7 +1249,7 @@ class ComputerOptionsManager:
         """Delete some of the specified configs' stored options from the database.
 
         This methods calls each of the manager's configs' corresponding methods
-        :py:meth:`~aiida_jutools.util_computer._OptionsConfig.delete_options` in turn.
+        :py:meth:`~._OptionsConfig.delete_options` in turn.
 
         :param config_names: Empty: on all configs. Subset: based on these configs.
         :param options_nodes: list of stored option nodes you want to have deleted.

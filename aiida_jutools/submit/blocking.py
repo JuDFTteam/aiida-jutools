@@ -29,7 +29,7 @@ import aiida_jutools as _jutools
 
 @_dc.dataclass
 class BlockingSubmissionControllerSettings:
-    """Settings for :py:class:`~BlockingSubmissionController`. See its documentation for details.
+    """Settings for :py:class:`~.BlockingSubmissionController`. See its documentation for details.
 
     Time unit of 'wait' attributes is minutes.
 

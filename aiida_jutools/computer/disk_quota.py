@@ -51,7 +51,7 @@ class QuotaQuerier:
                  settings: QuotaQuerierSettings):
         """Convenience methods for getting the quota of aiida configured computer nodes.
 
-        Use this class' builder :py:class:`~aiida_jutools.util_computer.QuotaQuerierBuilder` to create an instance.
+        Use this class' builder :py:class:`~.QuotaQuerierBuilder` to create an instance.
 
         :param computer:  an aiida configured computer
         :param settings: settings

@@ -330,7 +330,7 @@ class CifImporter:
 
 
 def cif2astr(cifpath):
-    """Runs :py:meth:`~analyze_symmetry` on a CIF file and prints color-coded summary."""
+    """Runs :py:meth:`~.aiida_jutools.structure.analyze_symmetry` on a CIF file and prints color-coded summary."""
     prompt = ""
 
     dd = {
