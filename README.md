@@ -62,6 +62,6 @@ Please adhere to the developer coding conventions:
   Provide a ``dry_run:bool=True`` and verbosity options (``verbosity:int``, ``verbose:bool``, or ``silent:bool``).
 - If you use [cross-references](https://www.sphinx-doc.org/en/master/usage/restructuredtext/domains.html#cross-referencing-python-objects) 
   in docstrings, do cross-referencing relative to the current location (i.e., prefixed by a dot `.`). Example: 
-  :py:func:`~.query_processes` instead of 
-  :py:func:`~aiida_jutools.process.query_processes`, when in module `aiida_jutools.process`.  
+  `` :py:func:`~.query_processes` `` instead of 
+  `` :py:func:`~aiida_jutools.process.query_processes` ``, when in module `aiida_jutools.process`.  
 
