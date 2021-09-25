@@ -10,17 +10,8 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with aiida-kkr nodes.
+"""Tools for working with AiiDA metadata / annotations: extras: forms."""
 
-Note: Prefer importing """
-
-from .constants import \
-    get_runtime_kkr_constants_version, \
-    KkrConstantsVersion, \
-    KkrConstantsVersionChecker
-
-from .util import \
-    find_Rcut, \
-    has_kkr_calc_converged, \
-    query_kkr_wc, \
-    query_structure_from
+# import forms from their modules
+from .KkrConstantsVersion import \
+    KkrConstantsVersionExtraForm
