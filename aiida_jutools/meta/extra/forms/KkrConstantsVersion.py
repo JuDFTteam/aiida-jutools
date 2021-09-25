@@ -14,11 +14,10 @@
 
 import typing as _typing
 
-import masci_tools.util.python_util as _masci_python_util
 import masci_tools.util.constants as _masci_constants
 from aiida import orm as _orm
 
-from aiida_jutools.kkr import KkrConstantsVersion as _KkrConstantsVersion, \
+from aiida_jutools.plugins.kkr import KkrConstantsVersion as _KkrConstantsVersion, \
     get_runtime_kkr_constants_version as _get_runtime_kkr_constants_version
 from ..util import ExtraForm as _ExtraForm
 

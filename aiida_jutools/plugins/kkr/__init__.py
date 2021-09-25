@@ -10,9 +10,7 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with aiida-kkr nodes.
-
-Note: Prefer importing """
+"""Tools for working with plugins: aiida-kkr."""
 
 from .constants import \
     get_runtime_kkr_constants_version, \
