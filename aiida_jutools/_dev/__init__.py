@@ -15,6 +15,6 @@
 from .periodic_tables import \
     minimal_periodic_table
 
-# not importing constants from .terminal_colors to subpackage since large number of constants.
-# instead, import locally from module.
+# not importing constants from .terminal_colors to this namespace (currently, jutools._dev) since large number of
+# constants. instead, import locally from module explicitly:
 # from .terminal_colors import *
