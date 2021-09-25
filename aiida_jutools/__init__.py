@@ -34,7 +34,13 @@ from . import structure
 from . import _dev
 
 # Potentially problematic imports:
-# - kkr: As soon as aiida-kkr becomes dependent on aiida-jutools, this import could introduce a circular
-#        dependency. One solution to that might be to *not* import kkr here, but require that it is imported
-#        separately by the user, e.g. like from aiida_jutools import kkr as _jutools_kkr.
-
+# - kkr: As soon as aiida-kkr becomes dependent on aiida-jutools, this import MIGHT introduce a circular
+#        dependencies. A simple test (made aiida-kkr import aiida-jutools) had no such effect. But if it
+#        occurs, here a few potential solutions:
+#        - Decouple the kkr package = remove from import list above. Then all code using it must be updated
+#          to import it separately, like from aiida_jutools import kkr as _jutools_kkr. Might break external code.
+#        - Hide all aiida-kkr imports = in resp. module, move them inside the tools that use them. If it works,
+#          this might be a solution that does not break external code.
+#
+# The potential problem and the solution stated above, if it becomes one, applies to other JuDFTTeam plugins as well,
+# should they start using aiida-jutools as common codebase (aiida-fleur, aiida-spirit, aiida-spex, ...).

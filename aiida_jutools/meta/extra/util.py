@@ -134,7 +134,10 @@ def ExtraFormFactory(form_name: str = None) -> _typing.Optional[_typing.Type[Ext
 
     Available extra forms:
 
-    - `'kkr_constants_version'`: Extra for setting conversion constants versions used by an AiiDA calc / workflow.
+    - `'kkr_constants_version'`: Extra documenting conversion constants versions used by aiida-kkr calc / workflow.
+
+    Note: This factory is useful for use in runtime (interpreter, notebook). For use in library, direct form import
+    from :py:mod:`~.forms` should be preferred.
 
     :param form_name: name of the extra form. Usually identical to name of the extra. None prints a list.
     :return: The class of the ExtraForm for instantiation.
