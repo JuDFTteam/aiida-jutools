@@ -401,7 +401,7 @@ class KkrConstantsVersionChecker:
         ANG_BOHR_KKR = None
         constants_version = None
 
-        structure = _jutools.kkr.query_structure_from(wc)
+        structure = _jutools.plugins.kkr.query_structure_from(wc)
 
         structure_cell = _np.array(structure.cell)
         _masci_math_util.set_zero_below_threshold(structure_cell, threshold=zero_threshold)

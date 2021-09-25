@@ -22,8 +22,8 @@ from . import code
 from . import computer
 from . import group
 from . import io
-from . import kkr
 from . import logging
+from . import plugins             # meta -depends on-> plugins
 from . import meta
 from . import node
 from . import process
