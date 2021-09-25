@@ -11,7 +11,6 @@
 #                                                                             #
 ###############################################################################
 """Tools for working with aiida-kkr nodes: constants."""
-
 import collections as _collections
 import datetime as _datetime
 import enum as _enum
@@ -80,8 +79,64 @@ class KkrConstantsVersion(_enum.Enum):
     NEW = 0
     OLD = 1
     INTERIM = 2
-    NEITHER = 3
-    UNDECISIVE = 4
+    UNDEFINED = 3
+
+    def lookup(self,
+               constant_name: str,
+               silent: bool = False) -> _typing.Optional[float]:
+        """Lookup the value of a constant tied to this version.
+
+        Defined constants: `'ANG_BOHR_KKR'`, `'RY_TO_EV_KKR'` (defined in :py:mod:`~masci_tools.util.constants`).
+
+        Only the 'valid' enums NEW, OLD, INTERIM have defined constant values. The others ('invalid' enums) are only
+        used for runtime version checking.
+
+        :param constant_name: A defined constant name.
+        :param silent: True: Print warnings.
+        :return: Value of the constant or None if invalid enum or undefined constant name.
+        """
+        constant_names = ['ANG_BOHR_KKR',
+                          'RY_TO_EV_KKR']
+        valid_version_names = [v.name for v in [KkrConstantsVersion.NEW,
+                                                KkrConstantsVersion.INTERIM,
+                                                KkrConstantsVersion.OLD]]
+
+        if constant_name not in constant_names:
+            print(f"Warning: Specified undefined {KkrConstantsVersion.__name__} constant name '{constant_name}'. "
+                  f"Defined names: {constant_names}.")
+        if self.name not in valid_version_names:
+            print(f"Warning: Lookup of constant value for invalid version '{self.name}'. "
+                  f"Constants values are only defined for the versions {valid_version_names}.")
+
+        a2b_name = constant_names[0]
+        r2e_name = constant_names[1]
+        cases = {
+            'X': self.name not in valid_version_names or constant_name not in constant_names,
+            'a2b_new': constant_name == a2b_name and self.name == KkrConstantsVersion.NEW.name,
+            'a2b_int': constant_name == a2b_name and self.name == KkrConstantsVersion.INTERIM.name,
+            'a2b_old': constant_name == a2b_name and self.name == KkrConstantsVersion.OLD.name,
+            'r2e_new': constant_name == r2e_name and self.name == KkrConstantsVersion.NEW.name,
+            'r2e_int': constant_name == r2e_name and self.name == KkrConstantsVersion.INTERIM.name,
+            'r2e_old': constant_name == r2e_name and self.name == KkrConstantsVersion.OLD.name,
+        }
+
+        if cases['X']:
+            return None
+        elif cases['a2b_new']:
+            return 1.8897261246257702
+        elif cases['a2b_int']:
+            return 1.8897261249935897
+        elif cases['a2b_old']:
+            return 1.8897261254578281
+        elif cases['r2e_new']:
+            return 13.605693122994
+        elif cases['r2e_int']:
+            return 13.605693122994
+        elif cases['r2e_old']:
+            return 13.605693009
+        else:
+            raise NotImplementedError("This code location should never be reached. Please send bug report to "
+                                      "developer.")
 
     @property
     def description(self) -> _typing.Union[_typing.Dict[str, _typing.Union[str, _datetime.datetime]], str]:
@@ -127,10 +182,48 @@ class KkrConstantsVersion(_enum.Enum):
                                                       hour=19, minute=40, second=0,
                                                       microsecond=0, tzinfo=_pytz.UTC)
                     }
-        elif self.name in [KkrConstantsVersion.NEITHER.name, KkrConstantsVersion.UNDECISIVE.name]:
-            return f"For classification of aiida-kkr workchains by class {KkrConstantsVersionChecker.__name__}."
+        elif self.name == KkrConstantsVersion.UNDEFINED.name:
+            return f"For unknown values. This might occur in future implementation changes. " \
+                   f"Note that since version '{KkrConstantsVersion.NEW.name}', the masci-tools " \
+                   f"constants use the NIST values. Future updates due to NIST updates are expected " \
+                   f"to be below the 1e-12 threshold, and so have no effect on their KKR usage, unlike " \
+                   f"previous changes from '{KkrConstantsVersion.OLD.name}' to '{KkrConstantsVersion.INTERIM.name}' " \
+                   f"to '{KkrConstantsVersion.NEW.name}'. Nevertheless, the values defined here for the latter " \
+                   f"might have to either be turned into a list of accepted values, or a tolerance could be " \
+                   f"implemented for it, in order to not break down in this event."
         else:
             raise NotImplementedError("Enum with undefined behavior. Contact developer.")
+
+
+def get_runtime_kkr_constants_version(silent: bool = False) -> KkrConstantsVersion:
+    """Determine the runtime version of KKR constants values.
+
+    The KKR constants values are defined in :py:mod:`~masci_tools.util.constants`. For backwards compatibility,
+    different versions can be defined by setting an environment variable. This function uses the 'ANG_BOHR_KKR'
+    constant to determine the runtime version used by your interpreter, notebook kernel, ...). For more information,
+    see :py:class:`~.KkrConstantsVersion`.
+
+    :param silent: True: Do not print warnings.
+    :return: runtime version of KKR constants.
+    """
+    # get the current ANG_BOHR_KKR value
+    # note: aiida-kkr uses masci_tools.io.common_functions get_Ang2aBohr (=ANG_BOHR_KKR),
+    #       get_aBohr2Ang() (=1/ANG_BOHR_KKR), get_Ry2eV (=RY_TO_EV_KKR) instead, but this is redundant.
+    #       Here we import the constants directly.
+    # note:
+    msg_suffix = f"This could indicate an implementation change. " \
+                 f"As a result, code using {KkrConstantsVersion.__name__} might not work correctly anymore."
+
+    if _masci_constants.ANG_BOHR_KKR == KkrConstantsVersion.NEW.lookup('ANG_BOHR_KKR'):
+        return KkrConstantsVersion.NEW
+    elif _masci_constants.ANG_BOHR_KKR == KkrConstantsVersion.INTERIM.lookup('ANG_BOHR_KKR'):
+        return KkrConstantsVersion.INTERIM
+    elif _masci_constants.ANG_BOHR_KKR == KkrConstantsVersion.OLD.lookup('ANG_BOHR_KKR'):
+        return KkrConstantsVersion.OLD
+    else:
+        print(f"Warning: The KKR constants version the runtime is using could not be determined: "
+              f"The runtime value of constant ANG_BOHR_KKR matches no expected value. {msg_suffix}")
+        return KkrConstantsVersion.UNDEFINED
 
 
 class KkrConstantsVersionChecker:
@@ -173,17 +266,8 @@ class KkrConstantsVersionChecker:
 
         #######################
         # 1) init internal data structures
-        self._ANG_BOHR_KKR = {  # order importance (not by value): NEW > OLD > INTERIM
-            KkrConstantsVersion.NEW: 1.8897261246257702,
-            KkrConstantsVersion.INTERIM: 1.8897261249935897,
-            KkrConstantsVersion.OLD: 1.8897261254578281,
-        }
-        self._RY_TO_EV_KKR = {  # order importance (not by value): NEW > OLD
-            KkrConstantsVersion.NEW: 13.605693122994,
-            KkrConstantsVersion.INTERIM: 13.605693122994,
-            KkrConstantsVersion.OLD: 13.605693009,
-        }
-        self._runtime_version = None
+        self._runtime_version = get_runtime_kkr_constants_version()
+        self._form_cls = _jutools.meta.extra.forms.KkrConstantsVersionExtraForm
 
         # create an empty DataFrame to hold one row of data for each check workchain.
         self._df_index_name = 'workchain_uuid'
@@ -202,54 +286,38 @@ class KkrConstantsVersionChecker:
         #######################
         # 2) read in current constants values and cross-check with environment
 
-        # get the current ANG_BOHR_KKR value
-        # note: aiida-kkr uses masci_tools.io.common_functions get_Ang2aBohr (=ANG_BOHR_KKR),
-        #       get_aBohr2Ang() (=1/ANG_BOHR_KKR), get_Ry2eV (=RY_TO_EV_KKR) instead, but this is redundant.
-        #       Here we import the constants directly.
-        # note:
-        msg_suffix = "This could indicate an implementation change. " \
-                     "As a result, this function might not work correctly anymore."
-
-        if _masci_constants.ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.NEW]:
-            self._runtime_version = KkrConstantsVersion.NEW
-        elif _masci_constants.ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.INTERIM]:
-            self._runtime_version = KkrConstantsVersion.INTERIM
-        elif _masci_constants.ANG_BOHR_KKR == self.ANG_BOHR_KKR[KkrConstantsVersion.OLD]:
-            self._runtime_version = KkrConstantsVersion.OLD
-        else:
-            self._runtime_version = KkrConstantsVersion.NEITHER
-            print(f"Warning: The KKR constants version the runtime is using could not be determined: "
-                  f"The runtime value of constant ANG_BOHR_KKR matches no expected value. {msg_suffix}")
-
-        # env var cases: 4: None, 'interim', 'old', not {None, 'old', 'interim'}.
-        # const type cases: 4: NEW, OLD, INTERIM, NEITHER.
-        # cross-product: 4 x 4 = 16.
-        # this assumes that current masci-tools version supports the environment switch WITH the 'Interim' option,
-        # i.e. from 2021-01-08 or newer (switch was implemented 2021-04-28, without 'Interim' option).
-        #
-        # | env var                       | const type | valid | defined | reaction  | case |
-        # | ------------------            | ---------- | ----- | ------- | --------- | ---- |
-        # | None                          | NEW        | yes   | yes     | pass      | E    |
-        # | None                          | INTERIM    | no    | no      | exception | A    |
-        # | None                          | OLD        | no    | no      | exception | A    |
-        # | None                          | NEITHER    | no    | no      | exception | A    |
-        # | 'Interim                      | New        | no    | no      | exception | B    |
-        # | 'interim'                     | INTERIM    | yes   | yes     | pass      | E    |
-        # | 'interim'                     | OLD        | yes   | yes     | exception | B    |
-        # | 'interim'                     | NEITHER    | no    | no      | exception | B    |
-        # | 'old'                         | New        | no    | no      | exception | C    |
-        # | 'old'                         | INTERIM    | no    | no      | exception | C    |
-        # | 'old'                         | OLD        | yes   | yes     | pass      | E    |
-        # | 'old'                         | NEITHER    | no    | no      | exception | C    |
-        # | not {None, 'old', 'interim'}  | NEW        | no    | no      | pass(1)   | E    |
-        # | not {None, 'old', 'interim'}  | INTERIM    | no    | no      | exception | D    |
-        # | not {None, 'old', 'interim'}  | OLD        | no    | no      | exception | D    |
-        # | not {None, 'old', 'interim'}  | NEITHER    | no    | no      | exception | D    |
-        # Annotations:
-        # - case 'D' = 'else' = 'pass'.
-        # - (1): passes with warning, from const type NEITHER above.
-
         if check_env:
+            msg_suffix = f"This could indicate an implementation change. " \
+                         f"As a result, code using {KkrConstantsVersion.__name__} might not work correctly anymore."
+
+            # env var cases: 4: None, 'interim', 'old', not {None, 'old', 'interim'}.
+            # const type cases: 4: NEW, OLD, INTERIM, NEITHER.
+            # cross-product: 4 x 4 = 16.
+            # this assumes that current masci-tools version supports the environment switch WITH the 'Interim' option,
+            # i.e. from 2021-01-08 or newer (switch was implemented 2021-04-28, without 'Interim' option).
+            #
+            # | env var                       | const type | valid | defined | reaction  | case |
+            # | ------------------            | ---------- | ----- | ------- | --------- | ---- |
+            # | None                          | NEW        | yes   | yes     | pass      | E    |
+            # | None                          | INTERIM    | no    | no      | exception | A    |
+            # | None                          | OLD        | no    | no      | exception | A    |
+            # | None                          | NEITHER    | no    | no      | exception | A    |
+            # | 'Interim                      | New        | no    | no      | exception | B    |
+            # | 'interim'                     | INTERIM    | yes   | yes     | pass      | E    |
+            # | 'interim'                     | OLD        | yes   | yes     | exception | B    |
+            # | 'interim'                     | NEITHER    | no    | no      | exception | B    |
+            # | 'old'                         | New        | no    | no      | exception | C    |
+            # | 'old'                         | INTERIM    | no    | no      | exception | C    |
+            # | 'old'                         | OLD        | yes   | yes     | pass      | E    |
+            # | 'old'                         | NEITHER    | no    | no      | exception | C    |
+            # | not {None, 'old', 'interim'}  | NEW        | no    | no      | pass(1)   | E    |
+            # | not {None, 'old', 'interim'}  | INTERIM    | no    | no      | exception | D    |
+            # | not {None, 'old', 'interim'}  | OLD        | no    | no      | exception | D    |
+            # | not {None, 'old', 'interim'}  | NEITHER    | no    | no      | exception | D    |
+            # Annotations:
+            # - case 'D' = 'else' = 'pass'.
+            # - (1): passes with warning, from const type NEITHER above.
+
             # double-check with environment variable
             env_var_key = 'MASCI_TOOLS_USE_OLD_CONSTANTS'
             env_var_val = _os.environ.get(env_var_key, None)
@@ -278,16 +346,6 @@ class KkrConstantsVersionChecker:
                     f"{msg_suffix}")
 
     @property
-    def ANG_BOHR_KKR(self) -> _typing.Dict[KkrConstantsVersion, float]:
-        """All constants versions of the conversion constant ``ANG_BOHR_KKR`` (Angstrom to Bohr radius)."""
-        return self._ANG_BOHR_KKR
-
-    @property
-    def RY_TO_EV_KKR(self) -> _typing.Dict[KkrConstantsVersion, float]:
-        """All constants versions of the conversion constant ``RY_TO_EV_KKR`` (Rydberg to electron Volt)."""
-        return self._RY_TO_EV_KKR
-
-    @property
     def runtime_version(self) -> KkrConstantsVersion:
         """Get KKR constant version which the interpreter is using at runtime."""
         return self._runtime_version
@@ -305,6 +363,7 @@ class KkrConstantsVersionChecker:
                                wc: _orm.WorkChainNode,
                                record: bool = False,
                                set_extra: bool = False,
+                               overwrite_extra: bool = False,
                                zero_threshold: float = 1e-15,
                                group_label: str = None) -> _typing.Optional[KkrConstantsVersion]:
         """Classify a finished workchain by its used KKR constants version by reverse-calculation.
@@ -321,8 +380,9 @@ class KkrConstantsVersionChecker:
 
         :param wc: finished aiida-kkr workchain.
         :param record: False: return constants version of workchain. True: record results in dataframe.
-        :param zero_threshold: Set structure cell elements below this threshold to zero to counter rounding errors.
         :param set_extra: True: Set an extra on the workchain denoting the identified KKR constants version and values.
+        :param overwrite_extra: True: overwrite if already exists.
+        :param zero_threshold: Set structure cell elements below this threshold to zero to counter rounding errors.
         :param group_label: optional: specify group label the workchain belongs to.
         """
 
@@ -456,8 +516,11 @@ class KkrConstantsVersionChecker:
 
         difference = _collections.OrderedDict()
         # difference = {}
-        for ctype, value in self.ANG_BOHR_KKR.items():
-            difference[ctype] = abs(ANG_BOHR_KKR - value)
+        valid_versions = [KkrConstantsVersion.NEW,
+                          KkrConstantsVersion.INTERIM,
+                          KkrConstantsVersion.OLD]
+        for version in valid_versions:
+            difference[version] = abs(ANG_BOHR_KKR - version.lookup(constant_name='ANG_BOHR_KKR'))
 
         # find indices of minima
         indices = [i for i, val in enumerate(difference.values()) if val == min(difference.values())]
@@ -471,22 +534,27 @@ class KkrConstantsVersionChecker:
         #######################
         # 5) Set extra.
         if set_extra:
-            extra = {
-                'constants_version': constants_version.name,
-                'ANG_BOHR_KKR': None,
-                'RY_TO_EV_KKR': None
-            }
-
+            # for the extra, in case the version determination succeeded, it is better to use
+            # the tabulated values of the constants than the reverse-calculated one.
+            # Reason: in these cases, the calculation had been performed with the actual values,
+            # the reverse-calculated is just an approximation of it.
             if constants_version in [KkrConstantsVersion.NEW,
                                      KkrConstantsVersion.INTERIM,
                                      KkrConstantsVersion.OLD]:
-                extra['ANG_BOHR_KKR'] = self.ANG_BOHR_KKR[constants_version]
-                extra['RY_TO_EV_KKR'] = self.RY_TO_EV_KKR[constants_version]
+                _ANG_BOHR_KKR = constants_version.lookup(constant_name='ANG_BOHR_KKR')
+                _RY_TO_EV_KKR = constants_version.lookup(constant_name='RY_TO_EV_KKR')
             else:
-                extra['ANG_BOHR_KKR'] = ANG_BOHR_KKR
-                extra['RY_TO_EV_KKR'] = None  # TODO recalculate as well
+                _ANG_BOHR_KKR = ANG_BOHR_KKR
+                _RY_TO_EV_KKR = None  # TODO recalculate as well
 
-            wc.set_extra('kkr_constants_version', extra)
+            form = self._form_cls(constants_version=constants_version,
+                                  ANG_BOHR_KKR=_ANG_BOHR_KKR,
+                                  RY_TO_EV_KKR=_RY_TO_EV_KKR)
+
+            # without validation: allow also None values
+            form.insert(entity=wc,
+                        validate=False,
+                        overwrite=overwrite_extra)
 
         #######################
         # 6) Return used version, or record results in dataframe
@@ -508,6 +576,7 @@ class KkrConstantsVersionChecker:
                               group: _orm.Group,
                               process_labels: _typing.List[str] = [],
                               set_extra: bool = False,
+                              overwrite_extra: bool = False,
                               zero_threshold: float = 1e-15):
         """Classify a group of finished workchains by their used KKR constants versions by reverse-calculation.
 
@@ -523,6 +592,7 @@ class KkrConstantsVersionChecker:
         :param group: a group with aiida-kkr workchain nodes. Workchains must have a ``kkr_startpot_wc`` descendant.
         :param process_labels: list of valid aiida-kkr workchain process labels, e.g. ['kkr_scf_wc', ...].
         :param set_extra: True: Set an extra on the workchain denoting the identified KKR constants version and values.
+        :param overwrite_extra: True: overwrite if already exists.
         :param zero_threshold: Set structure cell elements below this threshold to zero to counter rounding errors.
         """
         if not process_labels:
@@ -534,6 +604,7 @@ class KkrConstantsVersionChecker:
                     self.check_single_workchain(wc=node,
                                                 record=True,
                                                 set_extra=set_extra,
+                                                overwrite_extra=overwrite_extra,
                                                 zero_threshold=zero_threshold,
                                                 group_label=group.label)
 
@@ -564,7 +635,7 @@ class KkrConstantsVersionChecker:
         :return: list of matching workchains, or boolean mask of matching workchains (True = same version as runtime.)
         """
 
-        def _uses_runtime_version(wc, set_extra: bool = False):
+        def _uses_runtime_version(wc, set_extra: bool = False) -> bool:
             version = None
             extra = wc.extras.get('kkr_constants_version', None)
             convert_extra_failed = False
