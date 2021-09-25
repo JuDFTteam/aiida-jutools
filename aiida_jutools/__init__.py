@@ -23,9 +23,9 @@ from . import computer
 from . import group
 from . import io
 from . import logging
-from . import plugins             # meta -depends on-> plugins
 from . import meta
 from . import node
+from . import plugins
 from . import process
 from . import process_functions
 from . import submit
