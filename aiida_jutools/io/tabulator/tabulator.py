@@ -24,7 +24,7 @@ import typing as _typing
 import aiida_jutools as _jutools
 
 
-class PropertyTransformer(_abc.ABC):
+class Transformer(_abc.ABC):
     """Specify how to transformer an object's properties for use in :py:class:`Tabulator`.
 
     To subclass, you have to implement the :py:meth:`~transformer` method.
@@ -37,7 +37,7 @@ class PropertyTransformer(_abc.ABC):
                   **kwargs) -> _typing.Tuple[_typing.Union[None, _typing.Any, dict], bool]:
         """Specify how to transform properties, based on their keypath and type.
 
-        Extends :py:meth:`~.PropertyTransformer.transform`. See also its docstring.
+        Extends :py:meth:`~.Transformer.transform`. See also its docstring.
 
         This default transformer returns all property values unchanged, and so has no effect. To define
         transformations, create a subclass and overwrite with a custom transform method.
@@ -82,8 +82,8 @@ class PropertyTransformer(_abc.ABC):
         pass
 
 
-class DefaultPropertyTransformer(PropertyTransformer):
-    """Extends :py:class:`~PropertyTransformer`.
+class DefaultTransformer(Transformer):
+    """Extends :py:class:`~Transformer`.
 
     This default transformer does nothing (invariant operation): it just returns the value it received, along with
     the new columns flag with value 'False'.
@@ -97,11 +97,11 @@ class DefaultPropertyTransformer(PropertyTransformer):
         return value, False
 
 
-class TabulatorRecipe(_abc.ABC):
+class Recipe(_abc.ABC):
     def __init__(self,
                  exclude_list: dict = None,
                  include_list: dict = None,
-                 transformer: PropertyTransformer = None,
+                 transformer: Transformer = None,
                  **kwargs):
         """Initialize a tabulator object.
 
@@ -162,7 +162,7 @@ class TabulatorRecipe(_abc.ABC):
         """Generate paths from a possibly nested dictionary.
 
         This method can be used for handling include lists, exclude lists, and when writing
-        new :py:class:`~PropertyTransformer` transform methods.
+        new :py:class:`~Transformer` transform methods.
 
         List of paths to each value within the dict as tuples (path, value).
 
@@ -235,7 +235,7 @@ class Tabulator(_abc.ABC):
     """For tabulation of a collection of objects' (common) properties into a dict or dataframe."""
 
     def __init__(self,
-                 recipe: TabulatorRecipe = None,
+                 recipe: Recipe = None,
                  **kwargs):
         """Initialize a tabulator object.
 
@@ -257,7 +257,7 @@ class Tabulator(_abc.ABC):
         :param kwargs: Additional keyword arguments for subclasses.
         """
         if not recipe:
-            recipe = TabulatorRecipe()
+            recipe = Recipe()
         self.recipe = recipe
         self._table_types = []
         self._table = None
@@ -326,7 +326,7 @@ class NodeTabulator(Tabulator):
     """
 
     def __init__(self,
-                 recipe: TabulatorRecipe = None,
+                 recipe: Recipe = None,
                  **kwargs):
         """Init node tabulator.
 
