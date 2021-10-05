@@ -1,3 +1,4 @@
+# pylint: disable=unused-import
 # -*- coding: utf-8 -*-
 ###############################################################################
 # Copyright (c), Forschungszentrum Jülich GmbH, IAS-1/PGI-1, Germany.         #
@@ -11,6 +12,19 @@
 #                                                                             #
 ###############################################################################
 """Tools for working with AiiDA IO: tabulation (nodes -> DataFrame)."""
+
+# import submodules
+from . import transformers
+from . import recipes
+from . import tabulator
+
+# import most important user classes to this level
+from .transformers import \
+    Transformer, \
+    DefaultTransformer
+
+from .recipes import \
+    Recipe
 
 from .tabulator import \
     NodeTabulator
