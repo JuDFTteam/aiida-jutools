@@ -27,18 +27,117 @@ import functools as _functools
 import operator as _operator
 
 
-def get_from_nested_dict(a_dict: dict, path: list) -> _typing.Any:
-    """Example: `(a_dict, ['key_on_level1', 'key_on_level2'])`."""
-    return _functools.reduce(_operator.getitem, path, a_dict)
+def get_from_nested_dict(a_dict: dict,
+                         keypath: list) -> _typing.Any:
+    """Get value from inside a nested dictionary.
+
+    Example: `(nested_dict, ['key_on_level1', 'key_on_level2'])` returns value of 'key_on_level2'.
+
+    :param a_dict: A nested dictionary.
+    :param keypath: A list of keys, one per nesting level.
+    :return: value of the last key in the path.
+    """
+    return _functools.reduce(_operator.getitem, keypath, a_dict)
 
 
-def set_in_nested_dict(a_dict: dict, path: list, value: _typing.Any):
-    """Example: `(a_dict, ['key_on_level1', 'key_on_level2'], value)`."""
-    if path:
-        if len(path) == 1:
-            a_dict[path[0]] = value
+def set_in_nested_dict(a_dict: dict,
+                       keypath: list,
+                       value: _typing.Any):
+    """Set value inside a nested dictionary.
+
+    Example: `(nested_dict, ['key_on_level1', 'key_on_level2'], sets)` value of 'key_on_level2'.
+
+    :param a_dict: A nested dictionary.
+    :param keypath: A list of keys, one per nesting level.
+    :param value: value for the last key in the path.
+    """
+    if keypath:
+        if len(keypath) == 1:
+            a_dict[keypath[0]] = value
         else:
-            get_from_nested_dict(a_dict, path[:-1])[path[-1]] = value
+            get_from_nested_dict(a_dict, keypath[:-1])[keypath[-1]] = value
+
+
+def get_from_nested_node(node: _orm.Node,
+                         keypath: list) -> _typing.Tuple[_typing.Any, _typing.Optional[Exception]]:
+    """Get value from a node, including values nested inside attached `Dict` nodes or attached dictionaries.
+
+    Examples:
+
+    - `(node, ['uuid'])` returns uuid from node.
+    - `(node, ['extras', 'my_extra', 'my_subextra'])` returns value of 'my_subextra' from node extras.
+    - `(a_workchain, ['outputs', 'workflow_info', 'converged'])` returns value of 'converged' from workchain outputs
+      node 'workflow_info.
+    - `(node, ['attributes', 'key_level1', 'key_level2'])` returns value of 'key_level2' from `Dict` node.
+
+    :param node: An AiiDA node.
+    :param keypath: A list of keys, one per nesting level. First nesting level is the node attribute name. In case
+                    of inputs and outputs node, the second key is 'inputs' or 'outputs' and the third the input or
+                    output name that `node.outputs.` displays on tab completion (which, under the hood, comes from the
+                    in- or outgoing link_label).
+    :return: value of the last key in the path.
+    """
+    if not keypath:
+        err = KeyError("Keypath is empty.")
+        return None, err
+
+    # first item in keypath always refers to a node attribute.
+    attr = None
+    attr_name = keypath[0]
+    try:
+        attr = getattr(node, attr_name)
+    except AttributeError as err:
+        return None, err
+
+    if len(keypath) == 1:
+        return attr, None
+
+    elif isinstance(attr, dict):
+        # applies e.g. to extras
+        a_dict = attr
+        try:
+            value = get_from_nested_dict(a_dict=a_dict,
+                                         keypath=keypath[1:])
+            return value, None
+        except KeyError as err:
+            return None, err
+
+    elif isinstance(attr, _orm.Dict):
+        # applies e.g. to extras
+        a_dict = attr.attributes
+        try:
+            value = get_from_nested_dict(a_dict=a_dict,
+                                         keypath=keypath[1:])
+            return value, None
+        except KeyError as err:
+            return None, err
+
+    elif attr_name in ['inputs', 'outputs']:
+        in_or_outputs = attr
+        link_label = keypath[1]
+        # note: link_label are the outputs 'names'. another way to get them is
+        # link_triples = node.get_outgoing(node_class=_orm.Dict).all()
+        # out_dicts = {lt.link_label: lt.node.attributes for lt in link_triples}
+        # ####
+        try:
+            io_node = getattr(in_or_outputs, link_label)
+        except AttributeError as err:
+            return None, err
+        if not isinstance(io_node, _orm.Dict):
+            err = TypeError(f"{attr_name} node {link_label} is not {_orm.Dict}. Not supported.")
+            return None, err
+
+        in_or_out_dict = io_node.attributes
+        try:
+            value = get_from_nested_dict(a_dict=in_or_out_dict,
+                                         keypath=keypath[2:])
+            return value, None
+        except KeyError as err:
+            return None, err
+
+    else:
+        err = ValueError(f"Reading sub-properties from node attribute '{keypath[0]}' is not supported yet.")
+        return None, err
 
 
 class PropertyTransformer():
@@ -270,7 +369,7 @@ class NodePropertyTransformer(PropertyTransformer):
                   value: _typing.Any,
                   obj: _orm.Node = None,
                   **kwargs) -> _typing.Tuple[_typing.Union[None, _typing.Any, dict], bool]:
-        """Specify how to transform properties, based on their property path and type.
+        """Specify how to transform properties, based on their keypath and type.
         
         Extends :py:meth:`~.PropertyTransformer.transform`. See also its docstring.
 
@@ -285,10 +384,12 @@ class NodePropertyTransformer(PropertyTransformer):
 
         .. code-block:: python
 
-           if property_path == ['outputs', 'last_calc_output_parameters', 'total_charge_per_atom']:
+           if keypath == ['outputs', 'last_calc_output_parameters', 'total_charge_per_atom']:
                # assert isinstance(value, list) # optional
-               return { 'total_charge_per_atom' : value, 'maximum_total_charge' : max(value) }
-           return value
+               return {'total_charge_per_atom': value,
+                       'maximum_total_charge': max(value)}, True
+
+           return value, False
 
         All kinds of transformation rules for all kinds of properties can be tailored in this way
         to the specific use-case. Keep in mind that if a include list is used, the property (path) has
@@ -464,9 +565,7 @@ class NodeTabulator(Tabulator):
                         if is_inputs else node.get_outgoing(node_class=_orm.Dict).all()
 
                     # Now get all keys in all input/output `Dicts`, sorted alphabetically.
-                    all_io_dicts = {
-                        lt.link_label: lt.node.attributes for lt in link_triples
-                    }
+                    all_io_dicts = {lt.link_label: lt.node.attributes for lt in link_triples}
 
                     # now get structure for all the inputs/outputs
                     to_level = self._unpack_inputs_level \
@@ -594,7 +693,7 @@ class NodeTabulator(Tabulator):
             print(f"Warning: Failed to remove exclude keypaths from include keypaths:\n"
                   f"{failed_removes}")
 
-        # now we cann finally build the table
+        # now we can finally build the table
         table = {keypath[-1]: [] for keypath in include_keypaths}
         failed_paths = {tuple(keypath): [] for keypath in include_keypaths}
         failed_transforms = {tuple(keypath): [] for keypath in include_keypaths}
@@ -605,52 +704,12 @@ class NodeTabulator(Tabulator):
 
             for keypath in include_keypaths:
                 column = keypath[-1]
-                value = None
-
-                attr = None
-                attr_name = keypath[0]
-                try:
-                    attr = getattr(node, attr_name)
-                except AttributeError as err:
+                value, err = get_from_nested_node(node=node,
+                                                  keypath=keypath)
+                if err:
                     row[column] = None
                     failed_paths[tuple(keypath)].append(node.uuid)
                     continue
-
-                if len(keypath) == 1:
-                    value = attr
-
-                elif attr_name == 'extras':
-                    extras = attr
-                    try:
-                        value = get_from_nested_dict(a_dict=extras,
-                                                     path=keypath[1:])
-                    except KeyError as err:
-                        row[column] = None
-                        failed_paths[tuple(keypath)].append(node.uuid)
-                        continue
-
-                elif attr_name in ['inputs', 'outputs']:
-                    in_or_outputs = attr
-                    link_label = keypath[1]
-                    try:
-                        io_node = getattr(in_or_outputs, link_label)
-                    except AttributeError as err:
-                        row[column] = None
-                        failed_paths[tuple(keypath)].append(node.uuid)
-                        continue
-                    if not isinstance(io_node, _orm.Dict):
-                        row[column] = None
-                        failed_paths[tuple(keypath)].append(node.uuid)
-                        continue
-
-                    outdict = io_node.attributes
-                    try:
-                        value = get_from_nested_dict(a_dict=outdict,
-                                                     path=keypath[2:])
-                    except KeyError as err:
-                        row[column] = None
-                        failed_paths[tuple(keypath)].append(node.uuid)
-                        continue
 
                 try:
                     _node = node if pass_node_to_transformer else None
