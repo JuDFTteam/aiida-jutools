@@ -81,12 +81,14 @@ class PropertyTransformer(_abc.ABC):
         """
         pass
 
+
 class DefaultPropertyTransformer(PropertyTransformer):
     """Extends :py:class:`~PropertyTransformer`.
 
     This default transformer does nothing (invariant operation): it just returns the value it received, along with
     the new columns flag with value 'False'.
     """
+
     def transform(self,
                   keypath: _typing.Union[str, _typing.List[str]],
                   value: _typing.Any,
@@ -95,12 +97,10 @@ class DefaultPropertyTransformer(PropertyTransformer):
         return value, False
 
 
-class Tabulator(_abc.ABC):
-    """For tabulation of a collection of objects' (common) properties into a dict or dataframe."""
-
+class TabulatorRecipe(_abc.ABC):
     def __init__(self,
-                 exclude_list: dict = {},
-                 include_list: dict = {},
+                 exclude_list: dict = None,
+                 include_list: dict = None,
                  transformer: PropertyTransformer = None,
                  **kwargs):
         """Initialize a tabulator object.
@@ -126,9 +126,9 @@ class Tabulator(_abc.ABC):
         """
         # note: for the in/ex lists, using the public setter here,
         # to trigger conversion
-        self.exclude_list = exclude_list
-        self.include_list = include_list
-        self._transformer = transformer
+        self._exclude_list = exclude_list if exclude_list else {}
+        self._include_list = include_list if include_list else {}
+        self.transformer = transformer
 
         self._scalar_types = (bool, int, float, str, complex)
         self._nonscalar_types = (list, tuple, set, _np.ndarray)
@@ -137,48 +137,6 @@ class Tabulator(_abc.ABC):
             set(self._scalar_types).union(
                 set(self._nonscalar_types))
         )
-
-    @_abc.abstractmethod
-    def default_include_list(self,
-                             obj: _typing.Any,
-                             **kwargs) -> _typing.Optional[dict]:
-        """Create the complete list of properties tabulatable from a given object.
-
-        This gives an overview of the complete list of properties the tabulator implementation would extract,
-        if no restriction is given by a custom include list.
-
-        The returned dictionary can be used as template to define a smaller, customized include list.
-
-        If no include list is provided, this will taken as the default include list.
-
-        :param obj: An example object of a type which the tabulator knows how to tabulate.
-        :param kwargs: Additional keyword arguments for subclasses.
-        :return: an include list of all properties this tabulator knows to extract. None if error.
-        """
-        pass
-
-    @staticmethod
-    def _withList_to_withNone_format(a_dict: dict,
-                                     unpack_level: int = 99) -> dict:
-        if not a_dict:
-            return {}
-
-        return _masci_python_util.modify_dict(a_dict=a_dict,
-                                              transform_value=lambda v: {k: None for k in v}
-                                              if isinstance(v, list) else v,
-                                              to_level=unpack_level)
-
-    @staticmethod
-    def _check_keypaths(a_list: list,
-                        in_or_ex: str) -> bool:
-        is_list = isinstance(a_list, list)
-        is_all_lists = is_list and all(isinstance(path, list) for path in a_list)
-        if not is_all_lists:
-            raise TypeError(f"Could not generate keypaths of required type {_typing.List[list]} "
-                            f"from {in_or_ex}clude list. Either specified list in wrong format "
-                            f"(see class init docstring for examples), or lists stumbled over untreated special "
-                            f"case for some unpacked property.")
-        return is_all_lists
 
     @property
     def exclude_list(self) -> dict:
@@ -188,10 +146,7 @@ class Tabulator(_abc.ABC):
     def exclude_list(self, exclude_list: _typing.Union[dict, list]):
         self._exclude_list = exclude_list
         if isinstance(exclude_list, dict):
-            # convert from with-List to with-None format for convert to keypaths
-            # convert to keypaths (upper: done inside this one anyway)
-            self._exclude_list = Tabulator.generate_keypaths(a_dict=self._exclude_list)
-        Tabulator._check_keypaths(self._exclude_list, "ex")
+            self._to_keypaths()
 
     @property
     def include_list(self) -> dict:
@@ -201,77 +156,86 @@ class Tabulator(_abc.ABC):
     def include_list(self, include_list: _typing.Union[dict, list]):
         self._include_list = include_list
         if isinstance(include_list, dict):
-            # convert from with-List to with-None format for convert to keypaths
-            # convert to keypaths (upper: done inside this one anyway)
-            self._include_list = Tabulator.generate_keypaths(self._include_list)
-        Tabulator._check_keypaths(self._include_list, "in")
+            self._to_keypaths()
 
-    @staticmethod
-    def generate_keypaths(a_dict: dict) -> _typing.List[list]:
+    def _to_keypaths(self):
         """Generate paths from a possibly nested dictionary.
 
         This method can be used for handling include lists, exclude lists, and when writing
         new :py:class:`~PropertyTransformer` transform methods.
 
-        :param a_dict: a dictionary.
-        :return: List of paths to each value within the dict as tuples (path, value).
+        List of paths to each value within the dict as tuples (path, value).
+
+        convert from with-List to with-None format for convert to keypaths
+
+        convert to keypaths (upper: done inside this one anyway)
         """
-        if not a_dict:
-            return []
 
-        # convert from include list with-list format with-none format:
-        # same-level subkeys mentioned as list [k1,k2] -> dict {k1:None, k2:None}.
-        _a_dict = Tabulator._withList_to_withNone_format(a_dict=a_dict)
-
-        # _a_dict = a_dict
-
-        def _keypaths_recursive(sub_dict: dict,
-                                path: list = []):
+        def _to_keypaths_recursive(sub_dict: dict,
+                                   path: list = []):
             paths = []
             for k, v in sub_dict.items():
                 if isinstance(v, dict):
-                    paths += _keypaths_recursive(v, path + [k])
+                    paths += _to_keypaths_recursive(v, path + [k])
                 paths.append((path + [k], v))
             return paths
 
-        keypaths = _keypaths_recursive(sub_dict=_a_dict,
-                                       path=[])
-        # the result consists of sets of subpaths. For each subset, there is
-        # an additianal entry where the value contains the whole subdict from
-        # which the paths were generated. We are not interested in those duplicate
-        # entries, so remove them.
-        keypaths = [tup for tup in keypaths if not isinstance(tup[1], dict)]
+        for in_or_ex, a_dict in {'in': self._include_list,
+                                 'out': self._exclude_list}.items():
 
-        # now list should be like [(path1, None), (path2, None), ...].
-        # check that. if not, something is wrong.
-        # otherwise, just return the paths.
-        if all(tup[1] is None for tup in keypaths):
-            return [tup[0] for tup in keypaths]
-        else:
-            print(f"Warning: To be able to reduce return type just to the paths, I expected format to "
-                  f"arrive at format {_typing.List[_typing.Tuple[list, _typing.Any]]}, but didn't. "
-                  f"Something went wrong. Instead, I will return this unreduced format.")
-            return keypaths
+            # precondition: not already keypaths format
+            is_list = isinstance(a_dict, list)
+            is_all_lists = is_list and all(isinstance(path, list) for path in a_dict)
+            if is_all_lists:
+                continue
 
-    @_abc.abstractmethod
-    def tabulate(self,
-                 collection: _typing.Any,
-                 return_type: _typing.Type = _pd.DataFrame,
-                 **kwargs) -> _typing.Optional[_typing.Any]:
-        """Tabulate the common properties of a collection of objects.
+            # if empty, convert to empty list. if not empty, convert to keypaths
+            if not a_dict:
+                keypaths = []
+            else:
+                # convert from include list with-list format with-none format:
+                # same-level subkeys mentioned as list [k1,k2] -> dict {k1:None, k2:None}.
+                _a_dict = _masci_python_util.modify_dict(a_dict=a_dict,
+                                                         transform_value=lambda v: {k: None for k in v}
+                                                         if isinstance(v, list) else v,
+                                                         to_level=99)
 
-        :param collection: collection of objects with same set of properties.
-        :param return_type: Type of the tabulated data. Usually a pandas DataFrame or a dict.
-        :param kwargs: Additional keyword arguments for subclasses.
-        :return: Tabulated objects' properties.
-        """
-        pass
+                keypaths = _to_keypaths_recursive(sub_dict=_a_dict,
+                                                  path=[])
+                # the result consists of sets of subpaths. For each subset, there is
+                # an additianal entry where the value contains the whole subdict from
+                # which the paths were generated. We are not interested in those duplicate
+                # entries, so remove them.
+                keypaths = [tup for tup in keypaths if not isinstance(tup[1], dict)]
 
-class TabulatorRecipe(_abc.ABC):
+                # now list should be like [(path1, None), (path2, None), ...],
+                # or at least of type _typing.List[_typing.Tuple[list, _typing.Any]].
+                # check that. if not, something is wrong.
+                # otherwise, just return the paths.
+                if all(tup[1] is None for tup in keypaths):
+                    keypaths = [tup[0] for tup in keypaths]
+
+            # postcondition: keypaths format
+            is_list = isinstance(keypaths, list)
+            is_all_lists = is_list and all(isinstance(path, list) for path in keypaths)
+            if not is_all_lists:
+                raise TypeError(f"Could not generate keypaths of required type {_typing.List[list]} "
+                                f"from {in_or_ex}clude list. Either specified list in wrong format "
+                                f"(see class init docstring for examples), or list generated from "
+                                f"autolist stumbled over untreated special case for some unpacked "
+                                f"property.")
+
+            if in_or_ex == 'in':
+                self._include_list = keypaths
+            elif in_or_ex == 'out':
+                self._exclude_list = keypaths
+
+
+class Tabulator(_abc.ABC):
+    """For tabulation of a collection of objects' (common) properties into a dict or dataframe."""
+
     def __init__(self,
-                 exclude_list: dict = {},
-                 include_list: dict = {},
-                 transformer: PropertyTransformer = None,
+                 recipe: TabulatorRecipe = None,
                  **kwargs):
         """Initialize a tabulator object.
 
@@ -286,44 +250,59 @@ class TabulatorRecipe(_abc.ABC):
         will be tabulated.
 
         Format of the include and exclude lists:
-
-
-
+        
         :param exclude_list: Optional list of properties to exclude. May be set later.
         :param include_list: Optional list of properties to include. May be set later.
         :param transform: Specifies special transformations for certain properties for tabulation.
         :param kwargs: Additional keyword arguments for subclasses.
         """
-        # note: for the in/ex lists, using the public setter here,
-        # to trigger conversion
-        self.exclude_list = exclude_list
-        self.include_list = include_list
-        self._transformer = transformer
-
-        self._scalar_types = (bool, int, float, str, complex)
-        self._nonscalar_types = (list, tuple, set, _np.ndarray)
-        self._nested_types = tuple([dict])
-        self._simple_types = tuple(
-            set(self._scalar_types).union(
-                set(self._nonscalar_types))
-        )
+        if not recipe:
+            recipe = TabulatorRecipe()
+        self.recipe = recipe
+        self._table_types = []
+        self._table = None
 
     @_abc.abstractmethod
-    def default_include_list(self,
-                             obj: _typing.Any,
-                             **kwargs) -> _typing.Optional[dict]:
-        """Create the complete list of properties tabulatable from a given object.
+    def autolist(self,
+                 obj: _typing.Any,
+                 overwrite: bool = False,
+                 pretty_print: bool = False,
+                 **kwargs):
+        """Auto-generate an include list of properties to be tabulated from a given object.
 
-        This gives an overview of the complete list of properties the tabulator implementation would extract,
-        if no restriction is given by a custom include list.
-
-        The returned dictionary can be used as template to define a smaller, customized include list.
-
-        If no include list is provided, this will taken as the default include list.
-
-        :param obj: An example object of a type which the tabulator knows how to tabulate.
+        This can serve as an overview for customized include and exclude lists.
+        :param obj: An example object of a type compatible with the tabulator.
+        :param overwrite: True: replace recipe list with the auto-generated list. False: Only if recipe list empty.
+        :param pretty_print: True: Print the generated list in pretty format.
         :param kwargs: Additional keyword arguments for subclasses.
-        :return: an include list of all properties this tabulator knows to extract. None if error.
+        """
+        pass
+
+    def clear(self):
+        """Clear table if already tabulated."""
+        self._table = None
+
+    @property
+    def table(self) -> _typing.Any:
+        """The result table. None if :py:meth:`~tabulate` not yet called."""
+        return self._table
+
+    @_abc.abstractmethod
+    def tabulate(self,
+                 collection: _typing.Any,
+                 table_type: _typing.Type = _pd.DataFrame,
+                 pandas_column_policy: str = 'flat',
+                 **kwargs) -> _typing.Optional[_typing.Any]:
+        """Tabulate the common properties of a collection of objects.
+
+        :param collection: collection of objects with same set of properties.
+        :param table_type: Type of the tabulated data. Usually a pandas DataFrame or a dict.
+        :param pandas_column_policy: Only if table type is `pandas.DataFrame`. 'flat': Flat dataframe, name conflicts
+                                     produce warnings. 'flat_full_path': Flat dataframe, column names are full
+                                     keypaths, 'multiindex': dataframe with MultiIndex columns, reflecting the full
+                                     properties' path hierarchies.
+        :param kwargs: Additional keyword arguments for subclasses.
+        :return: Tabulated objects' properties.
         """
         pass
 
@@ -347,12 +326,7 @@ class NodeTabulator(Tabulator):
     """
 
     def __init__(self,
-                 exclude_list: dict = {},
-                 include_list: dict = {},
-                 transformer: PropertyTransformer = None,
-                 unpack_dicts_level: int = 2,
-                 unpack_inputs_level: int = 3,
-                 unpack_outputs_level: int = 3,
+                 recipe: TabulatorRecipe = None,
                  **kwargs):
         """Init node tabulator.
 
@@ -368,23 +342,16 @@ class NodeTabulator(Tabulator):
         If neither exlude nor include list is given, the full set of properties according to implementation
         will be tabulated.
 
-        :param exclude_list: Optional list of properties to exclude. May be set later.
-        :param include_list: Optional list of properties to include. May be set later.
-        :param transformer: Specifies special transformations for certain properties for tabulation.
+        :param recipe: A recipe with optionally things like include list, exclude list, transformer.
         :param unpack_dicts_level: Include dict properties up to this nesting level.
         :param unpack_inputs_level: Include inputs properties up to this nesting level.
         :param unpack_outputs_level: Include outputs properties up to this nesting level.
         :param kwargs: Additional keyword arguments for subclasses.
         """
-        super().__init__(exclude_list=exclude_list,
-                         include_list=include_list,
-                         transformer=transformer,
+        super().__init__(recipe=recipe,
                          **kwargs)
-        self._unpack_dicts_level = unpack_dicts_level
-        self._unpack_inputs_level = unpack_inputs_level
-        self._unpack_outputs_level = unpack_outputs_level
 
-        self._return_types = [
+        self._table_types = [
             dict,
             _pd.DataFrame
         ]
@@ -395,7 +362,7 @@ class NodeTabulator(Tabulator):
             'multiindex'
         ]
 
-        self._node_type_include_list = {
+        self._autolist_search_paths = {
             _orm.Node: [
                 'uuid',
                 'label',
@@ -420,38 +387,55 @@ class NodeTabulator(Tabulator):
                 "sites",
             ]
         }
+        self._autolist_unpack_levels = {
+            dict: 2,
+            _orm.Dict: 2,
+            'inputs': 3,
+            'outputs': 3
+        }
 
     @property
-    def node_type_include_list(self) -> _typing.Dict[_typing.Type[_orm.Node], _typing.List[str]]:
-        """The node type include list is a list of node types and top-level property string names
+    def autolist_search_paths(self) -> _typing.Dict[_typing.Type[_orm.Node], _typing.List[str]]:
+        """The autolist search paths is a list of node types and top-level property string names
         (node attributes).
-        The include and exclude list can only contain properties or subproperties of the attributes listed here.
-        Note that 'include_list' and 'exclude_list' are a different concept. For that, refer to
-        :py:meth:`~.default_include_list`."""
-        return self._node_type_include_list
+        The autolist method only searches down these top-level paths."""
+        return self._autolist_search_paths
 
-    @node_type_include_list.setter
-    def node_type_include_list(self,
-                               node_type_include_list: _typing.Dict[_typing.Type[_orm.Node], _typing.List[str]]):
-        self._node_type_include_list = node_type_include_list
+    @autolist_search_paths.setter
+    def autolist_search_paths(self,
+                              search_paths: _typing.Dict[_typing.Type[_orm.Node], _typing.List[str]]):
+        assert all(issubclass(key, _orm.Entity) for key in search_paths.keys())
+        assert all(isinstance(value, list) for value in search_paths.values())
 
-    def default_include_list(self,
-                             obj: _orm.Node,
-                             pretty_print: bool = False,
-                             **kwargs) -> _typing.Optional[dict]:
-        """Create the complete list of properties tabulatable from a given object.
+        self._autolist_search_paths = search_paths
 
-        This gives an overview of the complete list of properties the tabulator implementation would extract,
-        if no restriction is given by a custom include list.
+    @property
+    def autolist_unpack_levels(self) -> _typing.Dict[_typing.Any, int]:
+        """The autolist unpack levels specify at which nesting level the autolist method should stop to
+        unpack properties."""
+        return self._autolist_unpack_levels
 
-        The returned dictionary can be used as template to define a smaller, customized include list.
+    @autolist_unpack_levels.setter
+    def autolist_unpack_levels(self,
+                               unpack_levels: _typing.Dict[_typing.Any, int]):
+        assert all(isinstance(value, int) for value in unpack_levels.values())
+        assert all(key in unpack_levels for key in [dict, _orm.Dict, 'inputs', 'outputs'])
 
-        If no include list is provided, this will taken as the default include list.
+        self._autolist_unpack_levels = unpack_levels
 
-        :param obj: An example object of a type which the tabulator knows how to tabulate.
-        :param pretty_print: True: Print the list in pretty format.
+    def autolist(self,
+                 obj: _orm.Node,
+                 overwrite: bool = False,
+                 pretty_print: bool = False,
+                 **kwargs):
+        """Auto-generate an include list of properties to be tabulated from a given object.
+
+        This can serve as an overview for customized include and exclude lists.
+
+        :param obj: An example object of a type compatible with the tabulator.
+        :param overwrite: True: replace recipe list with the auto-generated list. False: Only if recipe list empty.
+        :param pretty_print: True: Print the generated list in pretty format.
         :param kwargs: Additional keyword arguments for subclasses.
-        :return: an include list of all properties this tabulator knows to extract. None if error.
         """
         if not isinstance(obj, _orm.Node):
             return
@@ -460,7 +444,7 @@ class NodeTabulator(Tabulator):
 
         include_list = {}
 
-        for node_type, attr_names in self._node_type_include_list.items():
+        for node_type, attr_names in self._autolist_search_paths.items():
             if isinstance(node, node_type):
                 for attr_name in attr_names:
                     try:
@@ -469,9 +453,9 @@ class NodeTabulator(Tabulator):
                         print(f"Warning: Could not get attr '{attr_name}'. Skipping.")
                         continue
 
-                    is_dict = isinstance(attr, (dict, _orm.Dict))
                     is_inputs = attr_name == 'inputs'
                     is_outputs = attr_name == 'outputs'
+                    is_dict = isinstance(attr, (dict, _orm.Dict)) and attr_name not in ['inputs', 'outputs']
                     is_special = (is_dict or is_inputs or is_outputs)
 
                     if not is_special:
@@ -487,12 +471,12 @@ class NodeTabulator(Tabulator):
                         is_aiida_dict = isinstance(attr, _orm.Dict)
                         attr = attr.attributes if is_aiida_dict else attr
 
+                        to_level = self.autolist_unpack_levels[type(attr)]
                         props = _masci_python_util.modify_dict(a_dict=attr,
                                                                transform_value=lambda v: None,
-                                                               to_level=self._unpack_dicts_level)
+                                                               to_level=to_level)
                         if is_aiida_dict:
-                            include_list[attr_name] = {}
-                            include_list[attr_name]['attributes'] = _copy.deepcopy(props)
+                            include_list[attr_name] = {'attributes': _copy.deepcopy(props)}
                         else:
                             include_list[attr_name] = _copy.deepcopy(props)
 
@@ -505,8 +489,8 @@ class NodeTabulator(Tabulator):
                         all_io_dicts = {lt.link_label: lt.node.attributes for lt in link_triples}
 
                         # now get structure for all the inputs/outputs
-                        to_level = self._unpack_inputs_level \
-                            if is_inputs else self._unpack_outputs_level
+                        in_or_out = 'inputs' if is_inputs else 'outputs'
+                        to_level = self.autolist_unpack_levels[in_or_out]
                         props = {
                             link_label: _masci_python_util.modify_dict(a_dict=out_dict,
                                                                        transform_value=lambda v: None,
@@ -519,11 +503,12 @@ class NodeTabulator(Tabulator):
             print(_json.dumps(include_list,
                               indent=4))
 
-        return include_list
+        if overwrite or not self.recipe.include_list:
+            self.recipe.include_list = include_list
 
     def tabulate(self,
                  collection: _typing.Union[_typing.List[_orm.Node], _orm.Group],
-                 return_type: _typing.Union[_typing.Type[dict], _typing.Type[_pd.DataFrame]] = _pd.DataFrame,
+                 table_type: _typing.Union[_typing.Type[dict], _typing.Type[_pd.DataFrame]] = _pd.DataFrame,
                  pandas_column_policy: str = 'flat',
                  pass_node_to_transformer: bool = True,
                  verbose: bool = True,
@@ -533,10 +518,10 @@ class NodeTabulator(Tabulator):
         For unpacking standardized extras, .:py:class:`~aiida_jutools.meta.extra.ExtraForm` sets may be used.
 
         :param collection: group or list of nodes.
-        :param return_type: table as pandas DataFrame or dict.
+        :param table_type: table as pandas DataFrame or dict.
         :param pandas_column_policy: 'flat': Flat dataframe, name conflicts produce warnings. 'flat_full_path':
-               Flat dataframe, column names are full property paths separated by '_', 'multiindex': dataframe
-               with MultiIndex columns, reflecting the full properties' path hierarchies.
+               Flat dataframe, column names are full keypaths, 'multiindex': dataframe with MultiIndex columns,
+               reflecting the full properties' path hierarchies.
         :param pass_node_to_transformer: True: Pass current node to transformer. Enables more complex transformations,
                                          but may be slower for large collections.
         :param verbose: True: Print warnings.
@@ -544,12 +529,12 @@ class NodeTabulator(Tabulator):
         :return: Tabulated objects' properties as dict or pandas DataFrame.
         """
 
-        if return_type not in self._return_types:
-            print(f"Warning: Unknown {return_type=}. Choosing default return type "
+        if table_type not in self._table_types:
+            print(f"Warning: Unknown {table_type=}. Choosing default return type "
                   f"{_pd.DataFrame} instead.")
-            return_type = _pd.DataFrame
+            table_type = _pd.DataFrame
 
-        if return_type == _pd.DataFrame and verbose \
+        if table_type == _pd.DataFrame and verbose \
                 and (pandas_column_policy not in self._pandas_column_policies
                      or pandas_column_policy in {'flat_full_path', 'multiindex'}):
             print(f"Warning: Unknown pandas column policy '{pandas_column_policy}'. Will switch to "
@@ -580,11 +565,14 @@ class NodeTabulator(Tabulator):
 
         # get inc/ex lists. assume that they are in valid keypaths format already
         # (via property setter auto-conversion)
-        if not self.include_list:
-            self.include_list = self.default_include_list(obj=node,
-                                                          pretty_print=False)
-        include_keypaths = self.include_list
-        exclude_keypaths = self.exclude_list
+        if not self.recipe.include_list:
+            self.autolist(obj=node,
+                          overwrite=True,
+                          pretty_print=False)
+        include_keypaths = self.recipe.include_list
+        exclude_keypaths = self.recipe.exclude_list
+        assert isinstance(include_keypaths, list)
+        assert isinstance(exclude_keypaths, list)
 
         # in case of flat column policy, print a warning if name collisions exist
         def remove_collisions(keypaths: list,
@@ -606,7 +594,7 @@ class NodeTabulator(Tabulator):
                                                     indent=4,
                                                     cls=_masci_python_util.JSONEncoderTailoredIndent)
                 if verbose:
-                    print(f"Found path name collisions in {in_or_ex}clude keypaths, see list below. "
+                    print(f"Warning: Found path name collisions in {in_or_ex}clude keypaths, see list below. "
                           f"Will select first or shortest path for each and discard the rest.\n"
                           f"{print_name_collisions}")
             for name, paths in name_collisions.items():
@@ -646,14 +634,14 @@ class NodeTabulator(Tabulator):
                     failed_paths[tuple(keypath)].append(node.uuid)
                     continue
 
-                if not self._transformer:
+                if not self.recipe.transformer:
                     row[column] = value
                 else:
                     try:
                         _node = node if pass_node_to_transformer else None
-                        trans_value, with_new_columns = self._transformer.transform(keypath=keypath,
-                                                                                    value=value,
-                                                                                    node=_node)
+                        trans_value, with_new_columns = self.recipe.transformer.transform(keypath=keypath,
+                                                                                          value=value,
+                                                                                          node=_node)
                         if with_new_columns and isinstance(trans_value, dict):
                             for t_column, t_value in trans_value.items():
                                 row[t_column] = t_value
@@ -676,16 +664,18 @@ class NodeTabulator(Tabulator):
         if verbose:
             # json dumps cannot handle tuple keys. so for print, convert to a string.
             if failed_paths:
-                failed_paths = {str(list(path)) : uuids for path,uuids in failed_paths.items()}
+                failed_paths = {str(list(path)): uuids for path, uuids in failed_paths.items()}
                 print(f"Warning: Failed to tabulate keypaths for some nodes:\n"
                       f"{json.dumps(failed_paths, indent=4)}")
             if failed_transforms:
-                failed_transforms = {str(list(path)) : uuids for path,uuids in failed_transforms.items()}
+                failed_transforms = {str(list(path)): uuids for path, uuids in failed_transforms.items()}
                 print(f"Warning: Failed to transform keypath values for some nodes:\n"
                       f"{json.dumps(failed_transforms, indent=4)}")
 
-        if return_type == _pd.DataFrame:
-            return _pd.DataFrame.from_dict(table)
+        if table_type == _pd.DataFrame:
+            self._table = _pd.DataFrame.from_dict(table)
         else:
-            # return dict
-            return table
+            # dict
+            self._table = table
+
+        return self.table
