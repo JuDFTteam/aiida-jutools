@@ -1,3 +1,4 @@
+# pylint: disable=unused-import
 # -*- coding: utf-8 -*-
 ###############################################################################
 # Copyright (c), Forschungszentrum Jülich GmbH, IAS-1/PGI-1, Germany.         #
