@@ -13,6 +13,7 @@
 """Tools for working with aiida Node objects."""
 
 from .util import \
+    get_from_nested_node, \
     intersection, \
     is_same_node, \
     list_differences, \

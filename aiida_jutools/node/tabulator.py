@@ -21,123 +21,7 @@ import numpy as _np
 from masci_tools.util import python_util as _masci_python_util
 import abc as _abc
 import typing as _typing
-import enum as _enum
-
-import functools as _functools
-import operator as _operator
-
-
-def get_from_nested_dict(a_dict: dict,
-                         keypath: list) -> _typing.Any:
-    """Get value from inside a nested dictionary.
-
-    Example: `(nested_dict, ['key_on_level1', 'key_on_level2'])` returns value of 'key_on_level2'.
-
-    :param a_dict: A nested dictionary.
-    :param keypath: A list of keys, one per nesting level.
-    :return: value of the last key in the path.
-    """
-    return _functools.reduce(_operator.getitem, keypath, a_dict)
-
-
-def set_in_nested_dict(a_dict: dict,
-                       keypath: list,
-                       value: _typing.Any):
-    """Set value inside a nested dictionary.
-
-    Example: `(nested_dict, ['key_on_level1', 'key_on_level2'], sets)` value of 'key_on_level2'.
-
-    :param a_dict: A nested dictionary.
-    :param keypath: A list of keys, one per nesting level.
-    :param value: value for the last key in the path.
-    """
-    if keypath:
-        if len(keypath) == 1:
-            a_dict[keypath[0]] = value
-        else:
-            get_from_nested_dict(a_dict, keypath[:-1])[keypath[-1]] = value
-
-
-def get_from_nested_node(node: _orm.Node,
-                         keypath: list) -> _typing.Tuple[_typing.Any, _typing.Optional[Exception]]:
-    """Get value from a node, including values nested inside attached `Dict` nodes or attached dictionaries.
-
-    Examples:
-
-    - `(node, ['uuid'])` returns uuid from node.
-    - `(node, ['extras', 'my_extra', 'my_subextra'])` returns value of 'my_subextra' from node extras.
-    - `(a_workchain, ['outputs', 'workflow_info', 'converged'])` returns value of 'converged' from workchain outputs
-      node 'workflow_info.
-    - `(node, ['attributes', 'key_level1', 'key_level2'])` returns value of 'key_level2' from `Dict` node.
-
-    :param node: An AiiDA node.
-    :param keypath: A list of keys, one per nesting level. First nesting level is the node attribute name. In case
-                    of inputs and outputs node, the second key is 'inputs' or 'outputs' and the third the input or
-                    output name that `node.outputs.` displays on tab completion (which, under the hood, comes from the
-                    in- or outgoing link_label).
-    :return: value of the last key in the path.
-    """
-    if not keypath:
-        err = KeyError("Keypath is empty.")
-        return None, err
-
-    # first item in keypath always refers to a node attribute.
-    attr = None
-    attr_name = keypath[0]
-    try:
-        attr = getattr(node, attr_name)
-    except AttributeError as err:
-        return None, err
-
-    if len(keypath) == 1:
-        return attr, None
-
-    elif isinstance(attr, dict):
-        # applies e.g. to extras
-        a_dict = attr
-        try:
-            value = get_from_nested_dict(a_dict=a_dict,
-                                         keypath=keypath[1:])
-            return value, None
-        except KeyError as err:
-            return None, err
-
-    elif isinstance(attr, _orm.Dict):
-        # applies e.g. to extras
-        a_dict = attr.attributes
-        try:
-            value = get_from_nested_dict(a_dict=a_dict,
-                                         keypath=keypath[1:])
-            return value, None
-        except KeyError as err:
-            return None, err
-
-    elif attr_name in ['inputs', 'outputs']:
-        in_or_outputs = attr
-        link_label = keypath[1]
-        # note: link_label are the outputs 'names'. another way to get them is
-        # link_triples = node.get_outgoing(node_class=_orm.Dict).all()
-        # out_dicts = {lt.link_label: lt.node.attributes for lt in link_triples}
-        # ####
-        try:
-            io_node = getattr(in_or_outputs, link_label)
-        except AttributeError as err:
-            return None, err
-        if not isinstance(io_node, _orm.Dict):
-            err = TypeError(f"{attr_name} node {link_label} is not {_orm.Dict}. Not supported.")
-            return None, err
-
-        in_or_out_dict = io_node.attributes
-        try:
-            value = get_from_nested_dict(a_dict=in_or_out_dict,
-                                         keypath=keypath[2:])
-            return value, None
-        except KeyError as err:
-            return None, err
-
-    else:
-        err = ValueError(f"Reading sub-properties from node attribute '{keypath[0]}' is not supported yet.")
-        return None, err
+import aiida_jutools as _jutools
 
 
 class PropertyTransformer():
@@ -224,12 +108,11 @@ class Tabulator(_abc.ABC):
         self._transformer = transformer
 
         self._scalar_types = (bool, int, float, str, complex)
-        self._nonscalar_types = (list, dict, tuple, set, _np.ndarray)
+        self._nonscalar_types = (list, tuple, set, _np.ndarray)
         self._nested_types = tuple([dict])
         self._simple_types = tuple(
             set(self._scalar_types).union(
-                set(self._nonscalar_types)).union(
-                set(self._nested_types))
+                set(self._nonscalar_types))
         )
 
     @_abc.abstractmethod
@@ -395,10 +278,13 @@ class NodePropertyTransformer(PropertyTransformer):
         to the specific use-case. Keep in mind that if a include list is used, the property (path) has
         to be included in the include list.
 
-        :param keypath:
+        :param keypath: A list of keys, one per nesting level. First nesting level is the node attribute name. In case
+                        of inputs and outputs node, the second key is 'inputs' or 'outputs' and the third the input or
+                        output name that `node.outputs.` displays on tab completion (which, under the hood, comes from the
+                        in- or outgoing link_label).
         :param value: The value of the current property.
         :param obj: Optionally, the object containing the property can be passed along. This enables to
-                     transform the current property value in combination with other property values.
+                    transform the current property value in combination with other property values.
         :param kwargs: Additional keyword arguments for subclasses.
         :return: A tuple (transformed_value:object, with_new_columns:bool). If the latter is False, this 
                  means the transformed output property has the same name as the input property (in/out referring
@@ -433,7 +319,7 @@ class NodeTabulator(Tabulator):
                  exclude_list: dict = {},
                  include_list: dict = {},
                  transformer: NodePropertyTransformer = None,
-                 unpack_extras_level: int = 2,
+                 unpack_dicts_level: int = 2,
                  unpack_inputs_level: int = 3,
                  unpack_outputs_level: int = 3,
                  **kwargs):
@@ -454,7 +340,7 @@ class NodeTabulator(Tabulator):
         :param exclude_list: Optional list of properties to exclude. May be set later.
         :param include_list: Optional list of properties to include. May be set later.
         :param transformer: Specifies special transformations for certain properties for tabulation.
-        :param unpack_extras_level: Include extras properties up to this nesting level.
+        :param unpack_dicts_level: Include dict properties up to this nesting level.
         :param unpack_inputs_level: Include inputs properties up to this nesting level.
         :param unpack_outputs_level: Include outputs properties up to this nesting level.
         :param kwargs: Additional keyword arguments for subclasses.
@@ -463,7 +349,7 @@ class NodeTabulator(Tabulator):
                          include_list=include_list,
                          transformer=transformer,
                          **kwargs)
-        self._unpack_extras_level = unpack_extras_level
+        self._unpack_dicts_level = unpack_dicts_level
         self._unpack_inputs_level = unpack_inputs_level
         self._unpack_outputs_level = unpack_outputs_level
 
@@ -490,6 +376,17 @@ class NodeTabulator(Tabulator):
                 'process_label',
                 'process_state',
                 'exit_status'
+            ],
+            _orm.StructureData: [
+                "attributes",
+                "cell",
+                "cell_angles",
+                "cell_lengths",
+                "get_cell_volume",
+                "get_formula",
+                "kinds",
+                "pbc",
+                "sites",
             ]
         }
 
@@ -507,7 +404,8 @@ class NodeTabulator(Tabulator):
                                node_type_include_list: _typing.Dict[_typing.Type[_orm.Node], _typing.List[str]]):
         self._node_type_include_list = node_type_include_list
 
-    def default_include_list(self, obj: _orm.Node,
+    def default_include_list(self,
+                             obj: _orm.Node,
                              pretty_print: bool = False,
                              **kwargs) -> _typing.Optional[dict]:
         """Create the complete list of properties tabulatable from a given object.
@@ -532,60 +430,64 @@ class NodeTabulator(Tabulator):
         include_list = {}
 
         for node_type, attr_names in self._node_type_include_list.items():
-            for attr_name in attr_names:
-                is_extras = (issubclass(node_type, _orm.Node) and attr_name == 'extras')
-                is_inputs = (issubclass(node_type, _orm.ProcessNode) and attr_name == 'inputs')
-                is_outputs = (issubclass(node_type, _orm.ProcessNode) and attr_name == 'outputs')
-                is_special = (is_extras or is_inputs or is_outputs)
+            if isinstance(node, node_type):
+                for attr_name in attr_names:
+                    try:
+                        attr = getattr(node, attr_name)
+                    except AttributeError as err:
+                        print(f"Warning: Could not get attr '{attr_name}'. Skipping.")
+                        continue
 
-                try:
-                    attr = getattr(node, attr_name)
-                except AttributeError as err:
-                    print(f"Warning: Could not get attr '{attr_name}'. Skipping.")
-                    continue
+                    is_dict = isinstance(attr, (dict, _orm.Dict))
+                    is_inputs = attr_name == 'inputs'
+                    is_outputs = attr_name == 'outputs'
+                    is_special = (is_dict or is_inputs or is_outputs)
 
-                if not is_special:
-                    include_list[attr_name] = None
-                    continue
+                    if not is_special:
+                        include_list[attr_name] = None
+                        continue
 
-                # now handle the special cases
+                    # now handle the special cases
 
-                if is_extras:
-                    # note: in future, could use ExtraForm sets here for standardized extras.
-                    # get extras structure up to the specified unpacking leve
-                    extras = attr
-                    props = _masci_python_util.modify_dict(a_dict=extras,
-                                                           transform_value=lambda v: None,
-                                                           to_level=self._unpack_extras_level)
-                    include_list[attr_name] = _copy.deepcopy(props)
+                    if is_dict:
+                        # for instance: node.extras.
+                        # note: in future, could use ExtraForm sets here for standardized extras.
+                        # get dict structure up to the specified unpacking leve
+                        is_aiida_dict = isinstance(attr, _orm.Dict)
+                        attr = attr.attributes if is_aiida_dict else attr
 
-                if is_inputs or is_outputs:
-                    # get all Dict output link triples
-                    link_triples = node.get_incoming(node_class=_orm.Dict).all() \
-                        if is_inputs else node.get_outgoing(node_class=_orm.Dict).all()
+                        props = _masci_python_util.modify_dict(a_dict=attr,
+                                                               transform_value=lambda v: None,
+                                                               to_level=self._unpack_dicts_level)
+                        if is_aiida_dict:
+                            include_list[attr_name] = {}
+                            include_list[attr_name]['attributes'] = _copy.deepcopy(props)
+                        else:
+                            include_list[attr_name] = _copy.deepcopy(props)
 
-                    # Now get all keys in all input/output `Dicts`, sorted alphabetically.
-                    all_io_dicts = {lt.link_label: lt.node.attributes for lt in link_triples}
+                    if is_inputs or is_outputs:
+                        # get all Dict output link triples
+                        link_triples = node.get_incoming(node_class=_orm.Dict).all() \
+                            if is_inputs else node.get_outgoing(node_class=_orm.Dict).all()
 
-                    # now get structure for all the inputs/outputs
-                    to_level = self._unpack_inputs_level \
-                        if is_inputs else self._unpack_outputs_level
-                    props = {
-                        link_label: _masci_python_util.modify_dict(a_dict=out_dict,
-                                                                   transform_value=lambda v: None,
-                                                                   to_level=to_level)
-                        for link_label, out_dict in all_io_dicts.items()
-                    }
-                    include_list[attr_name] = _copy.deepcopy(props)
+                        # Now get all keys in all input/output `Dicts`, sorted alphabetically.
+                        all_io_dicts = {lt.link_label: lt.node.attributes for lt in link_triples}
+
+                        # now get structure for all the inputs/outputs
+                        to_level = self._unpack_inputs_level \
+                            if is_inputs else self._unpack_outputs_level
+                        props = {
+                            link_label: _masci_python_util.modify_dict(a_dict=out_dict,
+                                                                       transform_value=lambda v: None,
+                                                                       to_level=to_level)
+                            for link_label, out_dict in all_io_dicts.items()
+                        }
+                        include_list[attr_name] = _copy.deepcopy(props)
 
         if pretty_print:
             print(_json.dumps(include_list,
                               indent=4))
 
-        if not self.include_list:
-            # note: using the public setter here, to trigger
-            # automatic conversion
-            self.include_list = include_list
         return include_list
 
     def tabulate(self,
@@ -646,10 +548,12 @@ class NodeTabulator(Tabulator):
             return
 
         # get inc/ex lists. assume that they are in valid keypaths format already
-        include_keypaths = self._include_list if self._include_list \
-            else self.default_include_list(obj=node,
-                                           pretty_print=False)
-        exclude_keypaths = self._exclude_list
+        # (via property setter auto-conversion)
+        if not self.include_list:
+            self.include_list = self.default_include_list(obj=node,
+                                                          pretty_print=False)
+        include_keypaths = self.include_list
+        exclude_keypaths = self.exclude_list
 
         # in case of flat column policy, print a warning if name collisions exist
         def remove_collisions(keypaths: list,
@@ -704,28 +608,31 @@ class NodeTabulator(Tabulator):
 
             for keypath in include_keypaths:
                 column = keypath[-1]
-                value, err = get_from_nested_node(node=node,
-                                                  keypath=keypath)
+                value, err = _jutools.node.get_from_nested_node(node=node,
+                                                                keypath=keypath)
                 if err:
                     row[column] = None
                     failed_paths[tuple(keypath)].append(node.uuid)
                     continue
 
-                try:
-                    _node = node if pass_node_to_transformer else None
-                    trans_value, with_new_columns = self._transformer.transform(keypath=keypath,
-                                                                                value=value,
-                                                                                node=_node)
-                    if with_new_columns and isinstance(trans_value, dict):
-                        for t_column, t_value in trans_value.items():
-                            row[t_column] = t_value
-                    else:
-                        row[column] = trans_value
+                if not self._transformer:
+                    row[column] = value
+                else:
+                    try:
+                        _node = node if pass_node_to_transformer else None
+                        trans_value, with_new_columns = self._transformer.transform(keypath=keypath,
+                                                                                    value=value,
+                                                                                    node=_node)
+                        if with_new_columns and isinstance(trans_value, dict):
+                            for t_column, t_value in trans_value.items():
+                                row[t_column] = t_value
+                        else:
+                            row[column] = trans_value
 
-                except (ValueError, KeyError, TypeError) as err:
-                    row[column] = None
-                    failed_transforms[tuple(keypath)].append(node.uuid)
-                    continue
+                    except (ValueError, KeyError, TypeError) as err:
+                        row[column] = None
+                        failed_transforms[tuple(keypath)].append(node.uuid)
+                        continue
 
             for column, value in row.items():
                 # if transformer created new columns in row, need to add them here as well first.
@@ -734,12 +641,15 @@ class NodeTabulator(Tabulator):
                 table[column].append(value)
 
         failed_paths = {path: uuids for path, uuids in failed_paths.items() if uuids}
-        failed_transforms = {path: uuids for path, uuids in failed_paths.items() if uuids}
+        failed_transforms = {path: uuids for path, uuids in failed_transforms.items() if uuids}
         if verbose:
+            # json dumps cannot handle tuple keys. so for print, convert to a string.
             if failed_paths:
+                failed_paths = {str(list(path)) : uuids for path,uuids in failed_paths.items()}
                 print(f"Warning: Failed to tabulate keypaths for some nodes:\n"
                       f"{json.dumps(failed_paths, indent=4)}")
             if failed_transforms:
+                failed_transforms = {str(list(path)) : uuids for path,uuids in failed_transforms.items()}
                 print(f"Warning: Failed to transform keypath values for some nodes:\n"
                       f"{json.dumps(failed_transforms, indent=4)}")
 
