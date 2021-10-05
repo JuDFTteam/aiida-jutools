@@ -10,7 +10,7 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with aiida Node objects : tabulation (Nodes -> DataFrame)."""
+"""Tools for working with AiiDA IO: tabulation: Tabulator."""
 
 import copy as _copy
 import json
@@ -24,17 +24,20 @@ import typing as _typing
 import aiida_jutools as _jutools
 
 
-class PropertyTransformer():
+class PropertyTransformer(_abc.ABC):
     """Specify how to transformer an object's properties for use in :py:class:`Tabulator`.
 
     To subclass, you have to implement the :py:meth:`~transformer` method.
     """
 
+    @_abc.abstractmethod
     def transform(self, keypath: _typing.Union[str, _typing.List[str]],
                   value: _typing.Any,
                   obj: _typing.Any = None,
                   **kwargs) -> _typing.Tuple[_typing.Union[None, _typing.Any, dict], bool]:
-        """Specify how to transform properties, based on their property path and type.
+        """Specify how to transform properties, based on their keypath and type.
+
+        Extends :py:meth:`~.PropertyTransformer.transform`. See also its docstring.
 
         This default transformer returns all property values unchanged, and so has no effect. To define
         transformations, create a subclass and overwrite with a custom transform method.
@@ -47,28 +50,48 @@ class PropertyTransformer():
 
         .. code-block:: python
 
-           if property_path == ['outputs', 'last_calc_output_parameters', 'total_charge_per_atom']:
+           if keypath == ['outputs', 'last_calc_output_parameters', 'total_charge_per_atom']:
                # assert isinstance(value, list) # optional
-               return { 'total_charge_per_atom' : value, 'maximum_total_charge' : max(value) }
-           return value
+               return {'total_charge_per_atom': value,
+                       'maximum_total_charge': max(value)}, True
+
+           return value, False
 
         All kinds of transformation rules for all kinds of properties can be tailored in this way
         to the specific use-case. Keep in mind that if a include list is used, the property (path) has
         to be included in the include list.
 
-        :param keypath:
+        If used in `aiida-jutools`: For accessing process node inputs and outputs Dict nodes properties:
+        first key in keypath is 'inputs' or 'outputs', the second is the input or output name that `node.outputs.`
+        displays on tab completion (which, under the hood, comes from the in- or outgoing link_label).
+
+        :param keypath: A list of keys, one per nesting level. First key in keypath is usually the object's attribute
+        name.
         :param value: The value of the current property.
         :param obj: Optionally, the object containing the property can be passed along. This enables to
-                     transform the current value in combination with other property values.
+                    transform the current property value in combination with other property values.
         :param kwargs: Additional keyword arguments for subclasses.
-        :return: A tuple (transformed_value:object, with_new_columns:bool). If the latter is False, this 
+        :return: A tuple (transformed_value:object, with_new_columns flag:bool). If the flag is False, this
                  means the transformed output property has the same name as the input property (in/out referring
                  here to the input/output of the transform method, not the input/output properties of the object). If
-                 the former is a dict, and the latter is set to True, this is understood as such that new output
-                 properties were created from the input property, and the output should be interpreted as
-                 {property_name: property_value}, possibly with one being the original property name. In a tabulator, 
-                 new columns would be created for these new properties.    
+                 the value is a dict, and the flag is set to True, this is understood such that new output
+                 properties were created from the input property, and the output value should be interpreted as
+                 {property_name: property_value}, possibly with one being the original property name. In a tabulator,
+                 new columns would be created for these new properties.
         """
+        pass
+
+class DefaultPropertyTransformer(PropertyTransformer):
+    """Extends :py:class:`~PropertyTransformer`.
+
+    This default transformer does nothing (invariant operation): it just returns the value it received, along with
+    the new columns flag with value 'False'.
+    """
+    def transform(self,
+                  keypath: _typing.Union[str, _typing.List[str]],
+                  value: _typing.Any,
+                  obj: _typing.Any = None,
+                  **kwargs) -> _typing.Tuple[_typing.Union[None, _typing.Any, dict], bool]:
         return value, False
 
 
@@ -305,63 +328,6 @@ class TabulatorRecipe(_abc.ABC):
         pass
 
 
-
-
-class NodePropertyTransformer(PropertyTransformer):
-    """Specify how to transformer a node's properties for use in :py:class:`~.NodeTabulator`."""
-
-    def transform(self, keypath: _typing.Union[str, _typing.List[str]],
-                  value: _typing.Any,
-                  obj: _orm.Node = None,
-                  **kwargs) -> _typing.Tuple[_typing.Union[None, _typing.Any, dict], bool]:
-        """Specify how to transform properties, based on their keypath and type.
-        
-        Extends :py:meth:`~.PropertyTransformer.transform`. See also its docstring.
-
-        This default transformer returns all property values unchanged, and so has no effect. To define
-        transformations, create a subclass and overwrite with a custom transform method.
-
-         Example: Say, a nested dictionary is passed. It has a property
-         `a_dict:{outputs:{last_calc_output_parameters:{attributes:{total_charge_per_atom:[...]`, which
-         is a numerical list. We would like the list, and its maximum tabulated as individual columns.
-         All other properties included in the tabulation shall be not transformed. We would write
-         that transformation rule like this.
-
-        .. code-block:: python
-
-           if keypath == ['outputs', 'last_calc_output_parameters', 'total_charge_per_atom']:
-               # assert isinstance(value, list) # optional
-               return {'total_charge_per_atom': value,
-                       'maximum_total_charge': max(value)}, True
-
-           return value, False
-
-        All kinds of transformation rules for all kinds of properties can be tailored in this way
-        to the specific use-case. Keep in mind that if a include list is used, the property (path) has
-        to be included in the include list.
-
-        :param keypath: A list of keys, one per nesting level. First nesting level is the node attribute name. In case
-                        of inputs and outputs node, the second key is 'inputs' or 'outputs' and the third the input or
-                        output name that `node.outputs.` displays on tab completion (which, under the hood, comes from the
-                        in- or outgoing link_label).
-        :param value: The value of the current property.
-        :param obj: Optionally, the object containing the property can be passed along. This enables to
-                    transform the current property value in combination with other property values.
-        :param kwargs: Additional keyword arguments for subclasses.
-        :return: A tuple (transformed_value:object, with_new_columns:bool). If the latter is False, this 
-                 means the transformed output property has the same name as the input property (in/out referring
-                 here to the input/output of the transform method, not the input/output properties of the object). If
-                 the former is a dict, and the latter is set to True, this is understood as such that new output
-                 properties were created from the input property, and the output should be interpreted as
-                 {property_name: property_value}, possibly with one being the original property name. In a tabulator,
-                 new columns would be created for these new properties.
-        """
-        return value, False
-
-
-
-
-
 class NodeTabulator(Tabulator):
     """For tabulation of a collection of nodes' (of same type) properties into a dict or dataframe.
 
@@ -383,7 +349,7 @@ class NodeTabulator(Tabulator):
     def __init__(self,
                  exclude_list: dict = {},
                  include_list: dict = {},
-                 transformer: NodePropertyTransformer = None,
+                 transformer: PropertyTransformer = None,
                  unpack_dicts_level: int = 2,
                  unpack_inputs_level: int = 3,
                  unpack_outputs_level: int = 3,

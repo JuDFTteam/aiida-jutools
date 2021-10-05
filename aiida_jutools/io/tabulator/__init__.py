@@ -10,11 +10,7 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with aiida Node objects."""
+"""Tools for working with AiiDA IO: tabulation (nodes -> DataFrame)."""
 
-from .util import \
-    get_from_nested_node, \
-    intersection, \
-    is_same_node, \
-    list_differences, \
-    print_attributes
+from .tabulator import \
+    NodeTabulator
