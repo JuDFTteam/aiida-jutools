@@ -22,7 +22,7 @@ import typing as _typing
 import aiida.orm as _orm
 import pandas as _pd
 from masci_tools.util import python_util as _masci_python_util
-from masci_tools.io.parsers.tabulator import Recipe, Tabulator
+from masci_tools.io.parsers.tabulator import Recipe, Tabulator, TransformedValue
 
 import aiida_jutools as _jutools
 
@@ -343,6 +343,8 @@ class NodeTabulator(Tabulator):
         generator = (node for node in group.nodes) if is_group else (node for node in nodes)
 
         for node in generator:
+            print('-----------------')
+            print(f'node {node.label}')
             row = {keypath[-1]: None for keypath in include_keypaths}
 
             for keypath in include_keypaths:
@@ -354,21 +356,26 @@ class NodeTabulator(Tabulator):
                     failed_paths[tuple(keypath)].append(node.uuid)
                     continue
 
+                # tmp: testing: print
+                # print(f'\n{column}:', end=' ')
                 if not self.recipe.transformer:
+                    # print(f'no transformer, value: {value}')
                     row[column] = value
                 else:
                     try:
                         _node = node if pass_node_to_transformer else None
-                        trans_value, with_new_columns = self.recipe.transformer.transform(keypath=keypath,
-                                                                                          value=value,
-                                                                                          node=_node)
-                        if with_new_columns and isinstance(trans_value, dict):
-                            for t_column, t_value in trans_value.items():
+                        trans_value = self.recipe.transformer.transform(keypath=keypath,
+                                                                        value=value,
+                                                                        obj=_node,
+                                                                        **kwargs)
+                        if trans_value.is_transformed:
+                            for t_column, t_value in trans_value.value.items():
                                 row[t_column] = t_value
                         else:
-                            row[column] = trans_value
+                            row[column] = trans_value.value
 
                     except (ValueError, KeyError, TypeError) as err:
+                        # print(f'trans failed, setting value None, err: {err}')
                         row[column] = None
                         failed_transforms[tuple(keypath)].append(node.uuid)
                         continue

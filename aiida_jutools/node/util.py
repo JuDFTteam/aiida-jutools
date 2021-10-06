@@ -13,12 +13,9 @@
 """Tools for working with aiida Node objects: utils."""
 import functools as _functools
 import operator as _operator
-
-import pprint as _pprint
 import typing as _typing
 
-from aiida import orm as _orm, engine as _aiida_engine
-from masci_tools.io.kkr_params import kkrparams as _kkrparams
+from aiida import orm as _orm
 
 
 def is_same_node(node: _orm.Node,
@@ -126,7 +123,7 @@ def get_from_nested_node(node: _orm.Node,
     - `(node, ['attributes', 'key_level1', 'key_level2'])` returns value of 'key_level2' from `Dict` node.
     - `(cif, ['get_content'])` returns file content from `CifData` node.
 
-    If the node member at the start of the keypath is not a method but an attribute which can be called without
+    If the node member at the start of the keypath is not an attribute but a method which can be called without
     parameters, and if it returns a node or dict, then the keypath gets followed down that structure as well.
 
     :param node: An AiiDA node.
@@ -212,52 +209,6 @@ def get_from_nested_node(node: _orm.Node,
     else:
         err = ValueError(f"Reading sub-properties from node attribute '{keypath[0]}' is not supported yet.")
         return None, err
-
-
-def print_attributes(aiida_object: object,
-                     member_list: _typing.List[str]):
-    """Easily print-inspect the values of an aiida object.
-
-    :param aiida_object: aiida object
-    :param member_list: attributes or callables (methods) without parameters
-
-    :example:
-
-    >>> from aiida.orm import StructureData
-    >>> from aiida.plugins import DataFactory
-    >>> StructureData = DataFactory('structure')
-    >>> # fill in values for copper...
-    >>> Cu29 = StructureData()
-    >>> print_attributes(Cu29, "Cu", MEMBER_LISTS["StructureData"])
-    """
-    label = getattr(aiida_object, 'label', None)
-    pk = getattr(aiida_object, 'pk', None)
-    full_identifier = f"type {type(aiida_object)}"
-    full_identifier += f", pk={pk}" if pk else ""
-    full_identifier += f", label='{label}'" if label else ""
-    identifier = f"'{label}'" if label else f"{type(aiida_object)}"
-
-    pp = _pprint.PrettyPrinter(indent=4)
-    sep = "-------------------------------"
-    print(sep)
-    print(f"Attributes of entity {full_identifier}:")
-    print(sep)
-    for attr_str in member_list:
-        try:
-            attr = getattr(aiida_object, attr_str)
-            if callable(attr):
-                try:
-                    print(f"{identifier}.{attr_str}: {attr()}")
-                except TypeError as err:
-                    print(f"{identifier}.{attr_str}: needs additional input arguments")
-            elif type(attr) in _SIMPLE_TYPES:
-                print(f"{identifier}.{attr_str}: {attr}")
-            else:
-                print(f"{identifier}.{attr_str}:")
-                pp.pprint(attr)
-        except AttributeError as err:
-            print(f"{identifier}.{attr_str}: no such attribute")
-    print(sep)
 
 
 def list_differences(nodes: _typing.List[_orm.Node],

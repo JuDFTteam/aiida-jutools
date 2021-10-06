@@ -17,5 +17,4 @@ from .util import \
     get_from_nested_node, \
     intersection, \
     is_same_node, \
-    list_differences, \
-    print_attributes
+    list_differences

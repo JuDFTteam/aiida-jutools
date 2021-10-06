@@ -17,4 +17,5 @@
 # to make it easier for users to find thing
 from masci_tools.io.parsers.tabulator import \
     Transformer, \
+    TransformedValue, \
     DefaultTransformer
