@@ -76,7 +76,7 @@ class NodeTabulator(Tabulator):
             _pd.DataFrame
         ]
 
-        self._pandas_column_policies = [
+        self._column_policies = [
             'flat',
             'flat_full_path',
             'multiindex'
@@ -226,10 +226,20 @@ class NodeTabulator(Tabulator):
         if overwrite or not self.recipe.include_list:
             self.recipe.include_list = include_list
 
+    def clear(self):
+        """Clear table if already tabulated."""
+        self._table = {}
+
+    @property
+    def table(self) -> _typing.Optional[_pd.DataFrame]:
+        """The result table. None if :py:meth:`~tabulate` not yet called."""
+        return _pd.DataFrame.from_dict(self._table) if self._table else None
+
     def tabulate(self,
                  collection: _typing.Union[_typing.List[_orm.Node], _orm.Group],
                  table_type: _typing.Union[_typing.Type[dict], _typing.Type[_pd.DataFrame]] = _pd.DataFrame,
-                 pandas_column_policy: str = 'flat',
+                 append: bool = True,
+                 column_policy: str = 'flat',
                  pass_node_to_transformer: bool = True,
                  verbose: bool = True,
                  **kwargs) -> _typing.Union[None, dict, _pd.DataFrame]:
@@ -239,9 +249,11 @@ class NodeTabulator(Tabulator):
 
         :param collection: group or list of nodes.
         :param table_type: table as pandas DataFrame or dict.
-        :param pandas_column_policy: 'flat': Flat dataframe, name conflicts produce warnings. 'flat_full_path':
-               Flat dataframe, column names are full keypaths, 'multiindex': dataframe with MultiIndex columns,
-               reflecting the full properties' path hierarchies.
+        :param append: True: append to table if not empty. False: Overwrite table.
+        :param column_policy: 'flat': Flat table, column names are last keys per keypath, name conflicts produce 
+                              warnings. 'flat_full_path': Flat table, column names are full keypaths, 
+                              'multiindex': table with MultiIndex columns (if pandas: `MultiIndex` columns), reflecting 
+                              the full properties' keypath hierarchies.
         :param pass_node_to_transformer: True: Pass current node to transformer. Enables more complex transformations,
                                          but may be slower for large collections.
         :param verbose: True: Print warnings.
@@ -249,17 +261,62 @@ class NodeTabulator(Tabulator):
         :return: Tabulated objects' properties as dict or pandas DataFrame.
         """
 
+        def _process_node(_node,
+                          _table,
+                          _include_keypaths,
+                          _pass_node_to_transformer,
+                          _failed_paths,
+                          _failed_transforms,
+                          **kwargs):
+            row = {keypath[-1]: None for keypath in _include_keypaths}
+
+            for keypath in _include_keypaths:
+                column = keypath[-1]
+                value, err = _jutools.node.get_from_nested_node(node=_node,
+                                                                keypath=keypath)
+                if err:
+                    row[column] = None
+                    _failed_paths[tuple(keypath)].append(_node.uuid)
+                    continue
+
+                if not self.recipe.transformer:
+                    row[column] = value
+                else:
+                    try:
+                        _node = _node if _pass_node_to_transformer else None
+                        trans_value = self.recipe.transformer.transform(keypath=keypath,
+                                                                        value=value,
+                                                                        obj=_node,
+                                                                        **kwargs)
+                        if trans_value.is_transformed:
+                            for t_column, t_value in trans_value.value.items():
+                                row[t_column] = t_value
+                        else:
+                            row[column] = trans_value.value
+
+                    except (ValueError, KeyError, TypeError) as err:
+                        # print(f'trans failed, setting value None, err: {err}')
+                        row[column] = None
+                        _failed_transforms[tuple(keypath)].append(_node.uuid)
+                        continue
+
+            for column, value in row.items():
+                # if transformer created new columns in row, need to add them here as well first.
+                if column not in _table:
+                    _table[column] = []
+                _table[column].append(value)
+
         if table_type not in self._table_types:
             print(f"Warning: Unknown {table_type=}. Choosing default return type "
                   f"{_pd.DataFrame} instead.")
             table_type = _pd.DataFrame
 
         if table_type == _pd.DataFrame and verbose \
-                and (pandas_column_policy not in self._pandas_column_policies
-                     or pandas_column_policy in {'flat_full_path', 'multiindex'}):
-            print(f"Warning: Unknown pandas column policy '{pandas_column_policy}'. Will switch to "
+                and (column_policy not in self._column_policies
+                     or column_policy in {'flat_full_path', 'multiindex'}):
+            print(f"Warning: Unknown pandas column policy '{column_policy}'. Will switch to "
                   f"default policy 'flat'.")
-            pandas_column_policy = 'flat'
+            column_policy = 'flat'
 
         assert isinstance(collection, (list, _orm.Group))
         is_group = isinstance(collection, _orm.Group)
@@ -297,9 +354,7 @@ class NodeTabulator(Tabulator):
         # in case of flat column policy, print a warning if name collisions exist
         def remove_collisions(keypaths: list,
                               in_or_ex: str):
-            name_collisions = {
-
-            }
+            name_collisions = {}
             for path in keypaths:
                 name = path[-1]
                 if name not in name_collisions:
@@ -336,6 +391,44 @@ class NodeTabulator(Tabulator):
             print(f"Warning: Failed to remove exclude keypaths from include keypaths:\n"
                   f"{failed_removes}")
 
+        # deal with case if append to existing table
+        # internally, table is always stored as dict of lists.
+        # so if append, append to lists. otherwise overwrite.
+        if append and self._table:
+            table = {keypath[-1]: [] for keypath in include_keypaths}
+            # first check if the existing table columns correspond to the created table columns
+            # if a transformer is used, the transformer may alter the column names. so in that case, do a trial
+            # trafo and take the resulting column index for comparison.
+            if self.recipe.transformer:
+                # get a single node
+                node = None
+                if is_group:
+                    for node in group.nodes:
+                        break
+                else:
+                    node = nodes[0] if nodes else None
+
+                    # now we can finally build the table
+                failed_paths = {tuple(keypath): [] for keypath in include_keypaths}
+                failed_transforms = {tuple(keypath): [] for keypath in include_keypaths}
+                _process_node(_node=node,
+                              _table=table,
+                              _include_keypaths=include_keypaths,
+                              _pass_node_to_transformer=pass_node_to_transformer,
+                              _failed_paths=failed_paths,
+                              _failed_transforms=failed_transforms,
+                              **kwargs)
+            else:
+                pass
+            existing_table_columns = set(self._table.keys())
+            created_table_columns = set(table.keys())
+            difference = existing_table_columns.symmetric_difference(created_table_columns)
+            if existing_table_columns != created_table_columns:
+                print(f"Warning: Selected {append=}, but new table columns are different from columns of the "
+                      f"existing table. Difference: {difference}. I will abort tabulation. Please clear the table "
+                      f"first.")
+                return
+
         # now we can finally build the table
         table = {keypath[-1]: [] for keypath in include_keypaths}
         failed_paths = {tuple(keypath): [] for keypath in include_keypaths}
@@ -343,48 +436,13 @@ class NodeTabulator(Tabulator):
         generator = (node for node in group.nodes) if is_group else (node for node in nodes)
 
         for node in generator:
-            print('-----------------')
-            print(f'node {node.label}')
-            row = {keypath[-1]: None for keypath in include_keypaths}
-
-            for keypath in include_keypaths:
-                column = keypath[-1]
-                value, err = _jutools.node.get_from_nested_node(node=node,
-                                                                keypath=keypath)
-                if err:
-                    row[column] = None
-                    failed_paths[tuple(keypath)].append(node.uuid)
-                    continue
-
-                # tmp: testing: print
-                # print(f'\n{column}:', end=' ')
-                if not self.recipe.transformer:
-                    # print(f'no transformer, value: {value}')
-                    row[column] = value
-                else:
-                    try:
-                        _node = node if pass_node_to_transformer else None
-                        trans_value = self.recipe.transformer.transform(keypath=keypath,
-                                                                        value=value,
-                                                                        obj=_node,
-                                                                        **kwargs)
-                        if trans_value.is_transformed:
-                            for t_column, t_value in trans_value.value.items():
-                                row[t_column] = t_value
-                        else:
-                            row[column] = trans_value.value
-
-                    except (ValueError, KeyError, TypeError) as err:
-                        # print(f'trans failed, setting value None, err: {err}')
-                        row[column] = None
-                        failed_transforms[tuple(keypath)].append(node.uuid)
-                        continue
-
-            for column, value in row.items():
-                # if transformer created new columns in row, need to add them here as well first.
-                if column not in table:
-                    table[column] = []
-                table[column].append(value)
+            _process_node(_node=node,
+                          _table=table,
+                          _include_keypaths=include_keypaths,
+                          _pass_node_to_transformer=pass_node_to_transformer,
+                          _failed_paths=failed_paths,
+                          _failed_transforms=failed_transforms,
+                          **kwargs)
 
         failed_paths = {path: uuids for path, uuids in failed_paths.items() if uuids}
         failed_transforms = {path: uuids for path, uuids in failed_transforms.items() if uuids}
@@ -399,10 +457,15 @@ class NodeTabulator(Tabulator):
                 print(f"Warning: Failed to transform keypath values for some nodes:\n"
                       f"{json.dumps(failed_transforms, indent=4)}")
 
-        if table_type == _pd.DataFrame:
-            self._table = _pd.DataFrame.from_dict(table)
+        if append and self._table:
+            for column, new_values in table.items():
+                self._table[column].extend(new_values)
         else:
-            # dict
             self._table = table
 
-        return self.table
+        if table_type == _pd.DataFrame:
+            return self.table
+        elif table_type == dict:
+            return self._table
+        else:
+            raise NotImplementedError(f"Table type {table_type} not supported.")
