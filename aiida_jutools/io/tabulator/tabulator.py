@@ -1,3 +1,4 @@
+# pylint: disable=unused-import
 # -*- coding: utf-8 -*-
 ###############################################################################
 # Copyright (c), Forschungszentrum Jülich GmbH, IAS-1/PGI-1, Germany.         #
@@ -21,84 +22,9 @@ import typing as _typing
 import aiida.orm as _orm
 import pandas as _pd
 from masci_tools.util import python_util as _masci_python_util
+from masci_tools.io.parsers.tabulator import Tabulator
 
 import aiida_jutools as _jutools
-
-
-class Tabulator(_abc.ABC):
-    """For tabulation of a collection of objects' (common) properties into a dict or dataframe."""
-
-    def __init__(self,
-                 recipe: _jutools.io.tabulator.Recipe = None,
-                 **kwargs):
-        """Initialize a tabulator object.
-
-        The attributes :py:attr:`~.include_list` and :py:attr:`~.exclude_list` control whic properties
-        are to be tabulated. They may be set in a derived class definition, or at runtime on an instance.
-
-        Subclasses define the nature of the objects to be tabulated by making assumptions on their
-        property structure. That way, if both include and exclude list are empty, by default the 'complete'
-        set of properties of the objects will be tabulated, where the subclass defines the notion of 'complete'.
-
-        If neither exclude nor include list is given, the full set of properties according to implementation
-        will be tabulated.
-
-        Format of the include and exclude lists:
-        
-        :param exclude_list: Optional list of properties to exclude. May be set later.
-        :param include_list: Optional list of properties to include. May be set later.
-        :param transform: Specifies special transformations for certain properties for tabulation.
-        :param kwargs: Additional keyword arguments for subclasses.
-        """
-        if not recipe:
-            recipe = _jutools.io.tabulator.Recipe()
-        self.recipe = recipe
-        self._table_types = []
-        self._table = None
-
-    @_abc.abstractmethod
-    def autolist(self,
-                 obj: _typing.Any,
-                 overwrite: bool = False,
-                 pretty_print: bool = False,
-                 **kwargs):
-        """Auto-generate an include list of properties to be tabulated from a given object.
-
-        This can serve as an overview for customized include and exclude lists.
-        :param obj: An example object of a type compatible with the tabulator.
-        :param overwrite: True: replace recipe list with the auto-generated list. False: Only if recipe list empty.
-        :param pretty_print: True: Print the generated list in pretty format.
-        :param kwargs: Additional keyword arguments for subclasses.
-        """
-        pass
-
-    def clear(self):
-        """Clear table if already tabulated."""
-        self._table = None
-
-    @property
-    def table(self) -> _typing.Any:
-        """The result table. None if :py:meth:`~tabulate` not yet called."""
-        return self._table
-
-    @_abc.abstractmethod
-    def tabulate(self,
-                 collection: _typing.Any,
-                 table_type: _typing.Type = _pd.DataFrame,
-                 pandas_column_policy: str = 'flat',
-                 **kwargs) -> _typing.Optional[_typing.Any]:
-        """Tabulate the common properties of a collection of objects.
-
-        :param collection: collection of objects with same set of properties.
-        :param table_type: Type of the tabulated data. Usually a pandas DataFrame or a dict.
-        :param pandas_column_policy: Only if table type is `pandas.DataFrame`. 'flat': Flat dataframe, name conflicts
-                                     produce warnings. 'flat_full_path': Flat dataframe, column names are full
-                                     keypaths, 'multiindex': dataframe with MultiIndex columns, reflecting the full
-                                     properties' path hierarchies.
-        :param kwargs: Additional keyword arguments for subclasses.
-        :return: Tabulated objects' properties.
-        """
-        pass
 
 
 class NodeTabulator(Tabulator):
