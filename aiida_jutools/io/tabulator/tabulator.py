@@ -22,7 +22,7 @@ import typing as _typing
 import aiida.orm as _orm
 import pandas as _pd
 from masci_tools.util import python_util as _masci_python_util
-from masci_tools.io.parsers.tabulator import Tabulator
+from masci_tools.io.parsers.tabulator import Recipe, Tabulator
 
 import aiida_jutools as _jutools
 
@@ -46,7 +46,7 @@ class NodeTabulator(Tabulator):
     """
 
     def __init__(self,
-                 recipe: _jutools.io.tabulator.Recipe = None,
+                 recipe: Recipe = None,
                  **kwargs):
         """Init node tabulator.
 
