@@ -241,6 +241,7 @@ class NodeTabulator(Tabulator):
                  append: bool = True,
                  column_policy: str = 'flat',
                  pass_node_to_transformer: bool = True,
+                 drop_empty_columns: bool = True,
                  verbose: bool = True,
                  **kwargs) -> _typing.Union[None, dict, _pd.DataFrame]:
         """This method extends :py:meth:`~.Tabulator.tabulate`. See also its docstring.
@@ -256,6 +257,7 @@ class NodeTabulator(Tabulator):
                               the full properties' keypath hierarchies.
         :param pass_node_to_transformer: True: Pass current node to transformer. Enables more complex transformations,
                                          but may be slower for large collections.
+        :param drop_empty_columns: Drop None/NaN-only columns. These could
         :param verbose: True: Print warnings.
         :param kwargs: Additional keyword arguments for subclasses.
         :return: Tabulated objects' properties as dict or pandas DataFrame.
@@ -443,6 +445,14 @@ class NodeTabulator(Tabulator):
                           _failed_paths=failed_paths,
                           _failed_transforms=failed_transforms,
                           **kwargs)
+
+        if drop_empty_columns:
+            empty_columns = [colname for colname, values in table.items() if all(v is None for v in values)]
+            if empty_columns:
+                if verbose:
+                    print(f"Info: Deleting empty columns {empty_columns}.")
+                for colname in empty_columns:
+                    table.pop(colname)
 
         failed_paths = {path: uuids for path, uuids in failed_paths.items() if uuids}
         failed_transforms = {path: uuids for path, uuids in failed_transforms.items() if uuids}
