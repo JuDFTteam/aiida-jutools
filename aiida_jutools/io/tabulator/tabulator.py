@@ -43,6 +43,23 @@ class NodeTabulator(Tabulator):
 
     In the transformer, a higher-level nested property may shadow subproperties such that they do not get
     unpacked or transformed.
+
+    TODO: increase memory performance:
+
+    - use optional dtypes from recipe (see TODO in Recipe) when building table. otherwise, e.g. when returning
+      pandas dataframe, all columns will have dtype 'object' or 'float64' and the table won't fit into memory
+      anymore very quickly.
+    - internal storage format dict of lists while building must remain, but when finished, convert to dict
+      of numpy arrays -> more memory efficient. for repeated tabulate() calls (to build larger table), have
+      to adjust code to concatenate new lists to existing numpy arrays when finished.
+    - change tabulate() signature: should not return table, only build it. another method (e.g. table @property
+      getter) should return table and before del (delete) its inner storage (self._table) of it, because return
+      will likely create a copy. that way can ~half the memory footprint.
+    - when returning pandas dataframe, and recipe supplied no dtypes, use automatic downcasting to smallest dtype
+      for numeric types (pd.to_numeric), and maybe 'categorical' for string coluns (if num unique values << num
+      values). See pandas > Scaling to larg datasets for more.
+    - maybe add save option (or method) and read() method to read in tabulated table. for pandas, that allow a user
+      to easily reuse the dtypes information from the recipe.
     """
 
     def __init__(self,
