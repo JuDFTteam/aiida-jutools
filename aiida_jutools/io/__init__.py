@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=unused-import
 ###############################################################################
 # Copyright (c), Forschungszentrum Jülich GmbH, IAS-1/PGI-1, Germany.         #
 #                All rights reserved.                                         #
@@ -10,8 +11,10 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with AiiDA IO (input / output files)."""
+"""Tools for working with AiiDA IO (input / output files and formats)."""
 
 from .cif import \
     cif2astr, \
     CifImporter
+
+from . import tabulator

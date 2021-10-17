@@ -260,24 +260,18 @@ def verdi_calcjob_outputcat(calcjob: _orm.CalcJobNode) -> str:
 
     Note: Apparently same as calling
 
-    .. highlight:: python
     .. code-block:: python
 
-        calcjob_node.outputs.retrieved.get_object_content('aiida.out')
-
-    ```
+       calcjob_node.outputs.retrieved.get_object_content('aiida.out')
 
     But the above can fail when this method here doesn't.
 
     Note: in an IPython environment, you can also use the capture magic instead of this function:
 
-    .. highlight:: python
     .. code-block:: python
 
-        %%capture output
-        !verdi calcjob outputcat NODE_IDENTIFIER
-
-    ```
+       %%capture output
+       !verdi calcjob outputcat NODE_IDENTIFIER
 
     Then in the next cell, can call output(), output.stdout or output.stderr.
 

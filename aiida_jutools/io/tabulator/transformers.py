@@ -11,8 +11,11 @@
 # For further information please visit http://judft.de/.                      #
 #                                                                             #
 ###############################################################################
-"""Tools for working with AiiDA metadata / annotations: extras: forms."""
+"""Tools for working with AiiDA IO: tabulation: transformers."""
 
-# import forms from their modules
-from .KkrConstantsVersion import \
-    KkrConstantsVersionExtraForm
+# import masci-tools tabulator base classes into this namespace,
+# to make it easier for users to find thing
+from masci_tools.io.parsers.tabulator import \
+    Transformer, \
+    TransformedValue, \
+    DefaultTransformer

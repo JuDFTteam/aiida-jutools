@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=unused-import
 ###############################################################################
 # Copyright (c), Forschungszentrum Jülich GmbH, IAS-1/PGI-1, Germany.         #
 #                All rights reserved.                                         #
@@ -13,7 +14,7 @@
 """Tools for working with aiida Node objects."""
 
 from .util import \
+    get_from_nested_node, \
     intersection, \
     is_same_node, \
-    list_differences, \
-    print_attributes
+    list_differences

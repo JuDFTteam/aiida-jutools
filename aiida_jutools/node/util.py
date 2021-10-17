@@ -11,52 +11,11 @@
 #                                                                             #
 ###############################################################################
 """Tools for working with aiida Node objects: utils."""
-
-import pprint as _pprint
+import functools as _functools
+import operator as _operator
 import typing as _typing
 
-from aiida import orm as _orm, engine as _aiida_engine
-from masci_tools.io.kkr_params import kkrparams as _kkrparams
-
-_SIMPLE_TYPES = [
-    bool,
-    complex,
-    float,
-    int,
-    list,
-    set,
-    tuple,
-]
-
-# define class member lists of some aiida entity types. of course these lists are non-exhaustive.
-# selected for interesting stuff, inspired by aiida cheat sheet / this tutorial.
-MEMBER_LISTS: _typing.Dict[object, _typing.List[str]] = {
-    _orm.StructureData: [
-        "attributes",
-        "cell",
-        "cell_angles",
-        "cell_lengths",
-        "get_cell_volume",
-        "get_formula",
-        "kinds",
-        "pbc",
-        "sites",
-    ],
-    _orm.CifData: [
-        "get_content",
-    ],
-    _kkrparams: [
-        "get_all_mandatory",
-        "get_missing_keys",
-    ],
-    _aiida_engine.ProcessBuilder: [
-        "metadata",
-        "parameters",
-        "parent_KKR",
-        "potential_overwrite",
-        "structure",
-    ]
-}
+from aiida import orm as _orm
 
 
 def is_same_node(node: _orm.Node,
@@ -120,50 +79,136 @@ def intersection(nodes: _typing.List[_orm.Node],
     return intersection
 
 
-def print_attributes(aiida_object: object,
-                     member_list: _typing.List[str]):
-    """Easily print-inspect the values of an aiida object.
+def get_from_nested_dict(a_dict: dict,
+                         keypath: list) -> _typing.Any:
+    """Get value from inside a nested dictionary.
 
-    :param aiida_object: aiida object
-    :param member_list: attributes or callables (methods) without parameters
+    Example: `(nested_dict, ['key_on_level1', 'key_on_level2'])` returns value of 'key_on_level2'.
 
-    :example:
-
-    >>> from aiida.orm import StructureData
-    >>> from aiida.plugins import DataFactory
-    >>> StructureData = DataFactory('structure')
-    >>> # fill in values for copper...
-    >>> Cu29 = StructureData()
-    >>> print_attributes(Cu29, "Cu", MEMBER_LISTS["StructureData"])
+    :param a_dict: A nested dictionary.
+    :param keypath: A list of keys, one per nesting level.
+    :return: value of the last key in the path.
     """
-    label = getattr(aiida_object, 'label', None)
-    pk = getattr(aiida_object, 'pk', None)
-    full_identifier = f"type {type(aiida_object)}"
-    full_identifier += f", pk={pk}" if pk else ""
-    full_identifier += f", label='{label}'" if label else ""
-    identifier = f"'{label}'" if label else f"{type(aiida_object)}"
+    return _functools.reduce(_operator.getitem, keypath, a_dict)
 
-    pp = _pprint.PrettyPrinter(indent=4)
-    sep = "-------------------------------"
-    print(sep)
-    print(f"Attributes of entity {full_identifier}:")
-    print(sep)
-    for attr_str in member_list:
+
+def set_in_nested_dict(a_dict: dict,
+                       keypath: list,
+                       value: _typing.Any):
+    """Set value inside a nested dictionary.
+
+    Example: `(nested_dict, ['key_on_level1', 'key_on_level2'], sets)` value of 'key_on_level2'.
+
+    :param a_dict: A nested dictionary.
+    :param keypath: A list of keys, one per nesting level.
+    :param value: value for the last key in the path.
+    """
+    if keypath:
+        if len(keypath) == 1:
+            a_dict[keypath[0]] = value
+        else:
+            get_from_nested_dict(a_dict, keypath[:-1])[keypath[-1]] = value
+
+
+def get_from_nested_node(node: _orm.Node,
+                         keypath: list) -> _typing.Tuple[_typing.Any, _typing.Optional[Exception]]:
+    """Get value from a node, including values nested inside attached `Dict` nodes or attached dictionaries.
+
+    Examples:
+
+    - `(node, ['uuid'])` returns uuid from node.
+    - `(node, ['extras', 'my_extra', 'my_subextra'])` returns value of 'my_subextra' from node extras.
+    - `(a_workchain, ['outputs', 'workflow_info', 'converged'])` returns value of 'converged' from workchain outputs
+      node 'workflow_info.
+    - `(node, ['attributes', 'key_level1', 'key_level2'])` returns value of 'key_level2' from `Dict` node.
+    - `(cif, ['get_content'])` returns file content from `CifData` node.
+
+    If the node member at the start of the keypath is not an attribute but a method which can be called without
+    parameters, and if it returns a node or dict, then the keypath gets followed down that structure as well.
+
+    :param node: An AiiDA node.
+    :param keypath: A list of keys, one per nesting level. First nesting level is the node attribute name. In case
+                    of inputs and outputs node, the second key is 'inputs' or 'outputs' and the third the input or
+                    output name that `node.outputs.` displays on tab completion (which, under the hood, comes from the
+                    in- or outgoing link_label).
+    :return: value of the last key in the path.
+    """
+    if not keypath:
+        err = KeyError("Keypath is empty.")
+        return None, err
+
+    # first item in keypath always refers to a node attribute.
+    attr = None
+    attr_name = keypath[0]
+    try:
+        attr = getattr(node, attr_name)
+    except AttributeError as err:
+        return None, err
+
+    if len(keypath) == 1:
+        return attr, None
+
+    elif isinstance(attr, dict):
+        # applies e.g. to extras
+        a_dict = attr
         try:
-            attr = getattr(aiida_object, attr_str)
-            if callable(attr):
-                try:
-                    print(f"{identifier}.{attr_str}: {attr()}")
-                except TypeError as err:
-                    print(f"{identifier}.{attr_str}: needs additional input arguments")
-            elif type(attr) in _SIMPLE_TYPES:
-                print(f"{identifier}.{attr_str}: {attr}")
-            else:
-                print(f"{identifier}.{attr_str}:")
-                pp.pprint(attr)
+            value = get_from_nested_dict(a_dict=a_dict,
+                                         keypath=keypath[1:])
+            return value, None
+        except KeyError as err:
+            return None, err
+
+    elif isinstance(attr, _orm.Dict):
+        # applies e.g. to extras
+        a_dict = attr.attributes
+        try:
+            value = get_from_nested_dict(a_dict=a_dict,
+                                         keypath=keypath[1:])
+            return value, None
+        except KeyError as err:
+            return None, err
+
+    elif attr_name in ['inputs', 'outputs']:
+        in_or_outputs = attr
+        link_label = keypath[1]
+        # note: link_label are the outputs 'names'. another way to get them is
+        # link_triples = node.get_outgoing(node_class=_orm.Dict).all()
+        # out_dicts = {lt.link_label: lt.node.attributes for lt in link_triples}
+        # ####
+        try:
+            io_node = getattr(in_or_outputs, link_label)
         except AttributeError as err:
-            print(f"{identifier}.{attr_str}: no such attribute")
-    print(sep)
+            return None, err
+        if not isinstance(io_node, _orm.Dict):
+            err = TypeError(f"{attr_name} node {link_label} is not {_orm.Dict}. Not supported.")
+            return None, err
+
+        in_or_out_dict = io_node.attributes
+        try:
+            value = get_from_nested_dict(a_dict=in_or_out_dict,
+                                         keypath=keypath[2:])
+            return value, None
+        except KeyError as err:
+            return None, err
+
+    elif callable(attr):
+        try:
+            # only works with parameter-less functions
+            called_attr = attr()
+            if isinstance(called_attr, _orm.Node):
+                value, err = get_from_nested_node(node=called_attr,
+                                                  keypath=keypath[1:])
+                return value, err
+            elif isinstance(called_attr, dict):
+                value = get_from_nested_dict(a_dict=called_attr,
+                                             keypath=keypath[1:])
+                return value, None
+        except TypeError as err:
+            return None, err
+
+    else:
+        err = ValueError(f"Reading sub-properties from node attribute '{keypath[0]}' is not supported yet.")
+        return None, err
 
 
 def list_differences(nodes: _typing.List[_orm.Node],
