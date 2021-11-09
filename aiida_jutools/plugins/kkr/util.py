@@ -16,7 +16,8 @@ import typing as _typing
 import numpy as _np
 from aiida import orm as _orm, engine as _aiida_engine
 from aiida_kkr import workflows as _kkr_workflows
-from masci_tools.util import chemical_elements as _masci_chemical_elements
+
+from aiida_jutools._dev import minimal_periodic_table as ptable
 
 
 def has_kkr_calc_converged(kkr_calc: _orm.CalcJobNode) -> bool:
@@ -76,8 +77,10 @@ def query_kkr_wc(cls: _typing.Type[_aiida_engine.WorkChain],
             raise KeyError("No symbols supplied.")
         if len(symbols) != 2:
             raise NotImplementedError(f"query not implemented for kkr_imp_wc with no. of symbols other than 2.")
-        elmts = _masci_chemical_elements.ChemicalElements()
-        imp_number = elmts[symbols[0]]
+
+        # get nuclear charge of first symbol
+        imp_number = ptable[symbols[0]][0]
+
         # wc.inputs.impurity_info.attributes['Zimp']
         if group:
             qb.append(_kkr_workflows.kkr_imp_wc, with_group='group', tag='imp_wc', project='*')
