@@ -45,3 +45,14 @@ from . import _dev
 #
 # The potential problem and the solution stated above, if it becomes one, applies to other JuDFTTeam plugins as well,
 # should they start using aiida-jutools as common codebase (aiida-fleur, aiida-spirit, aiida-spex, ...).
+
+def load_ipython_extension(ipython):
+    """
+    Register ipython extensions
+    """
+    from aiida_jutools.ipython import NotebookAiidaExport
+    import masci_tools
+
+    #Register extensions from masci-tools
+    masci_tools.load_ipython_extension(ipython)
+    ipython.register_magics(NotebookAiidaExport)
