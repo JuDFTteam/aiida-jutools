@@ -27,7 +27,7 @@ from fractions import gcd
 from sympy import nsimplify
 
 # aiida imports
-from aiida.plugins import DataFactory
+from aiida.orm import StructureData, CifData
 
 # CIF files
 from CifFile import ReadCif
@@ -52,11 +52,6 @@ __copyright__ = (u"Copyright (c), 2019-2020, Forschungszentrum Jülich GmbH, "
 __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.1"
 __contributors__ = u"Roman Kováčik"
-
-# aiida DataFactory
-StructureData = DataFactory('structure')
-DictData = DataFactory('dict')
-CifData = DataFactory('cif')
 
 # tolerance for number of decimal places
 roundtol = 8 # long
