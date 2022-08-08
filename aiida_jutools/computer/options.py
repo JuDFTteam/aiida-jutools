@@ -898,16 +898,7 @@ class ComputerOptionsManager:
     """
     localhost: _OptionsConfig = _masci_python_util.dataclass_default_field(_OptionsConfig(
         name="localhost",
-        _groups=[_orm.Group(label="computer_options/localhost",
-                            description="Default computer options (Dict nodes) for a generic local computer.")],
-        _options=[_orm.Dict(label="options_localhost_serial",
-                            dict={'max_wallclock_seconds': (60 ** 2),
-                                  'withmpi': False,
-                                  'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}}),
-                  _orm.Dict(label="options_localhost",
-                            dict={'max_wallclock_seconds': (60 ** 2),
-                                  'withmpi': False,
-                                  'resources': {'num_machines': 1, 'tot_num_mpiprocs': 4}})],
+        # _groups, _options init: see initialize() below.
         _query_config=_OptionsQueryConfig(ignored=["queue_name", "account", "gpu"],
                                           mandatory=[],
                                           optional=["withmpi"]),
@@ -915,42 +906,7 @@ class ComputerOptionsManager:
     ), deepcopy=False)
     iffslurm: _OptionsConfig = _masci_python_util.dataclass_default_field(_OptionsConfig(
         name="iffslurm",
-        _groups=[_orm.Group(label="computer_options/iffslurm",
-                            description="Default computer options (Dict nodes) for the FZJ PGI iffslurm computer."),
-                 _orm.Group(label="iffslurm_options",
-                            description="Default computer options (Dict nodes) for the FZJ PGI iffslurm computer.")],
-        _options=[_orm.Dict(label="options_iffslurm_oscar",
-                            dict={"queue_name": "oscar", "max_wallclock_seconds": (60 ** 2) * 24,
-                                  "withmpi": True,
-                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 12}}),
-                  _orm.Dict(label="options_iffslurm_oscar_serial",
-                            dict={"queue_name": "oscar", "max_wallclock_seconds": (60 ** 2) * 24,
-                                  "withmpi": False,
-                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
-                  _orm.Dict(label="options_iffslurm_th1",
-                            dict={"queue_name": "th1", "max_wallclock_seconds": (60 ** 2) * 24,
-                                  "withmpi": True,
-                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 12}}),
-                  _orm.Dict(label="options_iffslurm_th1_serial",
-                            dict={"queue_name": "th1", "max_wallclock_seconds": (60 ** 2) * 24,
-                                  "withmpi": False,
-                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
-                  _orm.Dict(label="options_iffslurm_th1-2020-32",
-                            dict={"queue_name": "th1-2020-32", "max_wallclock_seconds": (60 ** 2) * 24,
-                                  "withmpi": True,
-                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 32}}),
-                  _orm.Dict(label="options_iffslurm_th1-2020-32_serial",
-                            dict={"queue_name": "th1-2020-32", "max_wallclock_seconds": (60 ** 2) * 24,
-                                  "withmpi": False,
-                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
-                  _orm.Dict(label="options_iffslurm_th1-2020-64",
-                            dict={"queue_name": "th1-2020-64", "max_wallclock_seconds": (60 ** 2) * 24,
-                                  "withmpi": True,
-                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 64}}),
-                  _orm.Dict(label="options_iffslurm_viti",
-                            dict={"queue_name": "viti", "max_wallclock_seconds": (60 ** 2) * 24,
-                                  "withmpi": True,
-                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 20}})],
+        # _groups, _options init: see initialize() below.
         _query_config=_OptionsQueryConfig(ignored=["account"],
                                           mandatory=["queue_name"],
                                           optional=["gpu", "withmpi"]),
@@ -959,15 +915,7 @@ class ComputerOptionsManager:
     ), deepcopy=False)
     claix18: _OptionsConfig = _masci_python_util.dataclass_default_field(_OptionsConfig(
         name="claix18",
-        _groups=[_orm.Group(label="computer_options/claix18",
-                            description="Default computer options (Dict nodes) for the RWTH claix 2018 computer.")],
-        _options=[
-            _orm.Dict(label="options_claix18",
-                      dict={'max_wallclock_seconds': (60 ** 2) * 24,
-                            'withmpi': True,
-                            'resources': {'num_machines': 1, 'tot_num_mpiprocs': 48},
-                            'custom_scheduler_commands': ""})
-        ],
+        # _groups, _options init: see initialize() below.
         _query_config=_OptionsQueryConfig(ignored=["queue_name", "gpu"],
                                           mandatory=[],
                                           optional=["account", "withmpi"]),
@@ -976,18 +924,10 @@ class ComputerOptionsManager:
     ), deepcopy=False)
     claix16: _OptionsConfig = _masci_python_util.dataclass_default_field(_OptionsConfig(
         name="claix16",
-        _groups=[_orm.Group(label="computer_options/claix16",
-                            description="Default computer options (Dict nodes) for the RWTH claix 2016 computer.")],
-        _options=[
-            _orm.Dict(label="options_claix16",
-                      dict={'max_wallclock_seconds': (60 ** 2) * 24,
-                            'withmpi': True,
-                            'resources': {'num_machines': 1, 'tot_num_mpiprocs': 24},
-                            'custom_scheduler_commands': ""})
-        ],
         _query_config=_OptionsQueryConfig(ignored=["queue_name", "gpu"],
                                           mandatory=[],
                                           optional=["account", "withmpi"]),
+        # _groups, _options init: see initialize() below.
         _jobresource_cls=_aiida_slurm_schedulers.SlurmJobResource,
         _silent=True
     ), deepcopy=False)
@@ -1091,6 +1031,81 @@ class ComputerOptionsManager:
         :param delete_dry_run: True: show what would be done if delete_other. False: do it.
         :param delete_verbosity: node deletion verbosity. 0: silent, 1: number of nodes, 2: full node list.
         """
+
+        # Initialize _OptionsConfig members' groups and options.
+        # Reason why this is done here, and not in ComputerOptionsManager class attributes declaration above:
+        # The _OptionsConfig initialization initializes AiiDA Group and Dict objects in memory.
+        # That requires a loaded AiiDA profile. However, aiida-jutools's __init__ architecture currently
+        # (2002-07) loads all classes when aiida_jutools is imported, including ComputerOptionsManager.
+        # So, if the groups and options were inited in the class atributes rather than here, just importing jutools
+        # somewhere would already require a loaded AiiDA profile. Otherwise you would get an error. That is a
+        # dealbreaker. So, the configs' groups and options are initialized here, instead.
+        self.localhost._groups=[_orm.Group(label="computer_options/localhost",
+                            description="Default computer options (Dict nodes) for a generic local computer.")]
+        self.localhost._options=[_orm.Dict(label="options_localhost_serial",
+                            dict={'max_wallclock_seconds': (60 ** 2),
+                                  'withmpi': False,
+                                  'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}}),
+                  _orm.Dict(label="options_localhost",
+                            dict={'max_wallclock_seconds': (60 ** 2),
+                                  'withmpi': False,
+                                  'resources': {'num_machines': 1, 'tot_num_mpiprocs': 4}})]
+
+        self.iffslurm._groups=[_orm.Group(label="computer_options/iffslurm",
+                            description="Default computer options (Dict nodes) for the FZJ PGI iffslurm computer."),
+                 _orm.Group(label="iffslurm_options",
+                            description="Default computer options (Dict nodes) for the FZJ PGI iffslurm computer.")]
+        self.iffslurm._options=[_orm.Dict(label="options_iffslurm_oscar",
+                            dict={"queue_name": "oscar", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 12}}),
+                  _orm.Dict(label="options_iffslurm_oscar_serial",
+                            dict={"queue_name": "oscar", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": False,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
+                  _orm.Dict(label="options_iffslurm_th1",
+                            dict={"queue_name": "th1", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 12}}),
+                  _orm.Dict(label="options_iffslurm_th1_serial",
+                            dict={"queue_name": "th1", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": False,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
+                  _orm.Dict(label="options_iffslurm_th1-2020-32",
+                            dict={"queue_name": "th1-2020-32", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 32}}),
+                  _orm.Dict(label="options_iffslurm_th1-2020-32_serial",
+                            dict={"queue_name": "th1-2020-32", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": False,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 1}}),
+                  _orm.Dict(label="options_iffslurm_th1-2020-64",
+                            dict={"queue_name": "th1-2020-64", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 64}}),
+                  _orm.Dict(label="options_iffslurm_viti",
+                            dict={"queue_name": "viti", "max_wallclock_seconds": (60 ** 2) * 24,
+                                  "withmpi": True,
+                                  "resources": {"num_machines": 1, "tot_num_mpiprocs": 20}})]
+
+        self.claix18._groups=[_orm.Group(label="computer_options/claix18",
+                            description="Default computer options (Dict nodes) for the RWTH claix 2018 computer.")]
+        self.claix18._options=[
+            _orm.Dict(label="options_claix18",
+                      dict={'max_wallclock_seconds': (60 ** 2) * 24,
+                            'withmpi': True,
+                            'resources': {'num_machines': 1, 'tot_num_mpiprocs': 48},
+                            'custom_scheduler_commands': ""})]
+
+        self.claix16._groups=[_orm.Group(label="computer_options/claix16",
+                            description="Default computer options (Dict nodes) for the RWTH claix 2016 computer.")]
+        self.claix16._options=[
+            _orm.Dict(label="options_claix16",
+                      dict={'max_wallclock_seconds': (60 ** 2) * 24,
+                            'withmpi': True,
+                            'resources': {'num_machines': 1, 'tot_num_mpiprocs': 24},
+                            'custom_scheduler_commands': ""})]
+
         valid_config_names, unselected_config_names, invalid_config_names = \
             self._get_valid_config_names_from(config_names=config_names, silent=silent)
 
