@@ -9,9 +9,9 @@
    id="svg1180"
    sodipodi:docname="pgi-software-stack.svg"
    inkscape:version="1.2.1 (1:1.2.1+202210291243+9c6d41e410)"
-   inkscape:export-filename="/home/johannes/pgi/thesis/master-thesis/doc/src/fig/imp/pgi-software-stack.png"
-   inkscape:export-xdpi="300.01001"
-   inkscape:export-ydpi="300.01001"
+   inkscape:export-filename="../../../../../../Desktop/pgi-software-stack.png"
+   inkscape:export-xdpi="38.328629"
+   inkscape:export-ydpi="38.328629"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -35,8 +35,8 @@
      inkscape:window-x="1366"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer4"
-     showguides="false"
+     inkscape:current-layer="layer6"
+     showguides="true"
      inkscape:guide-bbox="true"
      fit-margin-top="0"
      fit-margin-left="0"
@@ -491,16 +491,15 @@
          y="227.01457">Fleur</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:21.1667px;line-height:1;font-family:'Open Sans';-inkscape-font-specification:'Open Sans';letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="-108.13263"
-       y="276.35864"
-       id="text26421"
-       transform="translate(122.20101,5.7843306)"><tspan
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.05px;line-height:1;font-family:'Open Sans';-inkscape-font-specification:'Open Sans';letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="50.71991"
+       y="282.14297"
+       id="text26421"><tspan
          sodipodi:role="line"
          id="tspan26419"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:21.1667px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#ffffff;stroke-width:0.264583"
-         x="-108.13263"
-         y="276.35864">Electronic structure</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.05px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#ffffff;stroke-width:0.264583"
+         x="50.71991"
+         y="282.14297">Electronic structure codes</tspan></text>
   </g>
   <g
      inkscape:groupmode="layer"
@@ -532,31 +531,26 @@
      id="layer13"
      inkscape:label="Physics desc"
      style="display:inline">
-    <g
-       id="g20401"
-       transform="translate(21.145282,-12.628627)">
-      <path
-         id="rect15806-9-3"
-         style="display:inline;fill:#ffffff;fill-opacity:1;stroke:#515151;stroke-width:3.77953;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-         d="m 1172.9531,512.61328 c -38.778,0 -69.9961,31.21809 -69.9961,69.9961 v 35.71874 c 0,8.77276 1.6116,17.15194 4.5332,24.87696 l -77.373,44.67187 -10.1602,-17.59765 -10.6504,39.74609 39.7481,10.65039 -10.1602,-17.59766 76.8379,-44.36328 c 12.6503,17.92978 33.5138,29.61133 57.2207,29.61133 h 606.1094 c 38.778,0 69.9961,-31.22004 69.9961,-69.99805 v -35.71874 c 0,-38.77801 -31.2181,-69.9961 -69.9961,-69.9961 z"
-         transform="scale(0.26458333)" />
-      <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;line-height:1;font-family:'Open Sans';-inkscape-font-specification:'Open Sans';letter-spacing:0px;word-spacing:0px;display:inline;fill:#515151;fill-opacity:1;stroke:none;stroke-width:0.264583"
-         x="302.75644"
-         y="154.8412"
-         id="text17635-6-2-6-9-9-9-3"><tspan
-           sodipodi:role="line"
-           id="tspan17633-2-7-1-1-2-3-6"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
-           x="302.75644"
-           y="154.8412">Python API</tspan><tspan
-           sodipodi:role="line"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
-           x="302.75644"
-           y="169.17009"
-           id="tspan10934">(common IO, data analysis)</tspan></text>
-    </g>
+    <path
+       id="rect15806-9-3"
+       style="display:inline;fill:#ffffff;fill-opacity:1;stroke:#515151;stroke-width:0.999994;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 324.71296,123.0003 c -8.65403,0 -15.62093,8.25979 -15.62093,18.5198 v 9.45059 c 0,2.32112 0.35966,4.53811 1.01168,6.58202 l -17.26723,11.81944 -2.26744,-4.65605 -2.37684,10.51616 8.87054,2.81791 -2.26744,-4.65605 17.1478,-11.73778 c 2.82315,4.74392 7.47923,7.83466 12.76986,7.83466 h 135.26457 c 8.65404,0 15.62094,-8.2603 15.62094,-18.52031 v -9.45059 c 0,-10.26001 -6.9669,-18.5198 -15.62094,-18.5198 z" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;line-height:1;font-family:'Open Sans';-inkscape-font-specification:'Open Sans';letter-spacing:0px;word-spacing:0px;display:inline;fill:#515151;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="323.90173"
+       y="142.21257"
+       id="text17635-6-2-6-9-9-9-3"><tspan
+         sodipodi:role="line"
+         id="tspan17633-2-7-1-1-2-3-6"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
+         x="323.90173"
+         y="142.21257">Python base layer for</tspan><tspan
+         sodipodi:role="line"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
+         x="323.90173"
+         y="156.54146"
+         id="tspan10934">common utilities</tspan></text>
   </g>
   <g
      inkscape:groupmode="layer"
@@ -792,16 +786,27 @@
          y="110.50647">aiida-spex</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:21.1667px;line-height:1;font-family:'Open Sans';-inkscape-font-specification:'Open Sans';letter-spacing:0px;word-spacing:0px;display:inline;fill:#515151;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="66.781342"
-       y="23.796896"
-       id="text26421-3-9"
-       transform="translate(122.20101,5.7843306)"><tspan
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.05px;line-height:1;font-family:'Open Sans';-inkscape-font-specification:'Open Sans';letter-spacing:0px;word-spacing:0px;display:inline;fill:#515151;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="96.051453"
+       y="29.581226"
+       id="text26421-3-9"><tspan
          sodipodi:role="line"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:21.1667px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
-         x="66.781342"
-         y="23.796896"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:19.05px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
+         x="96.051453"
+         y="29.581226"
          id="tspan33380-2">FAIR Principles</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.4px;line-height:1;font-family:'Open Sans';-inkscape-font-specification:'Open Sans';letter-spacing:0px;word-spacing:0px;display:inline;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="22.216879"
+       y="-494.60022"
+       id="text26421-3-9-3"
+       transform="rotate(90)"><tspan
+         sodipodi:role="line"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.4px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#ffffff;stroke-width:0.264583;fill-opacity:1"
+         x="22.216879"
+         y="-494.60022"
+         id="tspan33380-2-6">IAS-1 Software Stack</tspan></text>
   </g>
   <g
      inkscape:groupmode="layer"
@@ -833,31 +838,26 @@
      id="g20420"
      inkscape:label="FAIR desc"
      style="display:inline">
-    <g
-       id="g20418"
-       transform="translate(17.611671,-52.513692)">
-      <path
-         id="path20410"
-         style="display:inline;fill:#ffffff;fill-opacity:1;stroke:#515151;stroke-width:3.77953;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-         d="m 1172.9531,512.61328 c -38.778,0 -69.9961,31.21809 -69.9961,69.9961 v 35.71874 c 0,8.77276 1.6116,17.15194 4.5332,24.87696 l -77.373,44.67187 -10.1602,-17.59765 -10.6504,39.74609 39.7481,10.65039 -10.1602,-17.59766 76.8379,-44.36328 c 12.6503,17.92978 33.5138,29.61133 57.2207,29.61133 h 606.1094 c 38.778,0 69.9961,-31.22004 69.9961,-69.99805 v -35.71874 c 0,-38.77801 -31.2181,-69.9961 -69.9961,-69.9961 z"
-         transform="scale(0.26458333)" />
-      <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;line-height:1;font-family:'Open Sans';-inkscape-font-specification:'Open Sans';letter-spacing:0px;word-spacing:0px;display:inline;fill:#515151;fill-opacity:1;stroke:none;stroke-width:0.264583"
-         x="302.75644"
-         y="154.8412"
-         id="text20416"><tspan
-           sodipodi:role="line"
-           id="tspan20412"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
-           x="302.75644"
-           y="154.8412">AiiDA API</tspan><tspan
-           sodipodi:role="line"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
-           x="302.75644"
-           y="169.17009"
-           id="tspan20414">(common IO, data analysis)</tspan></text>
-    </g>
+    <path
+       id="path20410"
+       style="display:inline;fill:#ffffff;fill-opacity:1;stroke:#515151;stroke-width:1;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 321.86751,83.115237 c -8.81708,0 -15.91524,8.259786 -15.91524,18.519803 v 9.45058 c 0,2.32113 0.36643,4.53812 1.03072,6.58203 l -17.59256,11.81943 -2.31016,-4.65604 -2.42162,10.51615 9.03767,2.81792 -2.31016,-4.65605 17.47088,-11.73779 c 2.87635,4.74392 7.62015,7.83467 13.01047,7.83467 h 137.81311 c 8.81709,0 15.91525,-8.2603 15.91525,-18.52032 v -9.45058 c 0,-10.260017 -7.09816,-18.519803 -15.91525,-18.519803 z" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;line-height:1;font-family:'Open Sans';-inkscape-font-specification:'Open Sans';letter-spacing:0px;word-spacing:0px;display:inline;fill:#515151;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="320.3681"
+       y="102.32751"
+       id="text20416"><tspan
+         sodipodi:role="line"
+         id="tspan20412"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
+         x="320.3681"
+         y="102.32751">AiiDA base layer for</tspan><tspan
+         sodipodi:role="line"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:14.1111px;font-family:CMSSBX10;-inkscape-font-specification:CMSSBX10;fill:#515151;stroke-width:0.264583"
+         x="320.3681"
+         y="116.65639"
+         id="tspan20414">common utilities </tspan></text>
   </g>
   <g
      inkscape:groupmode="layer"
