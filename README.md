@@ -24,15 +24,9 @@ Just import with ``import aiida_jutools as jutools``. Then you can call all tool
 
 ## Installation
 
-Until further notice, install either by cloning the repository and use locally, 
-or by doing an editable install via `pip.`
+AiiDA-JuTools is not on PyPI or Anaconda yet. You can still install it from this repository directly, though.
 
 ```bash
-# install dependencies
-pip install aiida-core numpy pandas humanfriendly pytz
-pip install pycifrw spglib pymatgen
-pip install masci-tools aiida-kkr
-# finally:
 pip install -e git+https://github.com/JuDFTteam/aiida-jutools@develop#egg=aiida-jutools
 ```
 
