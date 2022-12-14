@@ -50,7 +50,7 @@ class KkrConstantsVersionExtraForm(_ExtraForm):
         }
 
     def load(self,
-             entity: _orm.EntityExtrasMixin,
+             entity: _orm.EntityExtras,
              **kwargs):
         """This methods extends :py:meth:`~.util.ExtraForm.load`.
 

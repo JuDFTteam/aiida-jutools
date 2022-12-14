@@ -55,7 +55,7 @@ class ExtraForm(_abc.ABC):
 
     @abc.abstractmethod
     def load(self,
-             entity: _orm.EntityExtrasMixin,
+             entity: _orm.EntityExtras,
              **kwargs):
         """Load an entity's extra's value into this form.
 
@@ -82,7 +82,7 @@ class ExtraForm(_abc.ABC):
         self._value.pop(self._error_report_key, None)
 
     def insert(self,
-               entity: _orm.EntityExtrasMixin,
+               entity: _orm.EntityExtras,
                validate: bool = False,
                overwrite: bool = False,
                **kwargs) -> bool:
