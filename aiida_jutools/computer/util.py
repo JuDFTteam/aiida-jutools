@@ -21,16 +21,16 @@ from aiida import orm as _orm
 def get_computers(computer_name_pattern: str = "") -> _typing.List[_orm.Computer]:
     """Query computer.
 
-    :param computer_name_pattern: (sub)string of computer name, case-insensitive, no regex. default = "":
+    :param computer_name_pattern: (sub)string of computer label, case-insensitive, no regex. default = "":
            get all computers.
     :return: aiida Computer if unique, list of Computers if not, empty list if no match
     """
-    # version compatibility check: old: computer.name, new: computer.label. else error.
+    # version compatibility check: aiida v1: computer.name, v2: computer.label. else error.
     qb = _orm.QueryBuilder()
     computer = None
     return qb.append(
         _orm.Computer,
-        filters={'name': {'ilike': f"%{computer_name_pattern}%"}},
+        filters={'label': {'ilike': f"%{computer_name_pattern}%"}},
     ).all(flat=True)
 
 
