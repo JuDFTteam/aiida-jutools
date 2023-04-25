@@ -13,8 +13,10 @@
 ###############################################################################
 """Tools for working with AiiDA StructureData nodes."""
 
-from .structure_analyzer import \
-    analyze_symmetry
+# # don't import structure analyzer; maintainer rkovacik left,
+# # and the code is not maintained anymore.
+# from .structure_analyzer import \
+#     analyze_symmetry
 
 from .util import \
     load_or_rescale_structures, \
