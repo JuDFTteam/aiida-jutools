@@ -24,14 +24,10 @@
     "version": "0.1.0-dev1",
     "reentry_register": true,
     "install_requires": [
-        "aiida-core",
-        "masci-tools",
-        "aiida-kkr",
         "numpy",
-        "pycifrw",
-        "spglib",
-        "pymatgen",
         "pandas",
+        "masci-tools",
+        "aiida-core",
         "pytz",
         "humanfriendly"
     ],
