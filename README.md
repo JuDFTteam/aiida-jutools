@@ -27,7 +27,9 @@ Just import with ``import aiida_jutools as jutools``. Then you can call all tool
 AiiDA-JuTools is not on PyPI or Anaconda yet. You can still install it from this repository directly, though.
 
 ```bash
-pip install -e git+https://github.com/JuDFTteam/aiida-jutools@develop#egg=aiida-jutools
+git clone git@github.com:JuDFTteam/aiida-jutools.git
+cd aiida-jutools
+pip install -e .
 ```
 
 ## Documentation
