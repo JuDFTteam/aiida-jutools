@@ -21,7 +21,7 @@ from aiida import orm as _orm
 from aiida.tools import groups as _aiida_groups
 
 from aiida_jutools._dev.terminal_colors import *
-from aiida_jutools.structure import analyze_symmetry
+from aiida_jutools.structure.structure_analyzer import analyze_symmetry as _analyze_symmetry
 
 class CifImporter:
     DEFAULT_CONVERSION_SETTINGS = {
@@ -339,7 +339,7 @@ def cif2astr(cifpath):
         'outmode': ['a_conv']
     }
 
-    structure = analyze_symmetry(dd)
+    structure = _analyze_symmetry(dd)
 
     if structure.get('aiida_structure_conventional'):
         print(prompt + structure['aiida_structure_conventional'].extras['check_cif']['message'] + '\n')
