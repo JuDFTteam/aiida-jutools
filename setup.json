@@ -29,7 +29,8 @@
         "masci-tools",
         "aiida-core",
         "pytz",
-        "humanfriendly"
+        "humanfriendly",
+        "pycifrw"
     ],
     "extras_require": {
         "pre-commit": [

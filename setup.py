@@ -28,6 +28,7 @@ if __name__ == '__main__':
         #     'aiida-core',
         #     'pytz',
         #     'humanfriendly',
+        #     'pycifrw', # structure_analyzer
         #     # 'aiida-kkr', # plugins.kkr
         #     # 'spglib', # structure_analyzer
         # ],
