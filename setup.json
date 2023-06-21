@@ -30,7 +30,8 @@
         "aiida-core",
         "pytz",
         "humanfriendly",
-        "pycifrw"
+        "pycifrw",
+        "spglib"
     ],
     "extras_require": {
         "pre-commit": [

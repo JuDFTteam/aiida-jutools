@@ -29,8 +29,8 @@ if __name__ == '__main__':
         #     'pytz',
         #     'humanfriendly',
         #     'pycifrw', # structure_analyzer
+        #     'spglib', # structure_analyzer
         #     # 'aiida-kkr', # plugins.kkr
-        #     # 'spglib', # structure_analyzer
         # ],
         # add rest of the things defined in setup.json
         **kwargs
