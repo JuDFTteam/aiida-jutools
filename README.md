@@ -14,17 +14,17 @@ This package offers
 <!-- 3. Science tools: -->
 <!--   - `jutools.structure.structure_analyzer.analyze_symmetry` -->
 
-
 Just import with ``import aiida_jutools as jutools``. Then you can call all tools like so: ``jutools.subpackage.tool
-()``.
+()``. All tools have comprehensive docstrings.
 
 ## Installation
-
-AiiDA-JuTools is not on PyPI or Anaconda yet. You can still install it from this repository directly, though.
 
 ```bash
 git clone git@github.com:JuDFTteam/aiida-jutools.git
 cd aiida-jutools
+# user install
+pip install .
+# developer install
 pip install -e .
 ```
 
@@ -34,7 +34,8 @@ Under construction. However, all classes and methods have comprehensive docstrin
 
 ### For developers
 
-Written some AiiDA code potentially useful for others? Please add it here!
+You have made some AiiDA code that may be useful to others? Consider adding it to jutools! Make a pull request, or 
+ask @Irratzo to be added as developer.
 
 Please adhere to the developer coding conventions:
 - Place larger classes in a subpackage (subfolder) in a separate module (file). Smaller stuff like functions go in the
