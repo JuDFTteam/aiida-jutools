@@ -10,7 +10,7 @@
 This package offers
 
 1. **For users:** Tools for simplifying daily work with the [AiiDA](https://aiida.net) workflow engine, especically with respect to data management and high-throughput computing.
-2. **For developers**: Common AiiDA layer for the [JuDFTteam AiiDA plugins](https://github.com/JuDFTteam). The underlying common Python layer is called [masci-tools](https://github.com/JuDFTteam/masci-tools).
+2. **For developers**: Common utilities for AiiDA plugins, such as the [JuDFTteam AiiDA plugins](https://github.com/JuDFTteam). These utitlities in turn make use of the common underlying Python layer [masci-tools](https://github.com/JuDFTteam/masci-tools).
 <!-- 3. Science tools: -->
 <!--   - `jutools.structure.structure_analyzer.analyze_symmetry` -->
 
@@ -34,7 +34,7 @@ Under construction. However, all classes and methods have comprehensive docstrin
 
 ### For developers
 
-You have made some AiiDA code that may be useful to others? Consider adding it to jutools! Make a pull request, or 
+You have made some AiiDA code that may be useful to others? Consider adding it to jutools! Make a pull request, or
 ask @Irratzo to be added as developer.
 
 Please adhere to the developer coding conventions:
