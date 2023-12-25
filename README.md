@@ -4,6 +4,7 @@
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 [![GitHub version](https://badge.fury.io/gh/JuDFTteam%2Faiida-jutools.svg)](https://badge.fury.io/gh/JuDFTteam%2Faiida-jutools)
 [![PyPI version](https://badge.fury.io/py/aiida-jutools.svg)](https://badge.fury.io/py/aiida-jutools)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10429636.svg)](https://doi.org/10.5281/zenodo.10429636)
 
 # aiida-jutools
 
