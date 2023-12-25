@@ -19,7 +19,7 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "0.1.1",
+    "version": "0.1.2",
     "reentry_register": true,
     "install_requires": [
         "numpy",
