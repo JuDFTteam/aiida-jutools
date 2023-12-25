@@ -1,0 +1,53 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: AiiDA-JuTools
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Johannes
+    family-names: Wasmer
+    email: johannes.wasmer@gmail.com
+    affiliation: Forschungszentrum Jülich
+    orcid: 'https://orcid.org/0000-0001-5113-3119'
+  - given-names: Philipp
+    family-names: Rüssmann
+    email: philipp.ruessmann@uni-wuerzburg.de
+    affiliation: University of Würzburg
+    orcid: 'https://orcid.org/0000-0002-6196-2700'
+  - given-names: Roman
+    family-names: Kovacik
+    email: r.kovacik@fz-juelich.de
+    affiliation: Forschungszentrum Jülich
+    orcid: 'https://orcid.org/0000-0002-2780-547X'
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.10429636
+    description: >-
+      This DOI represents all versions, and will always
+      resolve to the latest one.
+repository-code: 'https://github.com/JuDFTteam/aiida-jutools'
+url: 'https://github.com/JuDFTteam/aiida-jutools'
+abstract: >-
+  Tools for simplifying daily work with the AiiDA workflow
+  engine 
+keywords:
+  - workflow
+  - data-science
+  - utility
+  - dft
+  - toolkit
+  - pandas
+  - provenance
+  - density-functional-theory
+  - aiida
+  - materials-science
+  - high-throughput
+  - computational-science
+  - forschungszentrum-juelich
+  - computational-materials-science
+  - judft
+license: MIT
