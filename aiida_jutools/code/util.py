@@ -191,10 +191,10 @@ def get_code(computer_name_pattern: str = "",
             queues_queried = _jutools.computer.get_queues(computer=computer,
                                                           gpu=None,
                                                           with_node_count=False)
-            if not set(queues_harcoded) == set(queues_queried):
+            if not set(queues_queried).issubset(set(queues_harcoded)):
                 raise ValueError(
-                    f"Computer '{computer_name_pattern}' hardcoded queues {queues_harcoded} do not "
-                    f"correspond anymore to queried queues {queues_queried}. Update code.")
+                    f"Computer '{computer_name_pattern}' queried queues {queues_queried} is not "
+                    f"a subset of hardcoded queues {queues_harcoded}. Please contact the developer.")
 
             # now find the appropriate code for the given queue
             # assume that the codestring (code.label) has info about the architecture
