@@ -23,7 +23,6 @@ import math
 import numpy
 import string
 from datetime import datetime
-from fractions import gcd
 from sympy import nsimplify
 
 # aiida imports
@@ -492,9 +491,9 @@ def determine_wyckrep(pymg_dict,spgl,symmetry_dict):
             # temporary group label = '~' if group is vacant
             wycksort[idx][0] = '~'
         if cfuzid != 0 and wycksort[idx][1][0][0] != 0 and wycksort[idx][1][0][0] == int(wycksort[idx][1][0][0]):
-            cfuzid = int(gcd(cfuzid,wycksort[idx][1][0][0]))
+            cfuzid = int(math.gcd(cfuzid,wycksort[idx][1][0][0]))
         if cfuzre != 0 and wycksort[idx][1][0][1] != 0 and wycksort[idx][1][0][1] == int(wycksort[idx][1][0][1]):
-            cfuzre = int(gcd(cfuzre,wycksort[idx][1][0][1]))
+            cfuzre = int(math.gcd(cfuzre,wycksort[idx][1][0][1]))
     if cfuzid != 0:
         for idx, wyckele in enumerate(wycksort):
             wycksort[idx][1][0][0] = wycksort[idx][1][0][0]//cfuzid
