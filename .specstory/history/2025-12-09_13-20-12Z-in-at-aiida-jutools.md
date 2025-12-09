@@ -4223,3 +4223,118 @@ pytest --strict-deprecation -v
 
 The test suite is now ready! Try running it and let me know if you encounter any issues or need help adding more tests.
 
+---
+
+_**User**_
+
+Okay. I ran the tests on the remote with the working AiiDA environment. The output looks good. The deprecation warnings are all from tertiary dependencies (aiida-jutools -> aiida-core -> tertiary), so outside of our reach. I guess this is fine enough. (aiida-kernel) wasmer@c57f7bf435ef:/opt/aiida-jutools(develop =)$ pytest --with-computer iffslurm
+================================================================ test session starts =================================================================
+platform linux -- Python 3.12.7, pytest-9.0.2, pluggy-1.6.0 -- /opt/aiida-kernel/bin/python3
+cachedir: .pytest_cache
+rootdir: /opt/aiida-jutools
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.6.2.post1
+collected 10 items                                                                                                                                   
+
+tests/test_computer_util.py::test_is_slurm_computer_with_core_slurm PASSED                                                                     [ 10%]
+tests/test_computer_util.py::test_is_slurm_computer_with_slurm PASSED                                                                          [ 20%]
+tests/test_computer_util.py::test_is_slurm_computer_with_uppercase PASSED                                                                      [ 30%]
+tests/test_computer_util.py::test_is_slurm_computer_with_pbs PASSED                                                                            [ 40%]
+tests/test_computer_util.py::test_is_slurm_computer_with_sge PASSED                                                                            [ 50%]
+tests/test_computer_util.py::test_get_computers_returns_list PASSED                                                                            [ 60%]
+tests/test_computer_util.py::test_get_computers_with_pattern PASSED                                                                            [ 70%]
+tests/test_computer_util.py::test_get_queues_with_real_computer PASSED                                                                         [ 80%]
+tests/test_computer_util.py::test_no_import_deprecation_warnings PASSED                                                                        [ 90%]
+tests/test_computer_util.py::test_example_expected_failure XFAIL (Example of expected failure - remove this test)                              [100%]
+
+================================================================== warnings summary ==================================================================
+tests/test_computer_util.py::test_is_slurm_computer_with_core_slurm
+  /opt/aiida-kernel/lib/python3.12/site-packages/aio_pika/message.py:67: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    ZERO_TIME = datetime.utcfromtimestamp(0)
+
+tests/test_computer_util.py::test_is_slurm_computer_with_core_slurm
+  /opt/aiida-kernel/lib/python3.12/site-packages/pytz/tzinfo.py:27: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    _epoch = datetime.utcfromtimestamp(0)
+
+tests/test_computer_util.py::test_is_slurm_computer_with_core_slurm
+  /opt/aiida-core/src/aiida/cmdline/utils/query/calculation.py:13: AiidaDeprecationWarning: This module is deprecated, use `aiida.tools.query.calculation` instead. (this will be removed in v3)
+    warn_deprecation('This module is deprecated, use `aiida.tools.query.calculation` instead.', version=3)
+
+tests/test_computer_util.py::test_get_queues_with_real_computer
+  /opt/aiida-kernel/lib/python3.12/site-packages/paramiko/pkey.py:82: CryptographyDeprecationWarning: TripleDES has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES and will be removed from this module in 48.0.0.
+    "cipher": algorithms.TripleDES,
+
+tests/test_computer_util.py::test_get_queues_with_real_computer
+  /opt/aiida-kernel/lib/python3.12/site-packages/paramiko/transport.py:253: CryptographyDeprecationWarning: TripleDES has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES and will be removed from this module in 48.0.0.
+    "class": algorithms.TripleDES,
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================================================== 9 passed, 1 xfailed, 5 warnings in 4.58s ======================================================. So, you don't need to do anything.
+
+---
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Great! The user ran the tests and they all passed. The deprecation warnings they're seeing are from third-party dependencies (aio_pika, pytz, paramiko, cryptography, and aiida-core itself), which are outside their control. These are not from aiida-jutools code itself, which is good.
+
+They mentioned they're happy with the setup and I don't need to do anything. I should acknowledge their success and maybe provide a brief summary and suggest next steps if they want to build on this.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+Excellent! The test suite is working perfectly! 🎉
+
+## Summary of Results
+
+✅ **9 tests passed** (including integration tests with your iffslurm computer!)
+✅ **1 xfailed** (the intentional example failure - you can remove that test)
+✅ **All deprecation warnings are from third-party dependencies** (aiida-core, paramiko, cryptography, aio_pika, pytz)
+
+The important thing is that **no deprecation warnings came from aiida-jutools code itself**, which means your codebase is clean!
+
+## Test Coverage Achieved
+
+From your output, you successfully tested:
+- ✅ Unit tests for `is_slurm_computer()` with various scheduler types
+- ✅ Integration with AiiDA database (`get_computers()`)
+- ✅ Real SLURM cluster queries (`get_queues()` with iffslurm)
+- ✅ Import-time deprecation check (passed!)
+
+## Next Steps (Optional, when you need them)
+
+1. **Remove the example xfail test**:
+   ```bash
+   # Delete or comment out test_example_expected_failure in test_computer_util.py
+   ```
+
+2. **Add tests for new features as you develop**:
+   ```python
+   # tests/test_code_util.py (when you want to test code utilities)
+   @pytest.mark.unit
+   def test_something():
+       assert True
+   ```
+
+3. **Run tests before commits**:
+   ```bash
+   pytest -m unit  # Quick smoke test
+   pytest --strict-deprecation  # Full check
+   ```
+
+4. **When fixing deprecation warnings in aiida-jutools code**:
+   - Write a test that currently shows the warning
+   - Fix the code
+   - Run with `--strict-deprecation` to ensure it's gone
+
+## You're All Set! 🚀
+
+Your test infrastructure is now in place and validated. You can:
+- Continue developing with confidence
+- Add tests incrementally as needed
+- Catch regressions early
+- Track down aiida-jutools-specific deprecation warnings when they appear
+
+The third-party warnings you're seeing are expected and will be fixed by those upstream packages in their own time. Your code is clean!
+
