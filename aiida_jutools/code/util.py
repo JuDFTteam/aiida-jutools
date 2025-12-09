@@ -22,6 +22,7 @@ from aiida import orm as _orm
 import aiida_jutools as _jutools
 
 
+
 def get_code(computer_name_pattern: str = "",
              code_name_pattern: str = "",
              queue_name: str = "") -> _orm.Code:
@@ -33,16 +34,11 @@ def get_code(computer_name_pattern: str = "",
     If queue_name given, and applicable for this computer, this will choose the appropriate code under the assumption
     that different queues (partitions) of the respective computer require the code to be compiled with different
     architecture. For this to work, it is assumed that the code labels either have a substring which specifies the
-    which specifies the computer queue name, or a substring which specifies the architecture.
+    computer queue name, or a substring which specifies the architecture.
 
     All performed substring matches are case-insensitive.
 
-    Queue_name <-> architecture code matching available for these computers:
-    - 'iffslurm': FZJ PGI-1 iffslurm cluster.
-
-    Queue_name <-> architecture code matching available for these architectures:
-    - 'intel'
-    - 'AMD'
+    Architecture detection (AMD/Intel) is performed dynamically by querying the compute cluster.
 
     :param computer_name_pattern: substring matching some computer label(s)
     :param queue_name: exact name of the computer queue (slurm: partition)
@@ -50,28 +46,6 @@ def get_code(computer_name_pattern: str = "",
     :return: closest matching code. if found several, return first, but print all matches
     """
 
-    def _hardcoded_queue_architectures() -> _typing.Dict[str, _typing.Dict[str, str]]:
-        """hardcoded knowledge about architecture of computer queues (slurm: partitions).
-        :return: dict of {computer_name : {queue name : architecture name} }
-        """
-        iffslurm_architecture_queues = {
-            'AMD': ['th1-2020-32', 'th1-2020-64', 'th1-2020-gpu'],
-            'intel': ['oscar', 'th1', 'th2-gpu', 'viti']
-        }
-
-        def _invert(dict_architecture_queues: _typing.Dict[str, _typing.List[str]]):
-            """{architecture : [queue names]} --> {queue_name : architecture}"""
-            dict_queue_architecture = {}
-            for arch, queues in dict_architecture_queues.items():
-                for queue in queues:
-                    dict_queue_architecture[queue] = arch
-            return dict_queue_architecture
-
-        # gather knowledge for all computers
-        queue_architectures = {
-            'iffslurm': _invert(iffslurm_architecture_queues)
-        }
-        return queue_architectures
 
     def _select_codestring_from_filtered(codestrings_by_computer_code: _typing.List[str],
                                          filtered_codestrings: _typing.List[str],
@@ -156,7 +130,7 @@ def get_code(computer_name_pattern: str = "",
     if queue_name:
         # first assume B) that code labels contain queue name for which they were compiled.
         # if that fails, assume C) that code labels contain architecture for which they were compiled,
-        # and determine the code from hardcoded knowledge about the computer queues' architecture.
+        # and dynamically determine the architecture by querying the computer cluster.
 
         # ------------------------------------
         # assume B): code labeled by queue
@@ -168,45 +142,24 @@ def get_code(computer_name_pattern: str = "",
             # ---------------------------------------
             # assume C): code labeled by architecture
 
-            # check that hardcoded-queues list still corresponds to dynamical one
-            computer_queue_architectures = _hardcoded_queue_architectures()
-            # The argument computer_name is exact, in order to find the desired Computer. But it might not match
-            # the computer label used for hardcoded queue architectures. So first find out which of the
-            # computer labels in there is the closest match to computer_name.
-            all_computer_labels = list(computer_queue_architectures.keys())
-            matching_computer_labels = [label for label in all_computer_labels
-                                        if computer_name_pattern.lower() in label.lower()]
-            if not matching_computer_labels:
-                raise KeyError(f"For computer '{computer_name_pattern}', I have no hardcoded knowledge about "
-                               f"queue architectures, only for computers {all_computer_labels}.")
-            else:
-                matching_computer_label = matching_computer_labels[0]
-                computer_queue_architectures = computer_queue_architectures[matching_computer_label]
-                if len(matching_computer_labels) > 1:
-                    print(f"WARNING: '{get_code.__name__}()': For computer {computer_name_pattern}, "
-                          f"found more than one harcoded queue-architecture entry: {matching_computer_labels}. "
-                          f"Will choose first one. If this is a problem, contact developer.")
+            # Dynamically determine the architecture for the given queue
+            try:
+                architecture = _jutools.computer.get_queue_architecture(computer=computer, queue_name=queue_name)
+            except NotImplementedError:
+                # Architecture detection not implemented for this computer
+                raise ValueError(f"Could not determine appropriate code for computer '{computer_name_pattern}', "
+                                f"queue '{queue_name}', code name pattern '{code_name_pattern}'. "
+                                f"Neither queue name nor architecture detection is available.")
+            except ValueError as err:
+                # Could not determine architecture (e.g., queue doesn't exist or command failed)
+                module_name = _inspect.getmodulename(_inspect.getfile(_jutools.computer.get_queues))
+                raise ValueError(f"Could not determine architecture for queue '{queue_name}' on computer "
+                                f"'{computer_name_pattern}': {err}. Use '{module_name}.{_jutools.computer.get_queues.__name__}()' "
+                                f"to get list of available queues.") from err
 
-            queues_harcoded = list(computer_queue_architectures.keys())
-            queues_queried = _jutools.computer.get_queues(computer=computer,
-                                                          gpu=None,
-                                                          with_node_count=False)
-            if not set(queues_queried).issubset(set(queues_harcoded)):
-                raise ValueError(
-                    f"Computer '{computer_name_pattern}' queried queues {queues_queried} is not "
-                    f"a subset of hardcoded queues {queues_harcoded}. Please contact the developer.")
-
-            # now find the appropriate code for the given queue
+            # now find the appropriate code for the given queue based on architecture
             # assume that the codestring (code.label) has info about the architecture
             # (ie, architecture as a substring)
-            architecture = computer_queue_architectures.get(queue_name, None)
-            if not architecture:
-                # since have just that hardcoded queues match actual queues, can conclude
-                # that user has specified non-existant queue
-                module_name = _inspect.getmodulename(_inspect.getfile(_jutools.computer.get_queues))
-                raise KeyError(f"Computer '{computer_name_pattern}' has no queue '{queue_name}'. Use "
-                               f"'{module_name}.{_jutools.computer.get_queues.__name__}()' to get list of queues.")
-
             cs_by_computer_code_arch = [cs for cs in cs_by_computer_code if architecture in cs]
 
             # now codestring should be unique

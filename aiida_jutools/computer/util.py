@@ -34,6 +34,15 @@ def get_computers(computer_name_pattern: str = "") -> _typing.List[_orm.Computer
     ).all(flat=True)
 
 
+def is_slurm_computer(computer: _orm.Computer) -> bool:
+    """Check if the computer uses SLURM scheduler.
+
+    :param computer: aiida computer.
+    :return: True if computer uses SLURM scheduler, False otherwise.
+    """
+    return 'slurm' in computer.scheduler_type.lower()
+
+
 def shell_command(computer: _orm.Computer,
                   command: str) -> _typing.Tuple[str, str, str]:
     """Get output of shell command on aiida computer.
@@ -73,20 +82,20 @@ def get_queues(computer: _orm.Computer,
     """Get list of the remote computer (cluster's) queues (slurm: partitions) sorted by highest number of idle nodes
     descending.
 
-    Implementations available for these computers:
-    - 'iffslurm': FZJ PGI-1 iffslurm cluster.
+    Works with any computer that uses SLURM scheduler.
 
     :param computer: aiida computer.
     :param gpu: False: exclude gpu queues. True exclude non-gpu partitions. None: ignore this option.
     :param with_node_count: True: return queue names with resp. idle nodes count, False: just queue names.
     :param silent: True: do not print out any info.
     :return: list of [queue/partition name, idle nodes count] or just list of queue names
-    :raise: NotImplementedError if get queues not implemented for that type (by label substring) of computer.
+    :raise: NotImplementedError if computer does not use SLURM scheduler.
 
     DEVNOTES: TODO: replace filter by shell command with sinfo -> pandas.Dataframe -> apply filters.
     """
-    if 'iffslurm' not in computer.label:
-        raise NotImplementedError(f"{get_queues.__name__} not implemented for computer {computer.label}")
+    if not is_slurm_computer(computer):
+        raise NotImplementedError(f"{get_queues.__name__} only works with SLURM scheduler. "
+                                 f"Computer '{computer.label}' uses scheduler: {computer.scheduler_type}")
     iffslurm_cmd_sorted_partitions_list = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r"""
     iffslurm_partition_max_idle_nodes = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r | awk 'NR == 1 { print $1 }'"""
 
@@ -113,21 +122,55 @@ def get_queues(computer: _orm.Computer,
     return idle_nodes
 
 
+def get_queue_architecture(computer: _orm.Computer,
+                           queue_name: str) -> str:
+    """Get the CPU architecture (AMD or Intel) for a specific queue/partition on a SLURM cluster.
+
+    Works with any computer that uses SLURM scheduler.
+
+    :param computer: aiida computer.
+    :param queue_name: exact name of the queue/partition.
+    :return: 'AMD' or 'intel' depending on the CPU vendor.
+    :raise: NotImplementedError if computer does not use SLURM scheduler.
+    :raise: ValueError if architecture cannot be determined from output.
+    """
+    if not is_slurm_computer(computer):
+        raise NotImplementedError(f"{get_queue_architecture.__name__} only works with SLURM scheduler. "
+                                 f"Computer '{computer.label}' uses scheduler: {computer.scheduler_type}")
+
+    # Run lscpu on a node in the specified partition to get CPU vendor info
+    command = f"srun -p {queue_name} --time=00:01:00 lscpu 2>/dev/null | grep 'Vendor ID'"
+    exit_code, stdout, stderr = shell_command(computer=computer, command=command)
+
+    if not stdout:
+        raise ValueError(f"Could not determine architecture for queue '{queue_name}' on computer "
+                        f"'{computer.label}'. Command output was empty. stderr: {stderr}")
+
+    # Parse the vendor ID from output
+    stdout_lower = stdout.lower()
+    if 'authenticamd' in stdout_lower:
+        return 'AMD'
+    elif 'genuineintel' in stdout_lower:
+        return 'intel'
+    else:
+        raise ValueError(f"Could not determine architecture for queue '{queue_name}' on computer "
+                        f"'{computer.label}'. Unexpected Vendor ID in output: {stdout}")
+
+
 def get_least_occupied_queue(computer: _orm.Computer,
                              gpu: bool = None,
                              with_node_count: bool = True,
                              silent: bool = False) -> _typing.Union[_typing.Tuple[str, int], str]:
     """Get name of the remote computer (cluster's) queue (slurm: partition) with the highest number of idle nodes.
 
-    Implementations available for these computers:
-    - 'iffslurm': FZJ PGI-1 iffslurm cluster.
+    Works with any computer that uses SLURM scheduler.
 
     :param computer: aiida computer.
     :param gpu: False: exclude gpu queues. True exclude non-gpu queues. None: ignore this option.
     :param with_node_count: True: queue name with idle nodes count, False: just queue name.
     :param silent: True: do not print out any info.
     :return: tuple of queue name, idle nodes count, or just queue name
-    :raise: NotImplementedError if get queues not implemented for that type (by label substring) of computer.
+    :raise: NotImplementedError if computer does not use SLURM scheduler.
     """
     idle_nodes = get_queues(computer=computer, gpu=gpu, with_node_count=True, silent=silent)
     # if anything is left, get the first queue (ie the one with most idle nodes)
