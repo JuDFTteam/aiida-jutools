@@ -2415,3 +2415,1811 @@ Perfect! Fixed. Now it uses `'slurm' in computer.scheduler_type.lower()` which w
 
 The code is now fully extensible to any SLURM cluster, and the 'th1-oscar' partition (and any future partitions) will be handled automatically!
 
+---
+
+_**User**_
+
+Okay. I just tested in a Jupyter notebook with code jutools.code.get_code('iffslurm', 'voronoi'), and I received object <Code: Remote code 'voronoi_3.5_intel' on iffslurm pk: 870577, uuid: df230607-9170-4357-89e4-9e4eafa9157a>, instead of an error messages. So, our improvements worked. However, I get a whole bunch of AiiDA deprecation warnings. Mind that here we run AiiDA v2.6.3. /opt/aiida-jutools/aiida_jutools/code/util.py:110: AiidaDeprecationWarning: `objects` property is deprecated, use `collection` instead. (this will be removed in v3)
+  cs_by_computer_code = [f"{code.label}@{code.computer.label}" for code in _orm.Code.objects.all() if
+/opt/aiida-kernel/lib/python3.12/site-packages/paramiko/pkey.py:82: CryptographyDeprecationWarning: TripleDES has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES and will be removed from this module in 48.0.0.
+  "cipher": algorithms.TripleDES,
+/opt/aiida-kernel/lib/python3.12/site-packages/paramiko/transport.py:253: CryptographyDeprecationWarning: TripleDES has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES and will be removed from this module in 48.0.0.
+  "class": algorithms.TripleDES,
+/opt/aiida-jutools/aiida_jutools/code/util.py:63: AiidaDeprecationWarning: `objects` property is deprecated, use `collection` instead. (this will be removed in v3)
+  all_codestrings = [f"{code.label}@{code.computer.label}" for code in _orm.Code.objects.all()]
+/opt/aiida-jutools/aiida_jutools/code/util.py:63: AiidaDeprecationWarning: `objects` property is deprecated, use `collection` instead. (this will be removed in v3)
+  all_codestrings = [f"{code.label}@{code.computer.label}" for code in _orm.Code.objects.all()]
+/opt/aiida-core/src/aiida/orm/nodes/data/code/legacy.py:305: AiidaDeprecationWarning: `Code.get_from_string` classmethod is deprecated, use `aiida.orm.load_code` instead. (this will be removed in v3)
+  warn_deprecation(
+/opt/aiida-core/src/aiida/orm/nodes/data/code/legacy.py:226: AiidaDeprecationWarning: `Code.get_code_helper` classmethod is deprecated, use `aiida.orm.load_code` instead. (this will be removed in v3)
+  warn_deprecation(. Don't do any implementations yet. First explain to me how we could go about checking these deprecation warnings for the whole aiida-jutools codebase, and then systematically check for them with output checking and then automatized-like, based on each call's deprecation warning output, refactor the code to make it future-proof? I guess what we really would need here is an actual test suite for the aiida-jutools package.
+
+---
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking about a systematic approach to handle deprecation warnings in the aiida-jutools codebase. They're specifically seeing AiiDA v2.6.3 deprecation warnings about:
+1. `objects` property being deprecated in favor of `collection`
+2. `Code.get_from_string` being deprecated in favor of `aiida.orm.load_code`
+3. `Code.get_code_helper` being deprecated
+
+They want to know:
+1. How to systematically check for deprecation warnings across the whole codebase
+2. How to refactor based on these warnings
+3. They mention needing a test suite
+
+This is a good question about software maintenance and technical debt. Let me provide a comprehensive answer about:
+1. Finding deprecation warnings systematically
+2. Understanding what needs to be replaced
+3. Creating a test suite approach
+4. Automated refactoring strategies
+
+I should NOT implement anything yet, just explain the approach.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+Excellent question! You're right that a systematic approach is needed, and a test suite would be ideal. Let me outline a comprehensive strategy:
+
+## Strategy for Systematic Deprecation Warning Resolution
+
+### 1. **Discovery Phase: Find All Deprecation Issues**
+
+**Option A: Static Code Analysis**
+```bash
+# Search for deprecated patterns directly in code
+grep -r "\.objects\." aiida_jutools/
+grep -r "Code.get_from_string" aiida_jutools/
+grep -r "Code.get_code_helper" aiida_jutools/
+```
+
+**Option B: Runtime Warning Collection**
+```python
+# Create a script that imports all modules and collects warnings
+import warnings
+import sys
+
+warnings.simplefilter('always', DeprecationWarning)
+warnings.simplefilter('always', FutureWarning)
+
+# Capture all warnings
+with warnings.catch_warnings(record=True) as w:
+    import aiida_jutools
+    # Import all submodules
+    import aiida_jutools.code
+    import aiida_jutools.computer
+    # ... etc
+    
+    for warning in w:
+        print(f"{warning.filename}:{warning.lineno}: {warning.message}")
+```
+
+**Option C: pytest with warnings enabled** (recommended)
+```bash
+# Run with all warnings shown
+pytest -W default::DeprecationWarning --tb=short aiida_jutools/
+```
+
+### 2. **Documentation Phase: Map Deprecations to Fixes**
+
+Based on your warnings, here's the mapping:
+
+| **Deprecated** | **Replacement** | **Files Affected** |
+|----------------|-----------------|-------------------|
+| `_orm.Code.objects.all()` | `_orm.QueryBuilder().append(_orm.Code).all(flat=True)` or similar | code/util.py lines 63, 77, 82, 90, 110, 112 |
+| `_orm.Code.get_from_string()` | `_orm.load_code()` | code/util.py line 173 |
+| `Code.get_code_helper()` | `_orm.load_code()` | (might be used elsewhere) |
+
+### 3. **Testing Infrastructure Setup**
+
+Before refactoring, you need tests. Here's a minimal structure:
+
+```
+aiida_jutools/
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py          # pytest fixtures
+│   ├── test_code_util.py    # test get_code()
+│   ├── test_computer_util.py # test get_queues(), etc.
+│   └── test_deprecations.py  # specifically test no deprecation warnings
+├── pyproject.toml or setup.py
+└── .github/workflows/ci.yml  # optional: CI setup
+```
+
+**Example test structure:**
+```python
+# tests/test_code_util.py
+import pytest
+import warnings
+from aiida_jutools.code import get_code
+
+def test_get_code_no_deprecation_warnings():
+    """Ensure get_code doesn't trigger deprecation warnings."""
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        
+        # Your actual test call
+        code = get_code('iffslurm', 'voronoi')
+        
+        # Check for AiiDA deprecation warnings
+        aiida_warnings = [warning for warning in w 
+                         if issubclass(warning.category, DeprecationWarning)]
+        
+        assert len(aiida_warnings) == 0, \
+            f"Found {len(aiida_warnings)} deprecation warnings:\n" + \
+            "\n".join(str(w.message) for w in aiida_warnings)
+```
+
+### 4. **Systematic Refactoring Approach**
+
+**Step-by-step process:**
+
+1. **Create a feature branch**
+   ```bash
+   git checkout -b fix/aiida-v3-deprecations
+   ```
+
+2. **Set up warning detection in tests**
+   - Add pytest configuration to fail on deprecation warnings
+   ```ini
+   # pytest.ini or pyproject.toml
+   [tool.pytest.ini_options]
+   filterwarnings = [
+       "error::DeprecationWarning",
+       "error::FutureWarning",
+   ]
+   ```
+
+3. **Fix one deprecation type at a time**
+   - Start with easiest: `objects` → `collection` or QueryBuilder
+   - Then: `get_from_string` → `load_code`
+   - Test after each change
+
+4. **Run tests continuously**
+   ```bash
+   # After each fix
+   pytest tests/ -v
+   ```
+
+### 5. **Automated Detection Script**
+
+Create a helper script to find and report deprecations:
+
+```python
+# scripts/check_deprecations.py
+"""Scan codebase for known AiiDA v2→v3 deprecation patterns."""
+
+import re
+from pathlib import Path
+
+DEPRECATION_PATTERNS = {
+    'Code.objects': {
+        'pattern': r'Code\.objects\.',
+        'message': 'Use QueryBuilder or Code.collection instead',
+        'aiida_version': '3.0'
+    },
+    'get_from_string': {
+        'pattern': r'Code\.get_from_string',
+        'message': 'Use load_code() instead',
+        'aiida_version': '3.0'
+    },
+    'orm.objects': {
+        'pattern': r'_orm\.\w+\.objects\.',
+        'message': 'Use .collection property instead',
+        'aiida_version': '3.0'
+    }
+}
+
+def scan_file(filepath):
+    """Scan a single file for deprecation patterns."""
+    issues = []
+    with open(filepath) as f:
+        for line_num, line in enumerate(f, 1):
+            for name, pattern_info in DEPRECATION_PATTERNS.items():
+                if re.search(pattern_info['pattern'], line):
+                    issues.append({
+                        'file': filepath,
+                        'line': line_num,
+                        'type': name,
+                        'message': pattern_info['message'],
+                        'content': line.strip()
+                    })
+    return issues
+
+def main():
+    root = Path('aiida_jutools')
+    all_issues = []
+    
+    for py_file in root.rglob('*.py'):
+        all_issues.extend(scan_file(py_file))
+    
+    if all_issues:
+        print(f"Found {len(all_issues)} potential deprecation issues:\n")
+        for issue in all_issues:
+            print(f"{issue['file']}:{issue['line']}")
+            print(f"  Type: {issue['type']}")
+            print(f"  Fix: {issue['message']}")
+            print(f"  Code: {issue['content']}\n")
+    else:
+        print("No deprecation patterns found!")
+
+if __name__ == '__main__':
+    main()
+```
+
+### 6. **Recommended Order of Operations**
+
+1. **Run discovery** - understand scope (use the script above)
+2. **Set up minimal tests** - at least smoke tests for main functions
+3. **Create deprecation tracking issue** - document all findings
+4. **Fix systematically**:
+   - One deprecation type per commit
+   - Run tests after each
+   - Update CHANGELOG
+5. **Add regression tests** - ensure warnings don't come back
+6. **CI integration** - run tests on pull requests
+
+### 7. **Quick Assessment of Current State**
+
+Would you like me to:
+1. **First run a scan** of the codebase to identify all deprecation patterns?
+2. **Create the test infrastructure** (conftest.py, basic test files)?
+3. **Start fixing** the deprecations we already know about in code/util.py?
+
+The proper approach would be: **Scan → Test Setup → Fix with Tests → Verify**
+
+What would you prefer to tackle first?
+
+---
+
+_**User**_
+
+Okay. Let's discard the current idea of fixing on these specific modules for now. But yeah, let's go ahead with the general solution and set up a basic, general test suite for this package, using pytest, that we then can build upon. Yeah, add the option to fail on AiiDA deprecation warnings (or deprecation warnings in general, I don't know how fine-grained this can be set). But this should be easily switchable for running the test suite. Either by simply editing a test suite config file or as by adding it as an option to when running the test suite. Also give me a quick intro on how to run this test suite. Since we're gonna run it on a remote machine with a remote environment that has a working Python environment and a working AiiDA installation, I'm gonna test the new test suite setup there. So, maybe add one simple test, like a simple test for a single one of the simpler functions from @aiida_jutools/computer/util.py. Also give me a quick intro on how to use, run, develop and integrate such a test suite for a Python project like this into my development workflow, assuming that I have heard of Python-based test-driven development, but always managed to get away without it before. I am developing both in PyCharm (remote development, sometimes local, also in this case), in VSCode (same), and sometimes also in JupyterLab (remote).
+
+---
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants me to:
+1. Set up a basic pytest test suite for the aiida-jutools package
+2. Make deprecation warning detection easily switchable (via config or command line)
+3. Include at least one simple test (for a function from computer/util.py)
+4. Provide a quick intro on:
+   - How to run the test suite
+   - How to use/develop/integrate tests into their workflow
+   - How it works with PyCharm, VSCode, and JupyterLab
+
+Let me create:
+1. A basic test infrastructure:
+   - tests/ directory
+   - pytest.ini or pyproject.toml config
+   - conftest.py with fixtures
+   - A simple test file with at least one test
+   - A README or guide on running tests
+
+2. Make deprecation warnings configurable:
+   - Use pytest markers or command line options
+   - Document how to enable/disable
+
+3. Pick a simple function to test - maybe `is_slurm_computer` or `get_computers`
+
+Let me structure this well.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+Perfect! Let's set up a proper test suite infrastructure. I'll create a comprehensive but simple setup that you can build upon.
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="generic" data-tool-name="TodoWrite"><details>
+**Agent task list:**
+- [⚡] 🌡️ Create tests directory structure
+- [ ] 🌡️ Create pytest configuration files
+- [ ] 🌡️ Create conftest.py with basic fixtures
+- [ ] 🌡️ Write sample test for computer/util.py
+- [ ] 🌡️ Create test documentation/README
+
+</details></tool-use>
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Let me first check if a tests directory already exists, then create the structure.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="grep" data-tool-name="Glob"><details>
+<summary>Tool use: **Glob**</summary>
+ pattern `tests/**`
+```
+No files found
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="grep" data-tool-name="Glob"><details>
+<summary>Tool use: **Glob**</summary>
+ pattern `**/pytest.ini`
+```
+No files found
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="grep" data-tool-name="Glob"><details>
+<summary>Tool use: **Glob**</summary>
+ pattern `**/pyproject.toml`
+```
+No files found
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="grep" data-tool-name="Glob"><details>
+<summary>Tool use: **Glob**</summary>
+ pattern `**/setup.py`
+```
+/Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/setup.py
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Good, there's no tests directory yet and there's a setup.py. Let me check the setup.py to understand the project structure, then create the test infrastructure.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./setup.py`
+```
+     1→#!/usr/bin/env python
+     2→
+     3→from __future__ import absolute_import
+     4→from setuptools import setup, find_packages
+     5→import json
+     6→
+     7→# read the contents of your README file
+     8→from os import path
+     9→this_directory = path.abspath(path.dirname(__file__))
+    10→with open(path.join(this_directory, 'README.md')) as f:
+    11→    long_description = f.read()
+    12→
+    13→if __name__ == '__main__':
+    14→    # Provide static information in setup.json
+    15→    # such that it can be discovered automatically
+    16→    with open('setup.json', 'r') as info:
+    17→        kwargs = json.load(info)
+    18→    # finihed reading everything in
+    19→    setup(
+    20→        packages=find_packages(),
+    21→        # add long_description from readme.md:
+    22→        long_description = long_description, # add contents of README.md
+    23→        long_description_content_type ='text/markdown',  # This is important to activate markdown!
+    24→        # install_requires=[
+    25→        #     'numpy',
+    26→        #     'pandas',
+    27→        #     'masci-tools',
+    28→        #     'aiida-core',
+    29→        #     'pytz',
+    30→        #     'humanfriendly',
+    31→        #     'pycifrw', # structure_analyzer
+    32→        #     'spglib', # structure_analyzer
+    33→        #     # 'aiida-kkr', # plugins.kkr
+    34→        # ],
+    35→        # add rest of the things defined in setup.json
+    36→        **kwargs
+    37→    )
+    38→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>
+
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Good, it uses setup.py with setup.json. Let me create the test infrastructure now. I'll create:
+
+1. tests/__init__.py
+2. tests/conftest.py (fixtures)
+3. tests/test_computer_util.py (with a simple test)
+4. pytest.ini (configuration)
+5. tests/README.md (documentation)
+
+Let me start creating these files.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+Now let me create the test infrastructure:
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+
+```python
+# -*- coding: utf-8 -*-
+"""Test suite for aiida-jutools package."""
+
+```
+```
+File created successfully at: /Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/tests/__init__.py
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Good, let me continue creating the test infrastructure and update todos as I go.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+
+```ini
+[pytest]
+# Pytest configuration for aiida-jutools
+
+# Test discovery patterns
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+
+# Test paths
+testpaths = tests
+
+# Console output
+console_output_style = progress
+addopts =
+    -v
+    --tb=short
+    --strict-markers
+
+# Markers for organizing tests
+markers =
+    slow: marks tests as slow (deselect with '-m "not slow"')
+    requires_computer: marks tests that require an AiiDA computer to be configured
+    requires_database: marks tests that require AiiDA database access
+    unit: marks tests as unit tests (fast, no external dependencies)
+    integration: marks tests as integration tests
+
+# Warning filters
+# By default, show all warnings but don't fail on them
+# To fail on deprecation warnings, run: pytest --strict-warnings
+# Or use: pytest -W error::DeprecationWarning
+filterwarnings =
+    default::DeprecationWarning
+    default::FutureWarning
+    # Ignore specific third-party warnings if needed:
+    # ignore::DeprecationWarning:paramiko
+    # ignore::CryptographyDeprecationWarning
+
+# Coverage options (if pytest-cov is installed)
+# Uncomment to enable coverage reporting:
+# addopts = --cov=aiida_jutools --cov-report=html --cov-report=term
+
+# Minimum Python version
+minversion = 3.8
+
+```
+```
+File created successfully at: /Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/pytest.ini
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Good! Now let me create the conftest.py with some basic fixtures.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+
+```python
+# -*- coding: utf-8 -*-
+"""Pytest configuration and fixtures for aiida-jutools tests."""
+
+import pytest
+
+
+# ============================================================================
+# Command-line options
+# ============================================================================
+
+def pytest_addoption(parser):
+    """Add custom command-line options."""
+    parser.addoption(
+        "--strict-deprecation",
+        action="store_true",
+        default=False,
+        help="Fail tests on deprecation warnings (stricter mode for CI/development)"
+    )
+    parser.addoption(
+        "--with-computer",
+        action="store",
+        default=None,
+        help="Specify AiiDA computer label for integration tests (e.g., 'iffslurm')"
+    )
+
+
+def pytest_configure(config):
+    """Configure pytest based on command-line options."""
+    # If --strict-deprecation is set, convert deprecation warnings to errors
+    if config.getoption("--strict-deprecation"):
+        import warnings
+        warnings.filterwarnings("error", category=DeprecationWarning)
+        warnings.filterwarnings("error", category=FutureWarning)
+        # Re-allow specific third-party deprecations if needed
+        # warnings.filterwarnings("default", category=DeprecationWarning, module="paramiko")
+
+
+# ============================================================================
+# Session-level fixtures (run once per test session)
+# ============================================================================
+
+@pytest.fixture(scope="session")
+def aiida_profile():
+    """Get the current AiiDA profile name."""
+    try:
+        from aiida import load_profile
+        profile = load_profile()
+        return profile.name
+    except Exception as e:
+        pytest.skip(f"AiiDA profile not available: {e}")
+
+
+# ============================================================================
+# Function-level fixtures (run for each test)
+# ============================================================================
+
+@pytest.fixture
+def computer_label(request):
+    """Get computer label from command line or skip test."""
+    label = request.config.getoption("--with-computer")
+    if label is None:
+        pytest.skip("Test requires --with-computer option")
+    return label
+
+
+@pytest.fixture
+def mock_computer():
+    """Create a mock computer object for testing without AiiDA database."""
+    from unittest.mock import MagicMock
+
+    computer = MagicMock()
+    computer.label = "test_slurm_computer"
+    computer.scheduler_type = "core.slurm"
+
+    return computer
+
+
+@pytest.fixture
+def mock_non_slurm_computer():
+    """Create a mock non-SLURM computer for testing."""
+    from unittest.mock import MagicMock
+
+    computer = MagicMock()
+    computer.label = "test_pbs_computer"
+    computer.scheduler_type = "core.pbs"
+
+    return computer
+
+
+# ============================================================================
+# Utility fixtures
+# ============================================================================
+
+@pytest.fixture
+def capture_warnings():
+    """Context manager to capture warnings during tests."""
+    import warnings
+
+    class WarningCapture:
+        def __init__(self):
+            self.warnings = []
+
+        def __enter__(self):
+            self._context = warnings.catch_warnings(record=True)
+            self.warnings = self._context.__enter__()
+            warnings.simplefilter("always")
+            return self.warnings
+
+        def __exit__(self, *args):
+            return self._context.__exit__(*args)
+
+        def get_aiida_deprecations(self):
+            """Filter for AiiDA deprecation warnings."""
+            return [w for w in self.warnings
+                   if issubclass(w.category, DeprecationWarning)
+                   and 'aiida' in str(w.message).lower()]
+
+    return WarningCapture()
+
+```
+```
+File created successfully at: /Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/tests/conftest.py
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Excellent! Now let me create a simple test file with tests for the computer/util.py functions. I'll test the `is_slurm_computer` function since it's simple and doesn't require database access.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="generic" data-tool-name="TodoWrite"><details>
+**Agent task list:**
+- [X] 🌡️ Create tests directory structure
+- [X] 🌡️ Create pytest configuration files
+- [X] 🌡️ Create conftest.py with basic fixtures
+- [⚡] 🌡️ Write sample test for computer/util.py
+- [ ] 🌡️ Create test documentation/README
+
+</details></tool-use>
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Now let me create a test file for computer/util.py with some simple tests.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+
+```python
+# -*- coding: utf-8 -*-
+"""Tests for aiida_jutools.computer.util module."""
+
+import pytest
+
+
+# ============================================================================
+# Unit tests (no AiiDA database required)
+# ============================================================================
+
+@pytest.mark.unit
+def test_is_slurm_computer_with_core_slurm(mock_computer):
+    """Test is_slurm_computer recognizes 'core.slurm' scheduler."""
+    from aiida_jutools.computer.util import is_slurm_computer
+
+    mock_computer.scheduler_type = "core.slurm"
+    assert is_slurm_computer(mock_computer) is True
+
+
+@pytest.mark.unit
+def test_is_slurm_computer_with_slurm(mock_computer):
+    """Test is_slurm_computer recognizes 'slurm' scheduler."""
+    from aiida_jutools.computer.util import is_slurm_computer
+
+    mock_computer.scheduler_type = "slurm"
+    assert is_slurm_computer(mock_computer) is True
+
+
+@pytest.mark.unit
+def test_is_slurm_computer_with_uppercase(mock_computer):
+    """Test is_slurm_computer is case-insensitive."""
+    from aiida_jutools.computer.util import is_slurm_computer
+
+    mock_computer.scheduler_type = "CORE.SLURM"
+    assert is_slurm_computer(mock_computer) is True
+
+
+@pytest.mark.unit
+def test_is_slurm_computer_with_pbs(mock_non_slurm_computer):
+    """Test is_slurm_computer returns False for PBS scheduler."""
+    from aiida_jutools.computer.util import is_slurm_computer
+
+    assert is_slurm_computer(mock_non_slurm_computer) is False
+
+
+@pytest.mark.unit
+def test_is_slurm_computer_with_sge(mock_computer):
+    """Test is_slurm_computer returns False for SGE scheduler."""
+    from aiida_jutools.computer.util import is_slurm_computer
+
+    mock_computer.scheduler_type = "core.sge"
+    assert is_slurm_computer(mock_computer) is False
+
+
+# ============================================================================
+# Integration tests (require AiiDA database and configured computer)
+# ============================================================================
+
+@pytest.mark.integration
+@pytest.mark.requires_computer
+def test_get_computers_returns_list(aiida_profile):
+    """Test get_computers returns a list."""
+    from aiida_jutools.computer.util import get_computers
+
+    computers = get_computers()
+    assert isinstance(computers, list)
+
+
+@pytest.mark.integration
+@pytest.mark.requires_computer
+def test_get_computers_with_pattern(computer_label, aiida_profile):
+    """Test get_computers can find a specific computer."""
+    from aiida_jutools.computer.util import get_computers
+
+    computers = get_computers(computer_label)
+    assert len(computers) > 0
+    assert any(computer_label.lower() in comp.label.lower() for comp in computers)
+
+
+@pytest.mark.integration
+@pytest.mark.requires_computer
+@pytest.mark.slow
+def test_get_queues_with_real_computer(computer_label, aiida_profile):
+    """Test get_queues returns queue information for a real SLURM computer."""
+    from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
+
+    computers = get_computers(computer_label)
+    if not computers:
+        pytest.skip(f"Computer '{computer_label}' not found")
+
+    computer = computers[0]
+
+    if not is_slurm_computer(computer):
+        pytest.skip(f"Computer '{computer.label}' is not a SLURM computer")
+
+    # This will actually query the cluster, so mark as slow
+    queues = get_queues(computer, with_node_count=False, silent=True)
+
+    assert isinstance(queues, list)
+    assert len(queues) > 0
+    # Queues should be strings
+    assert all(isinstance(q, str) for q in queues)
+
+
+# ============================================================================
+# Deprecation warning tests
+# ============================================================================
+
+@pytest.mark.unit
+def test_no_import_deprecation_warnings(capture_warnings):
+    """Test that importing the module doesn't trigger deprecation warnings."""
+    with capture_warnings as w:
+        # Import the module
+        import aiida_jutools.computer.util
+
+        # Check for deprecation warnings
+        deprecations = [warning for warning in w
+                       if issubclass(warning.category, DeprecationWarning)]
+
+        if deprecations:
+            messages = "\n".join(f"  {d.filename}:{d.lineno}: {d.message}"
+                               for d in deprecations)
+            pytest.fail(f"Found {len(deprecations)} deprecation warnings on import:\n{messages}")
+
+
+# ============================================================================
+# Example: Test with expected failure (optional, for demonstration)
+# ============================================================================
+
+@pytest.mark.unit
+@pytest.mark.xfail(reason="Example of expected failure - remove this test")
+def test_example_expected_failure():
+    """This test is expected to fail - it's just an example."""
+    assert False, "This is an intentional failure for demonstration"
+
+```
+```
+File created successfully at: /Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/tests/test_computer_util.py
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Excellent! Now let me create a comprehensive README for the tests directory that explains how to run and develop tests.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="generic" data-tool-name="TodoWrite"><details>
+**Agent task list:**
+- [X] 🌡️ Create tests directory structure
+- [X] 🌡️ Create pytest configuration files
+- [X] 🌡️ Create conftest.py with basic fixtures
+- [X] 🌡️ Write sample test for computer/util.py
+- [⚡] 🌡️ Create test documentation/README
+
+</details></tool-use>
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Now let me create a comprehensive README for the tests.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+
+```md
+# aiida-jutools Test Suite
+
+Comprehensive test suite for the aiida-jutools package using pytest.
+
+## Quick Start
+
+### Installing Test Dependencies
+
+First, install pytest and optional testing tools:
+
+\```bash
+# Minimal installation
+pip install pytest
+
+# Recommended installation with coverage
+pip install pytest pytest-cov
+
+# Optional: for better output formatting
+pip install pytest-sugar
+\```
+
+### Running Tests
+
+**Basic test run (all tests):**
+\```bash
+pytest
+\```
+
+**Run with verbose output:**
+\```bash
+pytest -v
+\```
+
+**Run only unit tests (fast, no database required):**
+\```bash
+pytest -m unit
+\```
+
+**Run with coverage report:**
+\```bash
+pytest --cov=aiida_jutools --cov-report=html
+# Opens htmlcov/index.html in browser to view coverage
+\```
+
+**Run with deprecation warnings as errors:**
+\```bash
+pytest --strict-deprecation
+\```
+
+**Run integration tests with a specific computer:**
+\```bash
+pytest -m integration --with-computer=iffslurm
+\```
+
+**Run and stop at first failure:**
+\```bash
+pytest -x
+\```
+
+**Run specific test file:**
+\```bash
+pytest tests/test_computer_util.py
+\```
+
+**Run specific test function:**
+\```bash
+pytest tests/test_computer_util.py::test_is_slurm_computer_with_core_slurm
+\```
+
+## Test Organization
+
+### Test Markers
+
+Tests are organized using pytest markers:
+
+- `@pytest.mark.unit` - Fast unit tests, no external dependencies
+- `@pytest.mark.integration` - Integration tests requiring AiiDA database
+- `@pytest.mark.requires_computer` - Tests requiring configured AiiDA computer
+- `@pytest.mark.slow` - Tests that take longer to run (e.g., cluster queries)
+
+**Running tests by marker:**
+\```bash
+# Run only unit tests
+pytest -m unit
+
+# Run integration tests
+pytest -m integration
+
+# Skip slow tests
+pytest -m "not slow"
+
+# Run unit tests but not slow ones
+pytest -m "unit and not slow"
+\```
+
+### Test File Structure
+
+\```
+tests/
+├── __init__.py              # Test package marker
+├── conftest.py              # Pytest fixtures and configuration
+├── test_computer_util.py    # Tests for computer utilities
+├── test_code_util.py        # Tests for code utilities (add this)
+└── README.md                # This file
+\```
+
+## Configuration Files
+
+### pytest.ini
+
+Main configuration file at repository root. Controls:
+- Test discovery patterns
+- Warning filters
+- Default options
+- Test markers
+
+**Key settings:**
+\```ini
+[pytest]
+testpaths = tests          # Where to find tests
+filterwarnings = default   # Show all warnings by default
+\```
+
+### conftest.py
+
+Contains:
+- **Fixtures**: Reusable test setup (e.g., `mock_computer`, `aiida_profile`)
+- **Command-line options**: Custom flags like `--strict-deprecation`
+- **Hooks**: Test configuration hooks
+
+## Deprecation Warning Control
+
+### Method 1: Command-line flag (Recommended for Development)
+
+\```bash
+# Fail on deprecation warnings
+pytest --strict-deprecation
+
+# Normal mode (show warnings but don't fail)
+pytest
+\```
+
+### Method 2: Environment variable
+
+\```bash
+# Set for session
+export PYTEST_ADDOPTS="--strict-deprecation"
+pytest
+
+# Or inline
+PYTEST_ADDOPTS="--strict-deprecation" pytest
+\```
+
+### Method 3: Edit pytest.ini (Permanent)
+
+Uncomment in `pytest.ini`:
+\```ini
+filterwarnings =
+    error::DeprecationWarning  # Fail on deprecation warnings
+\```
+
+## Writing Tests
+
+### Example Unit Test (No Database Required)
+
+\```python
+import pytest
+
+@pytest.mark.unit
+def test_is_slurm_computer(mock_computer):
+    """Test is_slurm_computer with mock computer."""
+    from aiida_jutools.computer.util import is_slurm_computer
+
+    mock_computer.scheduler_type = "core.slurm"
+    assert is_slurm_computer(mock_computer) is True
+\```
+
+### Example Integration Test (Requires Database)
+
+\```python
+@pytest.mark.integration
+@pytest.mark.requires_computer
+def test_get_queues(computer_label, aiida_profile):
+    """Test get_queues with real AiiDA computer."""
+    from aiida_jutools.computer.util import get_computers, get_queues
+
+    computers = get_computers(computer_label)
+    queues = get_queues(computers[0], with_node_count=False, silent=True)
+
+    assert len(queues) > 0
+\```
+
+### Test Structure Best Practices
+
+1. **One assertion per test** (when possible)
+2. **Use descriptive test names** (`test_function_with_condition_expects_result`)
+3. **Use fixtures** for setup/teardown
+4. **Mark tests appropriately** (unit/integration/slow)
+5. **Test edge cases** (empty input, None, errors)
+
+## IDE Integration
+
+### PyCharm
+
+1. **Enable pytest:**
+   - Go to: Settings → Tools → Python Integrated Tools
+   - Set "Default test runner" to "pytest"
+   - Apply and restart
+
+2. **Run tests:**
+   - Right-click on test file/function → "Run pytest in..."
+   - Use green play button in gutter next to test
+   - View results in "Run" tool window
+
+3. **Run with options:**
+   - Edit run configuration
+   - Add to "Additional Arguments": `--strict-deprecation -v`
+
+4. **View coverage:**
+   - Right-click test file → "Run with Coverage"
+
+### VSCode
+
+1. **Install Python extension** (Microsoft)
+
+2. **Configure pytest:**
+   - Open Command Palette (Cmd/Ctrl+Shift+P)
+   - Type "Python: Configure Tests"
+   - Select "pytest"
+   - Select "tests" directory
+
+3. **Run tests:**
+   - Click test icon in activity bar (beaker icon)
+   - Click play button next to test/file
+   - Use Testing panel to view results
+
+4. **Configure settings.json:**
+   \```json
+   {
+       "python.testing.pytestEnabled": true,
+       "python.testing.pytestArgs": [
+           "tests",
+           "-v"
+       ]
+   }
+   \```
+
+### JupyterLab
+
+While not ideal for running full test suites, you can run tests from notebook:
+
+\```python
+# Install ipytest
+!pip install ipytest
+
+# In notebook cell:
+import ipytest
+ipytest.autoconfig()
+
+%%ipytest -v
+
+def test_something():
+    assert 1 + 1 == 2
+\```
+
+**Better approach for Jupyter:**
+\```python
+# Run tests from notebook using subprocess
+import subprocess
+result = subprocess.run(['pytest', 'tests/', '-v'],
+                       capture_output=True, text=True)
+print(result.stdout)
+\```
+
+## Development Workflow
+
+### Test-Driven Development (TDD) Cycle
+
+1. **Write a failing test** for new feature
+   \```bash
+   pytest tests/test_new_feature.py -v
+   # Test should fail (red)
+   \```
+
+2. **Write minimal code** to make it pass
+   \```python
+   # Implement feature in aiida_jutools/
+   \```
+
+3. **Run test again**
+   \```bash
+   pytest tests/test_new_feature.py -v
+   # Test should pass (green)
+   \```
+
+4. **Refactor** code while keeping tests green
+
+5. **Repeat** for next feature
+
+### Pre-commit Workflow
+
+Before committing code:
+
+\```bash
+# Run all unit tests (fast)
+pytest -m unit
+
+# If adding integration features, test those too
+pytest -m integration --with-computer=iffslurm
+
+# Check for deprecation warnings
+pytest --strict-deprecation
+
+# Run with coverage
+pytest --cov=aiida_jutools --cov-report=term-missing
+\```
+
+### Continuous Development
+
+**Watch mode** (requires pytest-watch):
+\```bash
+pip install pytest-watch
+ptw tests/  # Re-runs tests on file changes
+\```
+
+**Run tests in parallel** (requires pytest-xdist):
+\```bash
+pip install pytest-xdist
+pytest -n auto  # Uses all CPU cores
+\```
+
+## Common Patterns
+
+### Testing Exceptions
+
+\```python
+def test_function_raises_error():
+    """Test that function raises ValueError."""
+    from aiida_jutools.computer.util import get_queues
+
+    with pytest.raises(NotImplementedError, match="only works with SLURM"):
+        get_queues(non_slurm_computer)
+\```
+
+### Parametrized Tests
+
+\```python
+@pytest.mark.parametrize("scheduler_type,expected", [
+    ("core.slurm", True),
+    ("slurm", True),
+    ("core.pbs", False),
+    ("core.sge", False),
+])
+def test_is_slurm_computer_various_types(mock_computer, scheduler_type, expected):
+    """Test is_slurm_computer with various scheduler types."""
+    from aiida_jutools.computer.util import is_slurm_computer
+
+    mock_computer.scheduler_type = scheduler_type
+    assert is_slurm_computer(mock_computer) == expected
+\```
+
+### Skipping Tests
+
+\```python
+@pytest.mark.skip(reason="Feature not implemented yet")
+def test_future_feature():
+    pass
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Unix only")
+def test_unix_feature():
+    pass
+\```
+
+## Troubleshooting
+
+### "No module named aiida_jutools"
+
+Install package in development mode:
+\```bash
+pip install -e .
+\```
+
+### "AiiDA profile not available"
+
+Tests requiring AiiDA will auto-skip. To run them:
+\```bash
+# Ensure AiiDA is configured
+verdi status
+
+# Run with specific profile
+verdi -p <profile_name> run pytest
+\```
+
+### "Collection fixtures not working"
+
+Ensure conftest.py is in tests/ directory and tests/__init__.py exists.
+
+### pytest not finding tests
+
+Check pytest.ini configuration and ensure test files start with `test_`.
+
+## Resources
+
+- [pytest documentation](https://docs.pytest.org/)
+- [pytest fixtures](https://docs.pytest.org/en/stable/fixture.html)
+- [pytest markers](https://docs.pytest.org/en/stable/mark.html)
+- [Testing best practices](https://docs.pytest.org/en/stable/goodpractices.html)
+
+## Next Steps
+
+1. **Run the test suite** and ensure it works in your environment
+2. **Add more tests** as you develop new features
+3. **Set up CI/CD** (GitHub Actions, GitLab CI) to run tests automatically
+4. **Monitor coverage** and aim for >80% code coverage
+5. **Update tests** when refactoring to prevent regressions
+
+```
+```
+File created successfully at: /Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/tests/README.md
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Excellent! Now let me create a quick start guide in the main README or create a separate TESTING.md file at the root level, and update the todo list. Let me also create a simple .gitignore for test artifacts if it doesn't exist.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="generic" data-tool-name="TodoWrite"><details>
+**Agent task list:**
+- [X] 🌡️ Create tests directory structure
+- [X] 🌡️ Create pytest configuration files
+- [X] 🌡️ Create conftest.py with basic fixtures
+- [X] 🌡️ Write sample test for computer/util.py
+- [X] 🌡️ Create test documentation/README
+
+</details></tool-use>
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Good! Now let me check if there's a .gitignore and update it to ignore test artifacts, and create a quick reference card.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./.gitignore`
+```
+     1→# Byte-compiled / optimized / DLL files
+     2→__pycache__/
+     3→*.py[cod]
+     4→*$py.class
+     5→
+     6→# C extensions
+     7→*.so
+     8→
+     9→# Distribution / packaging
+    10→.Python
+    11→build/
+    12→develop-eggs/
+    13→dist/
+    14→downloads/
+    15→eggs/
+    16→.eggs/
+    17→lib/
+    18→lib64/
+    19→parts/
+    20→sdist/
+    21→var/
+    22→wheels/
+    23→pip-wheel-metadata/
+    24→share/python-wheels/
+    25→*.egg-info/
+    26→.installed.cfg
+    27→*.egg
+    28→MANIFEST
+    29→
+    30→# PyInstaller
+    31→#  Usually these files are written by a python script from a template
+    32→#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+    33→*.manifest
+    34→*.spec
+    35→
+    36→# Installer logs
+    37→pip-log.txt
+    38→pip-delete-this-directory.txt
+    39→
+    40→# Unit test / coverage reports
+    41→htmlcov/
+    42→.tox/
+    43→.nox/
+    44→.coverage
+    45→.coverage.*
+    46→.cache
+    47→nosetests.xml
+    48→coverage.xml
+    49→*.cover
+    50→*.py,cover
+    51→.hypothesis/
+    52→.pytest_cache/
+    53→
+    54→# Translations
+    55→*.mo
+    56→*.pot
+    57→
+    58→# Django stuff:
+    59→*.log
+    60→local_settings.py
+    61→db.sqlite3
+    62→db.sqlite3-journal
+    63→
+    64→# Flask stuff:
+    65→instance/
+    66→.webassets-cache
+    67→
+    68→# Scrapy stuff:
+    69→.scrapy
+    70→
+    71→# Sphinx documentation
+    72→docs/_build/
+    73→
+    74→# PyBuilder
+    75→target/
+    76→
+    77→# Jupyter Notebook
+    78→.ipynb_checkpoints
+    79→
+    80→# IPython
+    81→profile_default/
+    82→ipython_config.py
+    83→
+    84→# pyenv
+    85→.python-version
+    86→
+    87→# pipenv
+    88→#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+    89→#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+    90→#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+    91→#   install all needed dependencies.
+    92→#Pipfile.lock
+    93→
+    94→# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+    95→__pypackages__/
+    96→
+    97→# Celery stuff
+    98→celerybeat-schedule
+    99→celerybeat.pid
+   100→
+   101→# SageMath parsed files
+   102→*.sage.py
+   103→
+   104→# Environments
+   105→.env
+   106→.venv
+   107→env/
+   108→venv/
+   109→ENV/
+   110→env.bak/
+   111→venv.bak/
+   112→
+   113→# Spyder project settings
+   114→.spyderproject
+   115→.spyproject
+   116→
+   117→# Rope project settings
+   118→.ropeproject
+   119→
+   120→# mkdocs documentation
+   121→/site
+   122→
+   123→# mypy
+   124→.mypy_cache/
+   125→.dmypy.json
+   126→dmypy.json
+   127→
+   128→# Pyre type checker
+   129→.pyre/
+   130→
+   131→# IntelliJ project settings
+   132→.idea/
+   133→
+   134→# VSCode workspace settings
+   135→.vscode/
+   136→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>
+
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Good, the .gitignore already covers test artifacts like .pytest_cache/, htmlcov/, .coverage, etc. Now let me create a quick reference card at the root level for easy access.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="write" data-tool-name="Write"><details>
+<summary>Tool use: **Write**</summary>
+
+
+```md
+# Testing Quick Start Guide
+
+Quick reference for running the aiida-jutools test suite.
+
+## Initial Setup (One-Time)
+
+\```bash
+# Install pytest
+pip install pytest
+
+# Optional: Install coverage and formatting tools
+pip install pytest-cov pytest-sugar
+\```
+
+## Most Common Commands
+
+### Running Tests
+
+\```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run only fast unit tests (no database required)
+pytest -m unit
+
+# Run with deprecation warnings as errors
+pytest --strict-deprecation
+
+# Run integration tests with your computer
+pytest -m integration --with-computer=iffslurm
+
+# Run specific test file
+pytest tests/test_computer_util.py
+
+# Stop at first failure
+pytest -x
+\```
+
+### Development Workflow
+
+\```bash
+# 1. Before coding: Run existing tests
+pytest -m unit
+
+# 2. Write new test (it should fail)
+# Edit tests/test_*.py
+
+# 3. Run the new test
+pytest tests/test_*.py::test_new_function -v
+
+# 4. Write code to make it pass
+# Edit aiida_jutools/...
+
+# 5. Run test again (should pass now)
+pytest tests/test_*.py::test_new_function -v
+
+# 6. Before commit: Run all tests
+pytest --strict-deprecation
+\```
+
+### Coverage
+
+\```bash
+# Run with coverage report
+pytest --cov=aiida_jutools --cov-report=html
+
+# Open coverage report
+# Open htmlcov/index.html in browser
+\```
+
+## Test Organization
+
+- **Unit tests** (`-m unit`): Fast, no database/network
+- **Integration tests** (`-m integration`): Require AiiDA database
+- **Slow tests** (`-m slow`): Query actual cluster
+
+## IDE Setup
+
+### PyCharm
+1. Settings → Tools → Python Integrated Tools
+2. Set "Default test runner" to "pytest"
+3. Right-click test file → Run pytest
+
+### VSCode
+1. Install Python extension
+2. Command Palette → "Python: Configure Tests" → pytest
+3. Click test icon (beaker) in activity bar
+
+## Common Issues
+
+**"No module named aiida_jutools"**
+\```bash
+pip install -e .
+\```
+
+**"AiiDA profile not available"**
+- Tests requiring AiiDA will auto-skip
+- Use `--with-computer=yourcomputer` for integration tests
+
+## Full Documentation
+
+See `tests/README.md` for comprehensive documentation.
+
+## Example: Testing Your Changes
+
+\```bash
+# You modified aiida_jutools/computer/util.py
+# Run tests for that module:
+pytest tests/test_computer_util.py -v
+
+# Check for deprecation warnings:
+pytest tests/test_computer_util.py --strict-deprecation
+
+# Everything passes? Run full suite:
+pytest
+\```
+
+```
+```
+File created successfully at: /Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/TESTING_QUICK_START.md
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Perfect! Now let me create one final summary document for the user, explaining what was created and how to get started.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+Perfect! I've set up a complete test suite infrastructure for aiida-jutools. Here's what was created:
+
+## 📁 Files Created
+
+1. **`tests/__init__.py`** - Package marker
+2. **`pytest.ini`** - Main pytest configuration
+3. **`tests/conftest.py`** - Fixtures and custom options
+4. **`tests/test_computer_util.py`** - Sample tests for computer utilities
+5. **`tests/README.md`** - Comprehensive testing documentation
+6. **`TESTING_QUICK_START.md`** - Quick reference guide
+
+## 🚀 Getting Started (On Your Remote Machine)
+
+### 1. Install pytest
+
+```bash
+pip install pytest
+```
+
+### 2. Run the test suite
+
+```bash
+# From the repository root
+cd /path/to/aiida-jutools-on-iffaiida-aiida-v2
+
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run only fast unit tests (no database needed)
+pytest -m unit -v
+```
+
+### 3. Test with your cluster
+
+```bash
+# Run integration tests with your iffslurm computer
+pytest -m integration --with-computer=iffslurm -v
+```
+
+### 4. Check for deprecation warnings
+
+```bash
+# Fail on deprecation warnings (strict mode)
+pytest --strict-deprecation
+
+# Or just show them (default)
+pytest
+```
+
+## 📋 Quick Command Reference
+
+| Command | What it does |
+|---------|-------------|
+| `pytest` | Run all tests |
+| `pytest -v` | Verbose output |
+| `pytest -m unit` | Only fast unit tests |
+| `pytest -m integration` | Only integration tests |
+| `pytest --strict-deprecation` | Fail on deprecation warnings |
+| `pytest -x` | Stop at first failure |
+| `pytest tests/test_computer_util.py` | Run specific file |
+| `pytest -k "slurm"` | Run tests matching "slurm" |
+
+## 🎯 Key Features
+
+### 1. **Flexible Deprecation Control**
+
+```bash
+# Three ways to control deprecation warnings:
+
+# A) Command line (recommended for development)
+pytest --strict-deprecation
+
+# B) Environment variable (for session)
+export PYTEST_ADDOPTS="--strict-deprecation"
+pytest
+
+# C) Edit pytest.ini (permanent)
+# Uncomment the filterwarnings line
+```
+
+### 2. **Test Organization with Markers**
+
+- `@pytest.mark.unit` - Fast tests, no dependencies
+- `@pytest.mark.integration` - Requires AiiDA database
+- `@pytest.mark.requires_computer` - Needs configured computer
+- `@pytest.mark.slow` - Long-running tests
+
+```bash
+# Run only fast tests
+pytest -m unit
+
+# Skip slow tests
+pytest -m "not slow"
+```
+
+### 3. **Sample Tests Included**
+
+The `test_computer_util.py` file includes:
+- ✅ Unit tests for `is_slurm_computer()` with mocks
+- ✅ Integration tests for `get_computers()`
+- ✅ Integration tests for `get_queues()` (marked as slow)
+- ✅ Deprecation warning detection test
+
+## 🔧 IDE Integration
+
+### PyCharm
+1. Settings → Tools → Python Integrated Tools
+2. Set "Default test runner" to "pytest"
+3. Right-click any test → "Run pytest"
+4. Green play button appears in gutter next to tests
+
+### VSCode
+1. Install Python extension
+2. `Ctrl/Cmd+Shift+P` → "Python: Configure Tests"
+3. Select "pytest" → select "tests" directory
+4. Click beaker icon in activity bar to see all tests
+
+### JupyterLab
+```python
+# Run from notebook
+import subprocess
+result = subprocess.run(['pytest', '-v'], capture_output=True, text=True)
+print(result.stdout)
+```
+
+## 📝 Test-Driven Development Workflow
+
+1. **Write a failing test first**:
+   ```python
+   # tests/test_computer_util.py
+   def test_new_feature():
+       from aiida_jutools.computer.util import new_function
+       assert new_function() == expected_result
+   ```
+
+2. **Run it (should fail)**:
+   ```bash
+   pytest tests/test_computer_util.py::test_new_feature -v
+   ```
+
+3. **Implement the feature**:
+   ```python
+   # aiida_jutools/computer/util.py
+   def new_function():
+       return expected_result
+   ```
+
+4. **Run again (should pass)**:
+   ```bash
+   pytest tests/test_computer_util.py::test_new_feature -v
+   ```
+
+5. **Before committing**:
+   ```bash
+   pytest --strict-deprecation
+   ```
+
+## 🎓 Learning Resources
+
+- **Quick Start**: `TESTING_QUICK_START.md` (at repo root)
+- **Full Docs**: `tests/README.md` (comprehensive guide)
+- **Example Tests**: `tests/test_computer_util.py`
+
+## 🧪 Next Steps
+
+1. **Try it out** on your remote machine
+2. **Run the sample tests** to ensure everything works
+3. **Add more tests** as you develop new features
+4. **Use `--strict-deprecation`** when fixing deprecation warnings
+
+## Example Session
+
+```bash
+# SSH to your remote machine
+ssh user@remote-machine
+
+# Navigate to repository
+cd /path/to/aiida-jutools-on-iffaiida-aiida-v2
+
+# Install pytest if needed
+pip install pytest
+
+# Run all tests
+pytest -v
+
+# Expected output:
+# tests/test_computer_util.py::test_is_slurm_computer_with_core_slurm PASSED
+# tests/test_computer_util.py::test_is_slurm_computer_with_slurm PASSED
+# ... (more tests)
+
+# Run with your computer
+pytest -m integration --with-computer=iffslurm -v
+
+# Check deprecation warnings
+pytest --strict-deprecation -v
+```
+
+The test suite is now ready! Try running it and let me know if you encounter any issues or need help adding more tests.
+
