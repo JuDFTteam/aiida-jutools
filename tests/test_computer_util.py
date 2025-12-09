@@ -123,12 +123,12 @@ def test_no_import_deprecation_warnings(capture_warnings):
             pytest.fail(f"Found {len(deprecations)} deprecation warnings on import:\n{messages}")
 
 
-# ============================================================================
-# Example: Test with expected failure (optional, for demonstration)
-# ============================================================================
-
-@pytest.mark.unit
-@pytest.mark.xfail(reason="Example of expected failure - remove this test")
-def test_example_expected_failure():
-    """This test is expected to fail - it's just an example."""
-    assert False, "This is an intentional failure for demonstration"
+# # ============================================================================
+# # Example: Test with expected failure (optional, for demonstration)
+# # ============================================================================
+#
+# @pytest.mark.unit
+# @pytest.mark.xfail(reason="Example of expected failure - remove this test")
+# def test_example_expected_failure():
+#     """This test is expected to fail - it's just an example."""
+#     assert False, "This is an intentional failure for demonstration"
