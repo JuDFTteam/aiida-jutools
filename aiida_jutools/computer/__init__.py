@@ -23,6 +23,8 @@ from .options import \
 
 from .util import \
     get_computers, \
-    get_least_occupied_queue, \
+    shell_command, \
     get_queues, \
-    shell_command
+    get_least_occupied_queue, \
+    is_slurm_computer, \
+    get_queue_architecture
