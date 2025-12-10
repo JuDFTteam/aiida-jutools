@@ -4338,3 +4338,1130 @@ Your test infrastructure is now in place and validated. You can:
 
 The third-party warnings you're seeing are expected and will be fixed by those upstream packages in their own time. Your code is clean!
 
+---
+
+_**User**_
+
+In @aiida_jutools/computer/util.py, could we update function get_queues so that the list of returned queues is not of format [str, int], meaning [queue_name, num_idle_nodes], but of format [str, int, int, str], with meaning [queue_name, num_nodes, num_idle_nodes, architecture (AMD or Intel)]. Reuse the other functions in the module to minimize code duplication to get the additional info where effective. Also if called with silent=False, the printed string should read: "Idle nodes left on computer 'computer_name': num_idles_nodes/num_nodes", so, for instance: "Idle nodes left on computer 'iffslurm': 87/250. Adjust the docstring. The with_node_count should cover both values, the new one included. Add a param with_arch. Adjust tests if required.
+
+---
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to enhance the `get_queues` function to:
+
+1. Return architecture information (AMD/Intel) along with queue info
+2. Change return format from `[str, int]` to `[str, int, int, str]`
+   - queue_name, num_nodes, num_idle_nodes, architecture
+3. Update the print statement to show "num_idle_nodes/num_nodes" format
+4. Add a new parameter `with_arch` to control whether architecture is included
+5. Keep `with_node_count` to cover both node counts
+6. Update docstring
+7. Adjust tests
+
+Let me think about the implementation:
+
+1. I need to get total node count per queue (not just idle nodes)
+2. I need to get architecture per queue (using `get_queue_architecture`)
+3. The return format needs to be flexible based on parameters:
+   - with_node_count=False, with_arch=False: just queue names (list of str)
+   - with_node_count=True, with_arch=False: [queue_name, num_idle_nodes] (current behavior for compatibility)
+   - Actually wait, the user wants [queue_name, num_nodes, num_idle_nodes, architecture]
+   
+Let me re-read the requirement. They want:
+- New format: [queue_name, num_nodes, num_idle_nodes, architecture]
+- with_node_count should cover both num_nodes and num_idle_nodes
+- with_arch controls whether architecture is included
+
+So the return formats would be:
+- with_node_count=False, with_arch=False: [queue_name]
+- with_node_count=True, with_arch=False: [queue_name, num_nodes, num_idle_nodes]
+- with_node_count=False, with_arch=True: [queue_name, architecture]
+- with_node_count=True, with_arch=True: [queue_name, num_nodes, num_idle_nodes, architecture]
+
+
+I'll need to carefully design the function to handle these different scenarios flexibly. The key is to parse both total and idle node counts from the sinfo command, and conditionally include architecture based on the new parameter.
+
+The implementation requires modifying the existing parsing logic to extract total node count, maintaining the current idle node count extraction, and adding an optional architecture retrieval step. This ensures backward compatibility while providing the new enhanced functionality.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+I'll update the `get_queues` function to include total node count and architecture information. Let me start by updating the implementation:
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="generic" data-tool-name="TodoWrite"><details>
+**Agent task list:**
+- [⚡] 🌡️ Update get_queues() to include total nodes and architecture
+- [ ] 🌡️ Update get_least_occupied_queue() to handle new format
+- [ ] 🌡️ Update tests for new get_queues() format
+
+</details></tool-use>
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Now let me update the get_queues function. I need to:
+
+1. Modify the sinfo command to get total node counts as well as idle node counts
+2. Add with_arch parameter
+3. Get architecture for each queue if needed
+4. Update the return format
+5. Update the print statement
+
+The current command is:
+```bash
+{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r
+```
+
+I need to also get total node count. I can modify this to output:
+queue_name total_nodes idle_nodes
+
+Let me create a better sinfo command that gets both counts.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```
+The file /Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/aiida_jutools/computer/util.py has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→# -*- coding: utf-8 -*-
+     2→###############################################################################
+     3→# Copyright (c), Forschungszentrum Jülich GmbH, IAS-1/PGI-1, Germany.         #
+     4→#                All rights reserved.                                         #
+     5→# This file is part of the aiida-jutools package.                             #
+     6→# (AiiDA JuDFT tools)                                                         #
+     7→#                                                                             #
+     8→# The code is hosted on GitHub at https://github.com/judftteam/aiida-jutools. #
+     9→# For further information on the license, see the LICENSE.txt file.           #
+    10→# For further information please visit http://judft.de/.                      #
+    11→#                                                                             #
+    12→###############################################################################
+    13→"""Tools for working with aiida Computer nodes: utils."""
+    14→
+    15→import typing as _typing
+    16→
+    17→import aiida as _aiida
+    18→from aiida import orm as _orm
+    19→
+    20→
+    21→def get_computers(computer_name_pattern: str = "") -> _typing.List[_orm.Computer]:
+    22→    """Query computer.
+    23→
+    24→    :param computer_name_pattern: (sub)string of computer label, case-insensitive, no regex. default = "":
+    25→           get all computers.
+    26→    :return: aiida Computer if unique, list of Computers if not, empty list if no match
+    27→    """
+    28→    # version compatibility check: aiida v1: computer.name, v2: computer.label. else error.
+    29→    qb = _orm.QueryBuilder()
+    30→    computer = None
+    31→    return qb.append(
+    32→        _orm.Computer,
+    33→        filters={'label': {'ilike': f"%{computer_name_pattern}%"}},
+    34→    ).all(flat=True)
+    35→
+    36→
+    37→def is_slurm_computer(computer: _orm.Computer) -> bool:
+    38→    """Check if the computer uses SLURM scheduler.
+    39→
+    40→    :param computer: aiida computer.
+    41→    :return: True if computer uses SLURM scheduler, False otherwise.
+    42→    """
+    43→    return 'slurm' in computer.scheduler_type.lower()
+    44→
+    45→
+    46→def shell_command(computer: _orm.Computer,
+    47→                  command: str) -> _typing.Tuple[str, str, str]:
+    48→    """Get output of shell command on aiida computer.
+    49→
+    50→    Assume aiida computer is remote. so execute remote command via get_transport().
+    51→
+    52→    Note: if you get a port error, you probably forgot to open an ssh tunnel to the remote computer on the
+    53→    specified ports first.
+    54→
+    55→    Note: if stderr is NotExistent, the computer is probably not configured, eg imported.
+    56→
+    57→    :param computer: aiida computer
+    58→    :param command: shell command to execute
+    59→    :return: tuple of strings exit_code, stdout, stderr. Use only stdout like: _,stdout,_ = shell_command(...).
+    60→    """
+    61→
+    62→    assert isinstance(computer, _orm.Computer), "computer is not a Computer, but a %r" % type(computer)
+    63→    # import signal
+    64→    # signal.alarm(maxwait)
+    65→    try:
+    66→        with computer.get_transport() as connection:
+    67→            exit_code, stdout, stderr = connection.exec_command_wait(command)
+    68→    except _aiida.common.exceptions.AiidaException as err:
+    69→        # common error: NotExistent. often cause computer not configured, eg imported.
+    70→        exit_code = type(err)
+    71→        stdout = ''
+    72→        stderr = err.args[0]
+    73→    # signal.alarm(0)
+    74→
+    75→    return exit_code, stdout, stderr
+    76→
+    77→
+    78→def get_queues(computer: _orm.Computer,
+    79→               gpu: bool = None,
+    80→               with_node_count: bool = True,
+    81→               with_arch: bool = False,
+    82→               silent: bool = False) -> _typing.List[_typing.Union[str, _typing.List[_typing.Union[str, int]]]]:
+    83→    """Get list of the remote computer (cluster's) queues (slurm: partitions) sorted by highest number of idle nodes
+    84→    descending.
+    85→
+    86→    Works with any computer that uses SLURM scheduler.
+    87→
+    88→    :param computer: aiida computer.
+    89→    :param gpu: False: exclude gpu queues. True exclude non-gpu partitions. None: ignore this option.
+    90→    :param with_node_count: True: return queue info with node counts (total and idle), False: just queue names.
+    91→    :param with_arch: True: include architecture (AMD/Intel) for each queue. False: omit architecture.
+    92→    :param silent: True: do not print out any info.
+    93→    :return: list of queue information. Format depends on parameters:
+    94→        - with_node_count=False, with_arch=False: ['queue1', 'queue2', ...]
+    95→        - with_node_count=True, with_arch=False: [['queue1', total_nodes, idle_nodes], ...]
+    96→        - with_node_count=False, with_arch=True: [['queue1', 'AMD'], ...]
+    97→        - with_node_count=True, with_arch=True: [['queue1', total_nodes, idle_nodes, 'AMD'], ...]
+    98→    :raise: NotImplementedError if computer does not use SLURM scheduler.
+    99→
+   100→    DEVNOTES: TODO: replace filter by shell command with sinfo -> pandas.Dataframe -> apply filters.
+   101→    """
+   102→    if not is_slurm_computer(computer):
+   103→        raise NotImplementedError(f"{get_queues.__name__} only works with SLURM scheduler. "
+   104→                                 f"Computer '{computer.label}' uses scheduler: {computer.scheduler_type}")
+   105→
+   106→    # Command to get partition name, total nodes, and idle nodes
+   107→    # Output format: partition_name total_nodes idle_nodes
+   108→    slurm_cmd_queue_info = """{ for p in $(sinfo --noheader --format="%R"); do \
+   109→        total=$(sinfo -p "${p}" --noheader --format="%D"); \
+   110→        idle=$(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l); \
+   111→        echo "$p $total $idle"; \
+   112→    done } | sort -k 3 -n -r"""
+   113→
+   114→    exit_code, stdout, stderr = shell_command(computer=computer, command=slurm_cmd_queue_info)
+   115→
+   116→    # Parse output into list of [partition_name, total_nodes, idle_nodes]
+   117→    queue_info = []
+   118→    for line in stdout.split('\n'):
+   119→        if line.strip():
+   120→            parts = line.split()
+   121→            if len(parts) >= 3:
+   122→                queue_name = parts[0]
+   123→                total_nodes = int(parts[1])
+   124→                idle_nodes = int(parts[2])
+   125→                queue_info.append([queue_name, total_nodes, idle_nodes])
+   126→
+   127→    # Filter by gpu option
+   128→    if gpu is not None:
+   129→        if gpu:
+   130→            # Keep only gpu queues
+   131→            queue_info = [qi for qi in queue_info if 'gpu' in qi[0].lower()]
+   132→        else:
+   133→            # Exclude gpu queues
+   134→            queue_info = [qi for qi in queue_info if 'gpu' not in qi[0].lower()]
+   135→
+   136→    # Add architecture information if requested
+   137→    if with_arch:
+   138→        for qi in queue_info:
+   139→            queue_name = qi[0]
+   140→            try:
+   141→                arch = get_queue_architecture(computer=computer, queue_name=queue_name)
+   142→                qi.append(arch)
+   143→            except (ValueError, NotImplementedError) as e:
+   144→                # If architecture detection fails, use 'unknown'
+   145→                qi.append('unknown')
+   146→
+   147→    # Print summary if not silent
+   148→    if not silent:
+   149→        sum_total_nodes = sum(qi[1] for qi in queue_info)
+   150→        sum_idle_nodes = sum(qi[2] for qi in queue_info)
+   151→        print(f"Idle nodes left on computer '{computer.label}': {sum_idle_nodes}/{sum_total_nodes}")
+   152→
+   153→    # Format output based on parameters
+   154→    if not with_node_count and not with_arch:
+   155→        # Return just queue names
+   156→        return [qi[0] for qi in queue_info]
+   157→    elif not with_node_count and with_arch:
+   158→        # Return [queue_name, architecture]
+   159→        return [[qi[0], qi[3]] for qi in queue_info]
+   160→    elif with_node_count and not with_arch:
+   161→        # Return [queue_name, total_nodes, idle_nodes]
+   162→        return [[qi[0], qi[1], qi[2]] for qi in queue_info]
+   163→    else:
+   164→        # Return [queue_name, total_nodes, idle_nodes, architecture]
+   165→        return queue_info
+   166→
+   167→
+   168→def get_queue_architecture(computer: _orm.Computer,
+   169→                           queue_name: str) -> str:
+   170→    """Get the CPU architecture (AMD or Intel) for a specific queue/partition on a SLURM cluster.
+   171→
+   172→    Works with any computer that uses SLURM scheduler.
+   173→
+   174→    :param computer: aiida computer.
+   175→    :param queue_name: exact name of the queue/partition.
+   176→    :return: 'AMD' or 'intel' depending on the CPU vendor.
+   177→    :raise: NotImplementedError if computer does not use SLURM scheduler.
+   178→    :raise: ValueError if architecture cannot be determined from output.
+   179→    """
+   180→    if not is_slurm_computer(computer):
+   181→        raise NotImplementedError(f"{get_queue_architecture.__name__} only works with SLURM scheduler. "
+   182→                                 f"Computer '{computer.label}' uses scheduler: {computer.scheduler_type}")
+   183→
+   184→    # Run lscpu on a node in the specified partition to get CPU vendor info
+   185→    command = f"srun -p {queue_name} --time=00:01:00 lscpu 2>/dev/null | grep 'Vendor ID'"
+   186→    exit_code, stdout, stderr = shell_command(computer=computer, command=command)
+   187→
+   188→    if not stdout:
+   189→        raise ValueError(f"Could not determine architecture for queue '{queue_name}' on computer "
+   190→                        f"'{computer.label}'. Command output was empty. stderr: {stderr}")
+   191→
+   192→    # Parse the vendor ID from output
+   193→    stdout_lower = stdout.lower()
+   194→    if 'authenticamd' in stdout_lower:
+   195→        return 'AMD'
+   196→    elif 'genuineintel' in stdout_lower:
+   197→        return 'intel'
+   198→    else:
+   199→        raise ValueError(f"Could not determine architecture for queue '{queue_name}' on computer "
+   200→                        f"'{computer.label}'. Unexpected Vendor ID in output: {stdout}")
+   201→
+   202→
+   203→def get_least_occupied_queue(computer: _orm.Computer,
+   204→                             gpu: bool = None,
+   205→                             with_node_count: bool = True,
+   206→                             silent: bool = False) -> _typing.Union[_typing.Tuple[str, int], str]:
+   207→    """Get name of the remote computer (cluster's) queue (slurm: partition) with the highest number of idle nodes.
+   208→
+   209→    Works with any computer that uses SLURM scheduler.
+   210→
+   211→    :param computer: aiida computer.
+   212→    :param gpu: False: exclude gpu queues. True exclude non-gpu queues. None: ignore this option.
+   213→    :param with_node_count: True: queue name with idle nodes count, False: just queue name.
+   214→    :param silent: True: do not print out any info.
+   215→    :return: tuple of queue name, idle nodes count, or just queue name
+   216→    :raise: NotImplementedError if computer does not use SLURM scheduler.
+   217→    """
+   218→    idle_nodes = get_queues(computer=computer, gpu=gpu, with_node_count=True, silent=silent)
+   219→    # if anything is left, get the first queue (ie the one with most idle nodes)
+   220→    queue_name, idle_nodes_count = idle_nodes[0] if idle_nodes else (None, None)
+   221→    return (queue_name, idle_nodes_count) if with_node_count else queue_name
+   222→
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Good! Now I need to update the `get_least_occupied_queue` function to handle the new format. Currently it expects `[queue_name, idle_nodes_count]` but now it gets `[queue_name, total_nodes, idle_nodes]`.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="generic" data-tool-name="TodoWrite"><details>
+**Agent task list:**
+- [X] 🌡️ Update get_queues() to include total nodes and architecture
+- [⚡] 🌡️ Update get_least_occupied_queue() to handle new format
+- [ ] 🌡️ Update tests for new get_queues() format
+
+</details></tool-use>
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Now I need to update `get_least_occupied_queue` to handle the new format. The new format returns `[queue_name, total_nodes, idle_nodes]` when `with_node_count=True`.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```
+The file /Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/aiida_jutools/computer/util.py has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→# -*- coding: utf-8 -*-
+     2→###############################################################################
+     3→# Copyright (c), Forschungszentrum Jülich GmbH, IAS-1/PGI-1, Germany.         #
+     4→#                All rights reserved.                                         #
+     5→# This file is part of the aiida-jutools package.                             #
+     6→# (AiiDA JuDFT tools)                                                         #
+     7→#                                                                             #
+     8→# The code is hosted on GitHub at https://github.com/judftteam/aiida-jutools. #
+     9→# For further information on the license, see the LICENSE.txt file.           #
+    10→# For further information please visit http://judft.de/.                      #
+    11→#                                                                             #
+    12→###############################################################################
+    13→"""Tools for working with aiida Computer nodes: utils."""
+    14→
+    15→import typing as _typing
+    16→
+    17→import aiida as _aiida
+    18→from aiida import orm as _orm
+    19→
+    20→
+    21→def get_computers(computer_name_pattern: str = "") -> _typing.List[_orm.Computer]:
+    22→    """Query computer.
+    23→
+    24→    :param computer_name_pattern: (sub)string of computer label, case-insensitive, no regex. default = "":
+    25→           get all computers.
+    26→    :return: aiida Computer if unique, list of Computers if not, empty list if no match
+    27→    """
+    28→    # version compatibility check: aiida v1: computer.name, v2: computer.label. else error.
+    29→    qb = _orm.QueryBuilder()
+    30→    computer = None
+    31→    return qb.append(
+    32→        _orm.Computer,
+    33→        filters={'label': {'ilike': f"%{computer_name_pattern}%"}},
+    34→    ).all(flat=True)
+    35→
+    36→
+    37→def is_slurm_computer(computer: _orm.Computer) -> bool:
+    38→    """Check if the computer uses SLURM scheduler.
+    39→
+    40→    :param computer: aiida computer.
+    41→    :return: True if computer uses SLURM scheduler, False otherwise.
+    42→    """
+    43→    return 'slurm' in computer.scheduler_type.lower()
+    44→
+    45→
+    46→def shell_command(computer: _orm.Computer,
+    47→                  command: str) -> _typing.Tuple[str, str, str]:
+    48→    """Get output of shell command on aiida computer.
+    49→
+    50→    Assume aiida computer is remote. so execute remote command via get_transport().
+    51→
+    52→    Note: if you get a port error, you probably forgot to open an ssh tunnel to the remote computer on the
+    53→    specified ports first.
+    54→
+    55→    Note: if stderr is NotExistent, the computer is probably not configured, eg imported.
+    56→
+    57→    :param computer: aiida computer
+    58→    :param command: shell command to execute
+    59→    :return: tuple of strings exit_code, stdout, stderr. Use only stdout like: _,stdout,_ = shell_command(...).
+    60→    """
+    61→
+    62→    assert isinstance(computer, _orm.Computer), "computer is not a Computer, but a %r" % type(computer)
+    63→    # import signal
+    64→    # signal.alarm(maxwait)
+    65→    try:
+    66→        with computer.get_transport() as connection:
+    67→            exit_code, stdout, stderr = connection.exec_command_wait(command)
+    68→    except _aiida.common.exceptions.AiidaException as err:
+    69→        # common error: NotExistent. often cause computer not configured, eg imported.
+    70→        exit_code = type(err)
+    71→        stdout = ''
+    72→        stderr = err.args[0]
+    73→    # signal.alarm(0)
+    74→
+    75→    return exit_code, stdout, stderr
+    76→
+    77→
+    78→def get_queues(computer: _orm.Computer,
+    79→               gpu: bool = None,
+    80→               with_node_count: bool = True,
+    81→               with_arch: bool = False,
+    82→               silent: bool = False) -> _typing.List[_typing.Union[str, _typing.List[_typing.Union[str, int]]]]:
+    83→    """Get list of the remote computer (cluster's) queues (slurm: partitions) sorted by highest number of idle nodes
+    84→    descending.
+    85→
+    86→    Works with any computer that uses SLURM scheduler.
+    87→
+    88→    :param computer: aiida computer.
+    89→    :param gpu: False: exclude gpu queues. True exclude non-gpu partitions. None: ignore this option.
+    90→    :param with_node_count: True: return queue info with node counts (total and idle), False: just queue names.
+    91→    :param with_arch: True: include architecture (AMD/Intel) for each queue. False: omit architecture.
+    92→    :param silent: True: do not print out any info.
+    93→    :return: list of queue information. Format depends on parameters:
+    94→        - with_node_count=False, with_arch=False: ['queue1', 'queue2', ...]
+    95→        - with_node_count=True, with_arch=False: [['queue1', total_nodes, idle_nodes], ...]
+    96→        - with_node_count=False, with_arch=True: [['queue1', 'AMD'], ...]
+    97→        - with_node_count=True, with_arch=True: [['queue1', total_nodes, idle_nodes, 'AMD'], ...]
+    98→    :raise: NotImplementedError if computer does not use SLURM scheduler.
+    99→
+   100→    DEVNOTES: TODO: replace filter by shell command with sinfo -> pandas.Dataframe -> apply filters.
+   101→    """
+   102→    if not is_slurm_computer(computer):
+   103→        raise NotImplementedError(f"{get_queues.__name__} only works with SLURM scheduler. "
+   104→                                 f"Computer '{computer.label}' uses scheduler: {computer.scheduler_type}")
+   105→
+   106→    # Command to get partition name, total nodes, and idle nodes
+   107→    # Output format: partition_name total_nodes idle_nodes
+   108→    slurm_cmd_queue_info = """{ for p in $(sinfo --noheader --format="%R"); do \
+   109→        total=$(sinfo -p "${p}" --noheader --format="%D"); \
+   110→        idle=$(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l); \
+   111→        echo "$p $total $idle"; \
+   112→    done } | sort -k 3 -n -r"""
+   113→
+   114→    exit_code, stdout, stderr = shell_command(computer=computer, command=slurm_cmd_queue_info)
+   115→
+   116→    # Parse output into list of [partition_name, total_nodes, idle_nodes]
+   117→    queue_info = []
+   118→    for line in stdout.split('\n'):
+   119→        if line.strip():
+   120→            parts = line.split()
+   121→            if len(parts) >= 3:
+   122→                queue_name = parts[0]
+   123→                total_nodes = int(parts[1])
+   124→                idle_nodes = int(parts[2])
+   125→                queue_info.append([queue_name, total_nodes, idle_nodes])
+   126→
+   127→    # Filter by gpu option
+   128→    if gpu is not None:
+   129→        if gpu:
+   130→            # Keep only gpu queues
+   131→            queue_info = [qi for qi in queue_info if 'gpu' in qi[0].lower()]
+   132→        else:
+   133→            # Exclude gpu queues
+   134→            queue_info = [qi for qi in queue_info if 'gpu' not in qi[0].lower()]
+   135→
+   136→    # Add architecture information if requested
+   137→    if with_arch:
+   138→        for qi in queue_info:
+   139→            queue_name = qi[0]
+   140→            try:
+   141→                arch = get_queue_architecture(computer=computer, queue_name=queue_name)
+   142→                qi.append(arch)
+   143→            except (ValueError, NotImplementedError) as e:
+   144→                # If architecture detection fails, use 'unknown'
+   145→                qi.append('unknown')
+   146→
+   147→    # Print summary if not silent
+   148→    if not silent:
+   149→        sum_total_nodes = sum(qi[1] for qi in queue_info)
+   150→        sum_idle_nodes = sum(qi[2] for qi in queue_info)
+   151→        print(f"Idle nodes left on computer '{computer.label}': {sum_idle_nodes}/{sum_total_nodes}")
+   152→
+   153→    # Format output based on parameters
+   154→    if not with_node_count and not with_arch:
+   155→        # Return just queue names
+   156→        return [qi[0] for qi in queue_info]
+   157→    elif not with_node_count and with_arch:
+   158→        # Return [queue_name, architecture]
+   159→        return [[qi[0], qi[3]] for qi in queue_info]
+   160→    elif with_node_count and not with_arch:
+   161→        # Return [queue_name, total_nodes, idle_nodes]
+   162→        return [[qi[0], qi[1], qi[2]] for qi in queue_info]
+   163→    else:
+   164→        # Return [queue_name, total_nodes, idle_nodes, architecture]
+   165→        return queue_info
+   166→
+   167→
+   168→def get_queue_architecture(computer: _orm.Computer,
+   169→                           queue_name: str) -> str:
+   170→    """Get the CPU architecture (AMD or Intel) for a specific queue/partition on a SLURM cluster.
+   171→
+   172→    Works with any computer that uses SLURM scheduler.
+   173→
+   174→    :param computer: aiida computer.
+   175→    :param queue_name: exact name of the queue/partition.
+   176→    :return: 'AMD' or 'intel' depending on the CPU vendor.
+   177→    :raise: NotImplementedError if computer does not use SLURM scheduler.
+   178→    :raise: ValueError if architecture cannot be determined from output.
+   179→    """
+   180→    if not is_slurm_computer(computer):
+   181→        raise NotImplementedError(f"{get_queue_architecture.__name__} only works with SLURM scheduler. "
+   182→                                 f"Computer '{computer.label}' uses scheduler: {computer.scheduler_type}")
+   183→
+   184→    # Run lscpu on a node in the specified partition to get CPU vendor info
+   185→    command = f"srun -p {queue_name} --time=00:01:00 lscpu 2>/dev/null | grep 'Vendor ID'"
+   186→    exit_code, stdout, stderr = shell_command(computer=computer, command=command)
+   187→
+   188→    if not stdout:
+   189→        raise ValueError(f"Could not determine architecture for queue '{queue_name}' on computer "
+   190→                        f"'{computer.label}'. Command output was empty. stderr: {stderr}")
+   191→
+   192→    # Parse the vendor ID from output
+   193→    stdout_lower = stdout.lower()
+   194→    if 'authenticamd' in stdout_lower:
+   195→        return 'AMD'
+   196→    elif 'genuineintel' in stdout_lower:
+   197→        return 'intel'
+   198→    else:
+   199→        raise ValueError(f"Could not determine architecture for queue '{queue_name}' on computer "
+   200→                        f"'{computer.label}'. Unexpected Vendor ID in output: {stdout}")
+   201→
+   202→
+   203→def get_least_occupied_queue(computer: _orm.Computer,
+   204→                             gpu: bool = None,
+   205→                             with_node_count: bool = True,
+   206→                             silent: bool = False) -> _typing.Union[_typing.Tuple[str, int, int], str]:
+   207→    """Get name of the remote computer (cluster's) queue (slurm: partition) with the highest number of idle nodes.
+   208→
+   209→    Works with any computer that uses SLURM scheduler.
+   210→
+   211→    :param computer: aiida computer.
+   212→    :param gpu: False: exclude gpu queues. True exclude non-gpu queues. None: ignore this option.
+   213→    :param with_node_count: True: return tuple of (queue_name, total_nodes, idle_nodes), False: just queue name.
+   214→    :param silent: True: do not print out any info.
+   215→    :return: tuple of (queue_name, total_nodes, idle_nodes) or just queue name
+   216→    :raise: NotImplementedError if computer does not use SLURM scheduler.
+   217→    """
+   218→    queues = get_queues(computer=computer, gpu=gpu, with_node_count=True, with_arch=False, silent=silent)
+   219→    # if anything is left, get the first queue (ie the one with most idle nodes)
+   220→    if queues:
+   221→        queue_info = queues[0]  # [queue_name, total_nodes, idle_nodes]
+   222→        queue_name = queue_info[0]
+   223→        total_nodes = queue_info[1]
+   224→        idle_nodes_count = queue_info[2]
+   225→        return (queue_name, total_nodes, idle_nodes_count) if with_node_count else queue_name
+   226→    else:
+   227→        return (None, None, None) if with_node_count else None
+   228→
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Great! Now I need to update the tests to handle the new format. Let me update the test_computer_util.py file.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="generic" data-tool-name="TodoWrite"><details>
+**Agent task list:**
+- [X] 🌡️ Update get_queues() to include total nodes and architecture
+- [X] 🌡️ Update get_least_occupied_queue() to handle new format
+- [⚡] 🌡️ Update tests for new get_queues() format
+
+</details></tool-use>
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Now let me update the tests to accommodate the new format.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="read" data-tool-name="Read"><details>
+<summary>Tool use: **Read**</summary>
+ `./tests/test_computer_util.py`
+```
+     1→# -*- coding: utf-8 -*-
+     2→"""Tests for aiida_jutools.computer.util module."""
+     3→
+     4→import pytest
+     5→
+     6→
+     7→# ============================================================================
+     8→# Unit tests (no AiiDA database required)
+     9→# ============================================================================
+    10→
+    11→@pytest.mark.unit
+    12→def test_is_slurm_computer_with_core_slurm(mock_computer):
+    13→    """Test is_slurm_computer recognizes 'core.slurm' scheduler."""
+    14→    from aiida_jutools.computer.util import is_slurm_computer
+    15→
+    16→    mock_computer.scheduler_type = "core.slurm"
+    17→    assert is_slurm_computer(mock_computer) is True
+    18→
+    19→
+    20→@pytest.mark.unit
+    21→def test_is_slurm_computer_with_slurm(mock_computer):
+    22→    """Test is_slurm_computer recognizes 'slurm' scheduler."""
+    23→    from aiida_jutools.computer.util import is_slurm_computer
+    24→
+    25→    mock_computer.scheduler_type = "slurm"
+    26→    assert is_slurm_computer(mock_computer) is True
+    27→
+    28→
+    29→@pytest.mark.unit
+    30→def test_is_slurm_computer_with_uppercase(mock_computer):
+    31→    """Test is_slurm_computer is case-insensitive."""
+    32→    from aiida_jutools.computer.util import is_slurm_computer
+    33→
+    34→    mock_computer.scheduler_type = "CORE.SLURM"
+    35→    assert is_slurm_computer(mock_computer) is True
+    36→
+    37→
+    38→@pytest.mark.unit
+    39→def test_is_slurm_computer_with_pbs(mock_non_slurm_computer):
+    40→    """Test is_slurm_computer returns False for PBS scheduler."""
+    41→    from aiida_jutools.computer.util import is_slurm_computer
+    42→
+    43→    assert is_slurm_computer(mock_non_slurm_computer) is False
+    44→
+    45→
+    46→@pytest.mark.unit
+    47→def test_is_slurm_computer_with_sge(mock_computer):
+    48→    """Test is_slurm_computer returns False for SGE scheduler."""
+    49→    from aiida_jutools.computer.util import is_slurm_computer
+    50→
+    51→    mock_computer.scheduler_type = "core.sge"
+    52→    assert is_slurm_computer(mock_computer) is False
+    53→
+    54→
+    55→# ============================================================================
+    56→# Integration tests (require AiiDA database and configured computer)
+    57→# ============================================================================
+    58→
+    59→@pytest.mark.integration
+    60→@pytest.mark.requires_computer
+    61→def test_get_computers_returns_list(aiida_profile):
+    62→    """Test get_computers returns a list."""
+    63→    from aiida_jutools.computer.util import get_computers
+    64→
+    65→    computers = get_computers()
+    66→    assert isinstance(computers, list)
+    67→
+    68→
+    69→@pytest.mark.integration
+    70→@pytest.mark.requires_computer
+    71→def test_get_computers_with_pattern(computer_label, aiida_profile):
+    72→    """Test get_computers can find a specific computer."""
+    73→    from aiida_jutools.computer.util import get_computers
+    74→
+    75→    computers = get_computers(computer_label)
+    76→    assert len(computers) > 0
+    77→    assert any(computer_label.lower() in comp.label.lower() for comp in computers)
+    78→
+    79→
+    80→@pytest.mark.integration
+    81→@pytest.mark.requires_computer
+    82→@pytest.mark.slow
+    83→def test_get_queues_with_real_computer(computer_label, aiida_profile):
+    84→    """Test get_queues returns queue information for a real SLURM computer."""
+    85→    from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
+    86→
+    87→    computers = get_computers(computer_label)
+    88→    if not computers:
+    89→        pytest.skip(f"Computer '{computer_label}' not found")
+    90→
+    91→    computer = computers[0]
+    92→
+    93→    if not is_slurm_computer(computer):
+    94→        pytest.skip(f"Computer '{computer.label}' is not a SLURM computer")
+    95→
+    96→    # This will actually query the cluster, so mark as slow
+    97→    queues = get_queues(computer, with_node_count=False, silent=True)
+    98→
+    99→    assert isinstance(queues, list)
+   100→    assert len(queues) > 0
+   101→    # Queues should be strings
+   102→    assert all(isinstance(q, str) for q in queues)
+   103→
+   104→
+   105→# ============================================================================
+   106→# Deprecation warning tests
+   107→# ============================================================================
+   108→
+   109→@pytest.mark.unit
+   110→def test_no_import_deprecation_warnings(capture_warnings):
+   111→    """Test that importing the module doesn't trigger deprecation warnings."""
+   112→    with capture_warnings as w:
+   113→        # Import the module
+   114→        import aiida_jutools.computer.util
+   115→
+   116→        # Check for deprecation warnings
+   117→        deprecations = [warning for warning in w
+   118→                       if issubclass(warning.category, DeprecationWarning)]
+   119→
+   120→        if deprecations:
+   121→            messages = "\n".join(f"  {d.filename}:{d.lineno}: {d.message}"
+   122→                               for d in deprecations)
+   123→            pytest.fail(f"Found {len(deprecations)} deprecation warnings on import:\n{messages}")
+   124→
+   125→
+   126→# # ============================================================================
+   127→# # Example: Test with expected failure (optional, for demonstration)
+   128→# # ============================================================================
+   129→#
+   130→# @pytest.mark.unit
+   131→# @pytest.mark.xfail(reason="Example of expected failure - remove this test")
+   132→# def test_example_expected_failure():
+   133→#     """This test is expected to fail - it's just an example."""
+   134→#     assert False, "This is an intentional failure for demonstration"
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>
+
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Good, the existing test for `get_queues` tests with `with_node_count=False`, which should still work. But let me add additional tests for the new functionality:1. Test with `with_node_count=True` to verify the new format `[queue_name, total_nodes, idle_nodes]`
+2. Test with `with_arch=True` to verify architecture is included3. Test with both parameters to verify full format4. Test the print output format5. Update any tests that might be affected
+
+Let me add these tests.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="write" data-tool-name="Edit"><details>
+<summary>Tool use: **Edit**</summary>
+
+```
+The file /Users/wasmer/src/github.com/judftteam/aiida-jutools-on-iffaiida-aiida-v2/tests/test_computer_util.py has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→# -*- coding: utf-8 -*-
+     2→"""Tests for aiida_jutools.computer.util module."""
+     3→
+     4→import pytest
+     5→
+     6→
+     7→# ============================================================================
+     8→# Unit tests (no AiiDA database required)
+     9→# ============================================================================
+    10→
+    11→@pytest.mark.unit
+    12→def test_is_slurm_computer_with_core_slurm(mock_computer):
+    13→    """Test is_slurm_computer recognizes 'core.slurm' scheduler."""
+    14→    from aiida_jutools.computer.util import is_slurm_computer
+    15→
+    16→    mock_computer.scheduler_type = "core.slurm"
+    17→    assert is_slurm_computer(mock_computer) is True
+    18→
+    19→
+    20→@pytest.mark.unit
+    21→def test_is_slurm_computer_with_slurm(mock_computer):
+    22→    """Test is_slurm_computer recognizes 'slurm' scheduler."""
+    23→    from aiida_jutools.computer.util import is_slurm_computer
+    24→
+    25→    mock_computer.scheduler_type = "slurm"
+    26→    assert is_slurm_computer(mock_computer) is True
+    27→
+    28→
+    29→@pytest.mark.unit
+    30→def test_is_slurm_computer_with_uppercase(mock_computer):
+    31→    """Test is_slurm_computer is case-insensitive."""
+    32→    from aiida_jutools.computer.util import is_slurm_computer
+    33→
+    34→    mock_computer.scheduler_type = "CORE.SLURM"
+    35→    assert is_slurm_computer(mock_computer) is True
+    36→
+    37→
+    38→@pytest.mark.unit
+    39→def test_is_slurm_computer_with_pbs(mock_non_slurm_computer):
+    40→    """Test is_slurm_computer returns False for PBS scheduler."""
+    41→    from aiida_jutools.computer.util import is_slurm_computer
+    42→
+    43→    assert is_slurm_computer(mock_non_slurm_computer) is False
+    44→
+    45→
+    46→@pytest.mark.unit
+    47→def test_is_slurm_computer_with_sge(mock_computer):
+    48→    """Test is_slurm_computer returns False for SGE scheduler."""
+    49→    from aiida_jutools.computer.util import is_slurm_computer
+    50→
+    51→    mock_computer.scheduler_type = "core.sge"
+    52→    assert is_slurm_computer(mock_computer) is False
+    53→
+    54→
+    55→# ============================================================================
+    56→# Integration tests (require AiiDA database and configured computer)
+    57→# ============================================================================
+    58→
+    59→@pytest.mark.integration
+    60→@pytest.mark.requires_computer
+    61→def test_get_computers_returns_list(aiida_profile):
+    62→    """Test get_computers returns a list."""
+    63→    from aiida_jutools.computer.util import get_computers
+    64→
+    65→    computers = get_computers()
+    66→    assert isinstance(computers, list)
+    67→
+    68→
+    69→@pytest.mark.integration
+    70→@pytest.mark.requires_computer
+    71→def test_get_computers_with_pattern(computer_label, aiida_profile):
+    72→    """Test get_computers can find a specific computer."""
+    73→    from aiida_jutools.computer.util import get_computers
+    74→
+    75→    computers = get_computers(computer_label)
+    76→    assert len(computers) > 0
+    77→    assert any(computer_label.lower() in comp.label.lower() for comp in computers)
+    78→
+    79→
+    80→@pytest.mark.integration
+    81→@pytest.mark.requires_computer
+    82→@pytest.mark.slow
+    83→def test_get_queues_with_real_computer(computer_label, aiida_profile):
+    84→    """Test get_queues returns queue names for a real SLURM computer."""
+    85→    from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
+    86→
+    87→    computers = get_computers(computer_label)
+    88→    if not computers:
+    89→        pytest.skip(f"Computer '{computer_label}' not found")
+    90→
+    91→    computer = computers[0]
+    92→
+    93→    if not is_slurm_computer(computer):
+    94→        pytest.skip(f"Computer '{computer.label}' is not a SLURM computer")
+    95→
+    96→    # This will actually query the cluster, so mark as slow
+    97→    queues = get_queues(computer, with_node_count=False, silent=True)
+    98→
+    99→    assert isinstance(queues, list)
+   100→    assert len(queues) > 0
+   101→    # Queues should be strings when with_node_count=False
+   102→    assert all(isinstance(q, str) for q in queues)
+   103→
+   104→
+   105→@pytest.mark.integration
+   106→@pytest.mark.requires_computer
+   107→@pytest.mark.slow
+   108→def test_get_queues_with_node_counts(computer_label, aiida_profile):
+   109→    """Test get_queues returns node count information."""
+   110→    from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
+   111→
+   112→    computers = get_computers(computer_label)
+   113→    if not computers:
+   114→        pytest.skip(f"Computer '{computer_label}' not found")
+   115→
+   116→    computer = computers[0]
+   117→
+   118→    if not is_slurm_computer(computer):
+   119→        pytest.skip(f"Computer '{computer.label}' is not a SLURM computer")
+   120→
+   121→    # Get queues with node counts
+   122→    queues = get_queues(computer, with_node_count=True, with_arch=False, silent=True)
+   123→
+   124→    assert isinstance(queues, list)
+   125→    assert len(queues) > 0
+   126→
+   127→    # Each entry should be [queue_name, total_nodes, idle_nodes]
+   128→    for queue_info in queues:
+   129→        assert isinstance(queue_info, list)
+   130→        assert len(queue_info) == 3
+   131→        assert isinstance(queue_info[0], str)  # queue_name
+   132→        assert isinstance(queue_info[1], int)  # total_nodes
+   133→        assert isinstance(queue_info[2], int)  # idle_nodes
+   134→        # idle_nodes should be <= total_nodes
+   135→        assert queue_info[2] <= queue_info[1]
+   136→
+   137→
+   138→@pytest.mark.integration
+   139→@pytest.mark.requires_computer
+   140→@pytest.mark.slow
+   141→def test_get_queues_with_architecture(computer_label, aiida_profile):
+   142→    """Test get_queues returns architecture information."""
+   143→    from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
+   144→
+   145→    computers = get_computers(computer_label)
+   146→    if not computers:
+   147→        pytest.skip(f"Computer '{computer_label}' not found")
+   148→
+   149→    computer = computers[0]
+   150→
+   151→    if not is_slurm_computer(computer):
+   152→        pytest.skip(f"Computer '{computer.label}' is not a SLURM computer")
+   153→
+   154→    # Get queues with architecture but no node counts
+   155→    queues = get_queues(computer, with_node_count=False, with_arch=True, silent=True)
+   156→
+   157→    assert isinstance(queues, list)
+   158→    assert len(queues) > 0
+   159→
+   160→    # Each entry should be [queue_name, architecture]
+   161→    for queue_info in queues:
+   162→        assert isinstance(queue_info, list)
+   163→        assert len(queue_info) == 2
+   164→        assert isinstance(queue_info[0], str)  # queue_name
+   165→        assert isinstance(queue_info[1], str)  # architecture
+   166→        # Architecture should be AMD, intel, or unknown
+   167→        assert queue_info[1] in ['AMD', 'intel', 'unknown']
+   168→
+   169→
+   170→@pytest.mark.integration
+   171→@pytest.mark.requires_computer
+   172→@pytest.mark.slow
+   173→def test_get_queues_with_full_info(computer_label, aiida_profile):
+   174→    """Test get_queues returns complete information (node counts + architecture)."""
+   175→    from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
+   176→
+   177→    computers = get_computers(computer_label)
+   178→    if not computers:
+   179→        pytest.skip(f"Computer '{computer_label}' not found")
+   180→
+   181→    computer = computers[0]
+   182→
+   183→    if not is_slurm_computer(computer):
+   184→        pytest.skip(f"Computer '{computer.label}' is not a SLURM computer")
+   185→
+   186→    # Get queues with both node counts and architecture
+   187→    queues = get_queues(computer, with_node_count=True, with_arch=True, silent=True)
+   188→
+   189→    assert isinstance(queues, list)
+   190→    assert len(queues) > 0
+   191→
+   192→    # Each entry should be [queue_name, total_nodes, idle_nodes, architecture]
+   193→    for queue_info in queues:
+   194→        assert isinstance(queue_info, list)
+   195→        assert len(queue_info) == 4
+   196→        assert isinstance(queue_info[0], str)  # queue_name
+   197→        assert isinstance(queue_info[1], int)  # total_nodes
+   198→        assert isinstance(queue_info[2], int)  # idle_nodes
+   199→        assert isinstance(queue_info[3], str)  # architecture
+   200→        # idle_nodes should be <= total_nodes
+   201→        assert queue_info[2] <= queue_info[1]
+   202→        # Architecture should be AMD, intel, or unknown
+   203→        assert queue_info[3] in ['AMD', 'intel', 'unknown']
+   204→
+   205→
+   206→# ============================================================================
+   207→# Deprecation warning tests
+   208→# ============================================================================
+   209→
+   210→@pytest.mark.unit
+   211→def test_no_import_deprecation_warnings(capture_warnings):
+   212→    """Test that importing the module doesn't trigger deprecation warnings."""
+   213→    with capture_warnings as w:
+   214→        # Import the module
+   215→        import aiida_jutools.computer.util
+   216→
+   217→        # Check for deprecation warnings
+   218→        deprecations = [warning for warning in w
+   219→                       if issubclass(warning.category, DeprecationWarning)]
+   220→
+   221→        if deprecations:
+   222→            messages = "\n".join(f"  {d.filename}:{d.lineno}: {d.message}"
+   223→                               for d in deprecations)
+   224→            pytest.fail(f"Found {len(deprecations)} deprecation warnings on import:\n{messages}")
+   225→
+   226→
+   227→# # ============================================================================
+   228→# # Example: Test with expected failure (optional, for demonstration)
+   229→# # ============================================================================
+   230→#
+   231→# @pytest.mark.unit
+   232→# @pytest.mark.xfail(reason="Example of expected failure - remove this test")
+   233→# def test_example_expected_failure():
+   234→#     """This test is expected to fail - it's just an example."""
+   235→#     assert False, "This is an intentional failure for demonstration"
+```
+</details></tool-use>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Perfect! Now let me mark the task as complete and provide a summary to the user.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<tool-use data-tool-type="generic" data-tool-name="TodoWrite"><details>
+**Agent task list:**
+- [X] 🌡️ Update get_queues() to include total nodes and architecture
+- [X] 🌡️ Update get_least_occupied_queue() to handle new format
+- [X] 🌡️ Update tests for new get_queues() format
+
+</details></tool-use>
+```
+Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
+```
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+<think><details><summary>Thought Process</summary>
+Great! Let me provide a comprehensive summary to the user about what was changed.
+</details></think>
+
+_**Agent (claude-sonnet-4-5-20250929)**_
+
+Perfect! I've successfully updated the `get_queues()` function with enhanced functionality. Here's what changed:
+
+## Summary of Changes
+
+### 1. **Updated `get_queues()` function** (aiida_jutools/computer/util.py:78)
+
+**New signature:**
+```python
+def get_queues(computer, gpu=None, with_node_count=True, with_arch=False, silent=False)
+```
+
+**New parameter:**
+- `with_arch` (bool): Include CPU architecture (AMD/Intel) for each queue
+
+**Enhanced return format:**
+- `with_node_count=False, with_arch=False`: `['queue1', 'queue2', ...]`
+- `with_node_count=True, with_arch=False`: `[['queue1', total_nodes, idle_nodes], ...]`
+- `with_node_count=False, with_arch=True`: `[['queue1', 'AMD'], ...]`
+- `with_node_count=True, with_arch=True`: `[['queue1', total_nodes, idle_nodes, 'AMD'], ...]`
+
+**Key improvements:**
+- Now returns **both** total nodes and idle nodes (not just idle)
+- Can optionally include architecture information
+- Updated SLURM command to efficiently gather total node count: `sinfo -p "${p}" --format="%D"`
+- Reuses `get_queue_architecture()` to minimize code duplication
+- Handles architecture detection failures gracefully (returns 'unknown')
+
+**Updated print output:**
+```python
+print(f"Idle nodes left on computer '{computer.label}': {sum_idle_nodes}/{sum_total_nodes}")
+# Example: "Idle nodes left on computer 'iffslurm': 87/250"
+```
+
+### 2. **Updated `get_least_occupied_queue()` function** (aiida_jutools/computer/util.py:203)
+
+**Updated return type:**
+- `with_node_count=True`: Returns `(queue_name, total_nodes, idle_nodes)` (was just `(queue_name, idle_nodes)`)
+- `with_node_count=False`: Returns `queue_name` (unchanged)
+
+### 3. **Added comprehensive tests** (tests/test_computer_util.py)
+
+Added four new integration tests:
+- `test_get_queues_with_node_counts()` - Validates new 3-element format
+- `test_get_queues_with_architecture()` - Tests architecture detection
+- `test_get_queues_with_full_info()` - Tests complete 4-element format
+- Updated existing test to clarify it tests the simple format
+
+## Example Usage
+
+```python
+from aiida_jutools.computer import get_computers, get_queues
+
+computer = get_computers('iffslurm')[0]
+
+# Get just queue names
+queues = get_queues(computer, with_node_count=False, silent=True)
+# Returns: ['th1-oscar', 'th1', 'th1-2020-64', ...]
+
+# Get queue names with node counts
+queues = get_queues(computer, with_node_count=True, with_arch=False, silent=True)
+# Returns: [['th1-oscar', 32, 15], ['th1-2020-64', 64, 45], ...]
+#           [queue_name, total_nodes, idle_nodes]
+
+# Get queue names with architecture only
+queues = get_queues(computer, with_node_count=False, with_arch=True, silent=True)
+# Returns: [['th1-oscar', 'intel'], ['th1-2020-64', 'AMD'], ...]
+
+# Get complete information
+queues = get_queues(computer, with_node_count=True, with_arch=True, silent=True)
+# Returns: [['th1-oscar', 32, 15, 'intel'], ['th1-2020-64', 64, 45, 'AMD'], ...]
+#           [queue_name, total_nodes, idle_nodes, architecture]
+
+# With output
+queues = get_queues(computer, with_node_count=True, silent=False)
+# Prints: "Idle nodes left on computer 'iffslurm': 87/250"
+```
+
+## Testing
+
+Run the new tests on your remote machine:
+
+```bash
+# Run all new queue tests
+pytest tests/test_computer_util.py -k "get_queues" -v --with-computer=iffslurm
+
+# Or run all integration tests
+pytest -m integration --with-computer=iffslurm -v
+```
+
+The architecture detection will query each queue using `srun -p <queue> lscpu`, so the full info test will take longer to run (marked as `@pytest.mark.slow`).
+
