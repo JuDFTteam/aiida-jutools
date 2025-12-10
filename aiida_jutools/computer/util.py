@@ -78,7 +78,8 @@ def shell_command(computer: _orm.Computer,
 def get_queues(computer: _orm.Computer,
                gpu: bool = None,
                with_node_count: bool = True,
-               silent: bool = False) -> _typing.List[_typing.List[_typing.Union[str, int]]]:
+               with_arch: bool = False,
+               silent: bool = False) -> _typing.List[_typing.Union[str, _typing.List[_typing.Union[str, int]]]]:
     """Get list of the remote computer (cluster's) queues (slurm: partitions) sorted by highest number of idle nodes
     descending.
 
@@ -86,9 +87,14 @@ def get_queues(computer: _orm.Computer,
 
     :param computer: aiida computer.
     :param gpu: False: exclude gpu queues. True exclude non-gpu partitions. None: ignore this option.
-    :param with_node_count: True: return queue names with resp. idle nodes count, False: just queue names.
+    :param with_node_count: True: return queue info with node counts (total and idle), False: just queue names.
+    :param with_arch: True: include architecture (AMD/Intel) for each queue. False: omit architecture.
     :param silent: True: do not print out any info.
-    :return: list of [queue/partition name, idle nodes count] or just list of queue names
+    :return: list of queue information. Format depends on parameters:
+        - with_node_count=False, with_arch=False: ['queue1', 'queue2', ...]
+        - with_node_count=True, with_arch=False: [['queue1', total_nodes, idle_nodes], ...]
+        - with_node_count=False, with_arch=True: [['queue1', 'AMD'], ...]
+        - with_node_count=True, with_arch=True: [['queue1', total_nodes, idle_nodes, 'AMD'], ...]
     :raise: NotImplementedError if computer does not use SLURM scheduler.
 
     DEVNOTES: TODO: replace filter by shell command with sinfo -> pandas.Dataframe -> apply filters.
@@ -96,30 +102,67 @@ def get_queues(computer: _orm.Computer,
     if not is_slurm_computer(computer):
         raise NotImplementedError(f"{get_queues.__name__} only works with SLURM scheduler. "
                                  f"Computer '{computer.label}' uses scheduler: {computer.scheduler_type}")
-    iffslurm_cmd_sorted_partitions_list = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r"""
-    iffslurm_partition_max_idle_nodes = """{ for p in $(sinfo --noheader --format="%R"); do echo "$p $(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l)"; done } | sort -k 2 -n -r | awk 'NR == 1 { print $1 }'"""
 
-    exit_code, stdout, stderr = shell_command(computer=computer, command=iffslurm_cmd_sorted_partitions_list)
-    # turn into list of strings
-    idle_nodes = stdout.split('\n')
-    # split into partition and idle_nodes_count, filter out empty entries
-    idle_nodes = [partition_nodes.split(' ') for partition_nodes in idle_nodes if partition_nodes]
-    # filter out 'gpu' partitions
-    if gpu is None:
-        idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes]
-    elif not gpu:
-        idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes if 'gpu' not in pn[0]]
-    else:
-        idle_nodes = [[pn[0], int(pn[1])] for pn in idle_nodes if 'gpu' in pn[0]]
-        # print out info about total remaining idle nodes
+    # Command to get partition name, total nodes, and idle nodes
+    # Output format: partition_name total_nodes idle_nodes
+    slurm_cmd_queue_info = """{ for p in $(sinfo --noheader --format="%R"); do \
+        total=$(sinfo -p "${p}" --noheader --format="%D"); \
+        idle=$(sinfo -p "${p}" --noheader --format="%t %n" | awk '$1 == "idle"' | wc -l); \
+        echo "$p $total $idle"; \
+    done } | sort -k 3 -n -r"""
+
+    exit_code, stdout, stderr = shell_command(computer=computer, command=slurm_cmd_queue_info)
+
+    # Parse output into list of [partition_name, total_nodes, idle_nodes]
+    queue_info = []
+    for line in stdout.split('\n'):
+        if line.strip():
+            parts = line.split()
+            if len(parts) >= 3:
+                queue_name = parts[0]
+                total_nodes = int(parts[1])
+                idle_nodes = int(parts[2])
+                queue_info.append([queue_name, total_nodes, idle_nodes])
+
+    # Filter by gpu option
+    if gpu is not None:
+        if gpu:
+            # Keep only gpu queues
+            queue_info = [qi for qi in queue_info if 'gpu' in qi[0].lower()]
+        else:
+            # Exclude gpu queues
+            queue_info = [qi for qi in queue_info if 'gpu' not in qi[0].lower()]
+
+    # Add architecture information if requested
+    if with_arch:
+        for qi in queue_info:
+            queue_name = qi[0]
+            try:
+                arch = get_queue_architecture(computer=computer, queue_name=queue_name)
+                qi.append(arch)
+            except (ValueError, NotImplementedError) as e:
+                # If architecture detection fails, use 'unknown'
+                qi.append('unknown')
+
+    # Print summary if not silent
     if not silent:
-        sum_idle_nodes = sum(pn[1] for pn in idle_nodes)
-        print(f"Idle nodes left on computer '{computer.label}': {sum_idle_nodes}")
+        sum_total_nodes = sum(qi[1] for qi in queue_info)
+        sum_idle_nodes = sum(qi[2] for qi in queue_info)
+        print(f"Idle nodes left on computer '{computer.label}': {sum_idle_nodes}/{sum_total_nodes}")
 
-    if not with_node_count:
-        idle_nodes = [pn[0] for pn in idle_nodes]
-
-    return idle_nodes
+    # Format output based on parameters
+    if not with_node_count and not with_arch:
+        # Return just queue names
+        return [qi[0] for qi in queue_info]
+    elif not with_node_count and with_arch:
+        # Return [queue_name, architecture]
+        return [[qi[0], qi[3]] for qi in queue_info]
+    elif with_node_count and not with_arch:
+        # Return [queue_name, total_nodes, idle_nodes]
+        return [[qi[0], qi[1], qi[2]] for qi in queue_info]
+    else:
+        # Return [queue_name, total_nodes, idle_nodes, architecture]
+        return queue_info
 
 
 def get_queue_architecture(computer: _orm.Computer,
@@ -160,19 +203,25 @@ def get_queue_architecture(computer: _orm.Computer,
 def get_least_occupied_queue(computer: _orm.Computer,
                              gpu: bool = None,
                              with_node_count: bool = True,
-                             silent: bool = False) -> _typing.Union[_typing.Tuple[str, int], str]:
+                             silent: bool = False) -> _typing.Union[_typing.Tuple[str, int, int], str]:
     """Get name of the remote computer (cluster's) queue (slurm: partition) with the highest number of idle nodes.
 
     Works with any computer that uses SLURM scheduler.
 
     :param computer: aiida computer.
     :param gpu: False: exclude gpu queues. True exclude non-gpu queues. None: ignore this option.
-    :param with_node_count: True: queue name with idle nodes count, False: just queue name.
+    :param with_node_count: True: return tuple of (queue_name, total_nodes, idle_nodes), False: just queue name.
     :param silent: True: do not print out any info.
-    :return: tuple of queue name, idle nodes count, or just queue name
+    :return: tuple of (queue_name, total_nodes, idle_nodes) or just queue name
     :raise: NotImplementedError if computer does not use SLURM scheduler.
     """
-    idle_nodes = get_queues(computer=computer, gpu=gpu, with_node_count=True, silent=silent)
+    queues = get_queues(computer=computer, gpu=gpu, with_node_count=True, with_arch=False, silent=silent)
     # if anything is left, get the first queue (ie the one with most idle nodes)
-    queue_name, idle_nodes_count = idle_nodes[0] if idle_nodes else (None, None)
-    return (queue_name, idle_nodes_count) if with_node_count else queue_name
+    if queues:
+        queue_info = queues[0]  # [queue_name, total_nodes, idle_nodes]
+        queue_name = queue_info[0]
+        total_nodes = queue_info[1]
+        idle_nodes_count = queue_info[2]
+        return (queue_name, total_nodes, idle_nodes_count) if with_node_count else queue_name
+    else:
+        return (None, None, None) if with_node_count else None

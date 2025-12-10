@@ -81,7 +81,7 @@ def test_get_computers_with_pattern(computer_label, aiida_profile):
 @pytest.mark.requires_computer
 @pytest.mark.slow
 def test_get_queues_with_real_computer(computer_label, aiida_profile):
-    """Test get_queues returns queue information for a real SLURM computer."""
+    """Test get_queues returns queue names for a real SLURM computer."""
     from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
 
     computers = get_computers(computer_label)
@@ -98,8 +98,109 @@ def test_get_queues_with_real_computer(computer_label, aiida_profile):
 
     assert isinstance(queues, list)
     assert len(queues) > 0
-    # Queues should be strings
+    # Queues should be strings when with_node_count=False
     assert all(isinstance(q, str) for q in queues)
+
+
+@pytest.mark.integration
+@pytest.mark.requires_computer
+@pytest.mark.slow
+def test_get_queues_with_node_counts(computer_label, aiida_profile):
+    """Test get_queues returns node count information."""
+    from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
+
+    computers = get_computers(computer_label)
+    if not computers:
+        pytest.skip(f"Computer '{computer_label}' not found")
+
+    computer = computers[0]
+
+    if not is_slurm_computer(computer):
+        pytest.skip(f"Computer '{computer.label}' is not a SLURM computer")
+
+    # Get queues with node counts
+    queues = get_queues(computer, with_node_count=True, with_arch=False, silent=True)
+
+    assert isinstance(queues, list)
+    assert len(queues) > 0
+
+    # Each entry should be [queue_name, total_nodes, idle_nodes]
+    for queue_info in queues:
+        assert isinstance(queue_info, list)
+        assert len(queue_info) == 3
+        assert isinstance(queue_info[0], str)  # queue_name
+        assert isinstance(queue_info[1], int)  # total_nodes
+        assert isinstance(queue_info[2], int)  # idle_nodes
+        # idle_nodes should be <= total_nodes
+        assert queue_info[2] <= queue_info[1]
+
+
+@pytest.mark.integration
+@pytest.mark.requires_computer
+@pytest.mark.slow
+def test_get_queues_with_architecture(computer_label, aiida_profile):
+    """Test get_queues returns architecture information."""
+    from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
+
+    computers = get_computers(computer_label)
+    if not computers:
+        pytest.skip(f"Computer '{computer_label}' not found")
+
+    computer = computers[0]
+
+    if not is_slurm_computer(computer):
+        pytest.skip(f"Computer '{computer.label}' is not a SLURM computer")
+
+    # Get queues with architecture but no node counts
+    queues = get_queues(computer, with_node_count=False, with_arch=True, silent=True)
+
+    assert isinstance(queues, list)
+    assert len(queues) > 0
+
+    # Each entry should be [queue_name, architecture]
+    for queue_info in queues:
+        assert isinstance(queue_info, list)
+        assert len(queue_info) == 2
+        assert isinstance(queue_info[0], str)  # queue_name
+        assert isinstance(queue_info[1], str)  # architecture
+        # Architecture should be AMD, intel, or unknown
+        assert queue_info[1] in ['AMD', 'intel', 'unknown']
+
+
+@pytest.mark.integration
+@pytest.mark.requires_computer
+@pytest.mark.slow
+def test_get_queues_with_full_info(computer_label, aiida_profile):
+    """Test get_queues returns complete information (node counts + architecture)."""
+    from aiida_jutools.computer.util import get_computers, get_queues, is_slurm_computer
+
+    computers = get_computers(computer_label)
+    if not computers:
+        pytest.skip(f"Computer '{computer_label}' not found")
+
+    computer = computers[0]
+
+    if not is_slurm_computer(computer):
+        pytest.skip(f"Computer '{computer.label}' is not a SLURM computer")
+
+    # Get queues with both node counts and architecture
+    queues = get_queues(computer, with_node_count=True, with_arch=True, silent=True)
+
+    assert isinstance(queues, list)
+    assert len(queues) > 0
+
+    # Each entry should be [queue_name, total_nodes, idle_nodes, architecture]
+    for queue_info in queues:
+        assert isinstance(queue_info, list)
+        assert len(queue_info) == 4
+        assert isinstance(queue_info[0], str)  # queue_name
+        assert isinstance(queue_info[1], int)  # total_nodes
+        assert isinstance(queue_info[2], int)  # idle_nodes
+        assert isinstance(queue_info[3], str)  # architecture
+        # idle_nodes should be <= total_nodes
+        assert queue_info[2] <= queue_info[1]
+        # Architecture should be AMD, intel, or unknown
+        assert queue_info[3] in ['AMD', 'intel', 'unknown']
 
 
 # ============================================================================
