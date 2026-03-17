@@ -19,7 +19,8 @@ import typing as _typing
 
 import pandas as _pd
 from aiida import orm as _orm
-from aiida.cmdline.utils.query import calculation as _aiida_cmdline_calculation
+# from aiida.cmdline.utils.query import calculation as _aiida_cmdline_calculation # deprecated
+from aiida.tools.query import calculation as _aiida_tools_query_calculation
 from aiida.common import timezone as _aiida_timezone
 from aiida.engine import processes as _aiida_processes
 from plumpy import ProcessState as _PS
@@ -185,7 +186,8 @@ def query_processes(label: str = None,
     filters = {}
     # Use CalculationQueryBuilder (CQB) to build filters.
     # This offers many conveniences, but also limitations. We will deal with the latter manually.
-    builder = _aiida_cmdline_calculation.CalculationQueryBuilder()
+    # builder = _aiida_cmdline_calculation.CalculationQueryBuilder() # deprecated
+    builder = _aiida_tools_query_calculation.CalculationQueryBuilder()
     if exit_statuses:
         process_states = ['finished']
     filters = builder.get_filters(failed=failed, process_state=process_states, process_label=process_label,
