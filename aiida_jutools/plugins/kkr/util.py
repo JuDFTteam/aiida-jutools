@@ -152,7 +152,9 @@ def find_Rcut(structure: _orm.StructureData,
 
     rcut = rcut_init
     nc = 0
-    while nc < shell_count:
+    # '<=', not '<': the trim below brackets the requested shell against the next one out,
+    # so the loop must overshoot by one shell for that bracketing shell to exist.
+    while nc <= shell_count:
         dists = struc_pmg.get_neighbor_list(rcut, sites=[struc_pmg.sites[0]])[-1]
         dists = [_np.round(i, 5) for i in dists]
         dists.sort()
