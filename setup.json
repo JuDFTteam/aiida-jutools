@@ -33,6 +33,9 @@
     ],
     "extras_require": {
         "pre-commit": [
+        ],
+        "kkr": [
+            "aiida-kkr"
         ]
     },
     "entry_points": {

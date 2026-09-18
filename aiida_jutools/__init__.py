@@ -17,7 +17,8 @@ We recommended to use this library with the import statement ``import aiida_juto
 you can then call all available tools like so: ``jutools.package.tool()``.
 
 Plugin tools are not loaded globally, as they might not be installed. Instead, import as needed. Example for the
-plugin aiida-kkr: ``import aiida_jutools.plugins.kkr as jutools_kkr``.
+plugin aiida-kkr: ``import aiida_jutools.plugins.kkr as jutools_kkr``. That subpackage needs aiida-kkr itself, which
+is an optional dependency: ``pip install aiida-jutools[kkr]``.
 """
 __version__ = "0.1.3"
 
