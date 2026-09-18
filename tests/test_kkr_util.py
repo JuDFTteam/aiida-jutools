@@ -33,8 +33,9 @@ def test_find_Rcut_trims_when_growth_loop_lands_exactly_on_shell_count(aiida_pro
     """Regression guard: barium bcc used to return the untrimmed 12 A instead of ~6.06 A.
 
     The growth loop lands exactly on shell_count=2 for this lattice, which used to skip
-    the trim and return rcut_init + 5 -- a radius that was never even measured, giving a
-    cluster of order a hundred sites where nineteen were intended.
+    the trim and return rcut_init + 5 -- a radius that was never even measured. Measured
+    on a real barium cell, that gave a 113-site cluster where the intended two shells are
+    15 sites (1 + 8 + 6 for bcc; the fcc count is 19).
     """
     from aiida_jutools.plugins.kkr.util import find_Rcut
 
