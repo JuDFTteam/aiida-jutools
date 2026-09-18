@@ -19,7 +19,7 @@ you can then call all available tools like so: ``jutools.package.tool()``.
 Plugin tools are not loaded globally, as they might not be installed. Instead, import as needed. Example for the
 plugin aiida-kkr: ``import aiida_jutools.plugins.kkr as jutools_kkr``.
 """
-__version__ = "0.1.0-dev1"
+__version__ = "0.1.3"
 
 # Import all of the library's user packages.
 from . import code
